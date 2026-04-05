@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #0D2B4E;
+  --color-sky: #7BB8E8;
+  --color-ice: #E8F4FC;
+}
+
+:root {
+  color-scheme: light;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #E8F4FC;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
