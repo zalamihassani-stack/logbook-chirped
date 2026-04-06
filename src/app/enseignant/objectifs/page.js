@@ -16,7 +16,7 @@ export default async function ObjectifsPage({ searchParams }) {
   if (!user) redirect('/login')
 
   const params = await searchParams
-  const year = parseInt(params?.year ?? '1')
+  const year = params?.year ? parseInt(params.year) : 1
   const filterCat = params?.cat ?? ''
   const filterLevel = params?.level ?? ''
 
@@ -29,27 +29,22 @@ export default async function ObjectifsPage({ searchParams }) {
 
   const all = allObjectives ?? []
 
-  // Pour chaque (procedure, level), trouver la première année où ce niveau apparaît
-  // Un geste s'affiche en année N au niveau L seulement si c'est la première fois
-  // qu'il atteint ce niveau (pas de (procedure, level) identique dans une année < N)
-  const firstYearAtLevel = new Map() // clé = "procedureId_level"
+  // Pour chaque (procedure, level), 1ère année où ce niveau apparaît
+  const firstYearAtLevel = new Map()
   for (const o of all) {
     const pid = o.procedures?.id
     if (!pid) continue
     const key = `${pid}_${o.required_level}`
     const current = firstYearAtLevel.get(key)
-    if (current === undefined || o.year < current) {
-      firstYearAtLevel.set(key, o.year)
-    }
+    if (current === undefined || o.year < current) firstYearAtLevel.set(key, o.year)
   }
 
-  // Objectifs de l'année sélectionnée : gestes qui atteignent ce niveau pour la 1ère fois
+  // Gestes nouvellement introduits cette année à ce niveau
   const yearObjectives = all.filter(o => {
     if (o.year !== year) return false
     const pid = o.procedures?.id
     if (!pid) return false
-    const key = `${pid}_${o.required_level}`
-    if (firstYearAtLevel.get(key) !== year) return false
+    if (firstYearAtLevel.get(`${pid}_${o.required_level}`) !== year) return false
     if (filterCat && o.procedures?.category_id !== filterCat) return false
     if (filterLevel && String(o.required_level) !== filterLevel) return false
     return true
@@ -59,7 +54,7 @@ export default async function ObjectifsPage({ searchParams }) {
     <div className="p-5 md:p-8 max-w-3xl">
       <PageHeader
         title="Objectifs de formation"
-        subtitle={`${yearObjectives.length} geste(s) — Année ${year}`}
+        subtitle={`${yearObjectives.length} geste(s) introduits en année ${year}`}
       />
 
       <ObjectifsFilters

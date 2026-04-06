@@ -7,7 +7,7 @@ export default function ObjectifsFilters({ year, filterCat, filterLevel, categor
   function navigate(overrides) {
     const p = new URLSearchParams({
       year,
-      ...(filterCat && { cat: filterCat }),
+      ...(filterCat   && { cat:   filterCat }),
       ...(filterLevel && { level: filterLevel }),
       ...overrides,
     })
