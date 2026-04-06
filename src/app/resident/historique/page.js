@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
+import ExportGestesButton from './ExportGestesButton'
 import { formatDate, PARTICIPATION_LEVELS } from '@/lib/utils'
 import { ChevronRight } from 'lucide-react'
 
@@ -11,39 +12,53 @@ export default async function HistoriquePage({ searchParams }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+
   const params = await searchParams
   const filterStatus = params?.status ?? ''
   const filterProc = params?.procedure ?? ''
+  const filterEnseignant = params?.enseignant ?? ''
 
   let query = supabase
     .from('realisations')
-    .select('id, performed_at, participation_level, status, ipp_patient, procedures(id, name), profiles!enseignant_id(full_name)')
+    .select('id, performed_at, participation_level, status, ipp_patient, enseignant_id, procedures(id, name), profiles!enseignant_id(id, full_name)')
     .eq('resident_id', user.id)
     .order('performed_at', { ascending: false })
 
   if (filterStatus) query = query.eq('status', filterStatus)
   if (filterProc) query = query.eq('procedure_id', filterProc)
+  if (filterEnseignant) query = query.eq('enseignant_id', filterEnseignant)
 
-  const { data: realisations } = await query
-  const { data: procedures } = await supabase.from('procedures').select('id, name').eq('is_active', true).order('name')
+  const [{ data: realisations }, { data: procedures }, { data: enseignants }] = await Promise.all([
+    query,
+    supabase.from('procedures').select('id, name').eq('is_active', true).order('name'),
+    supabase.from('profiles').select('id, full_name').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
+  ])
 
   return (
     <div className="p-5 md:p-8 max-w-3xl">
-      <PageHeader title="Mes réalisations" subtitle={`${realisations?.length ?? 0} acte(s)`} />
+      <PageHeader title="Mes réalisations" subtitle={`${realisations?.length ?? 0} acte(s)`}
+        action={<ExportGestesButton residentName={profile?.full_name} />}
+      />
 
       {/* Filtres */}
-      <form className="flex gap-3 mb-5 flex-col sm:flex-row">
+      <form className="flex gap-3 mb-5 flex-col sm:flex-row sm:flex-wrap">
         <select name="status" defaultValue={filterStatus}
-          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
+          className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
           <option value="">Tous les statuts</option>
           <option value="pending">En attente</option>
           <option value="validated">Validés</option>
           <option value="refused">Refusés</option>
         </select>
         <select name="procedure" defaultValue={filterProc}
-          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
+          className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
           <option value="">Tous les gestes</option>
           {procedures?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <select name="enseignant" defaultValue={filterEnseignant}
+          className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
+          <option value="">Tous les enseignants</option>
+          {enseignants?.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
         </select>
         <button type="submit"
           className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: '#0D2B4E' }}>

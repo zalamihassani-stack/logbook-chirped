@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
 import ResubmitForm from './ResubmitForm'
@@ -27,6 +29,10 @@ export default async function DetailRealisationPage({ params }) {
 
   return (
     <div className="p-5 md:p-8 max-w-2xl">
+      <Link href="/resident/historique" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4">
+        <ChevronLeft size={16} strokeWidth={1.75} />
+        Retour
+      </Link>
       <PageHeader title={real.procedures?.name ?? 'Détail réalisation'} subtitle={formatDate(real.performed_at)} />
 
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-5 space-y-3">

@@ -1,10 +1,8 @@
 'use client'
 import { useState } from 'react'
-import Link from 'next/link'
-import { ChevronRight, Plus, X } from 'lucide-react'
-import PageHeader from '@/components/ui/PageHeader'
-import ExportTravauxButton from './ExportTravauxButton'
-import { createTravail } from '@/app/actions/resident'
+import { useRouter } from 'next/navigation'
+import { Pencil, Trash2, X } from 'lucide-react'
+import { updateTravail, deleteTravail } from '@/app/actions/resident'
 
 const STATUS_OPTIONS = [
   { value: 'soumis', label: 'Soumis' },
@@ -13,76 +11,63 @@ const STATUS_OPTIONS = [
   { value: 'presente', label: 'Présenté' },
 ]
 
-const EMPTY = { title: '', type_id: '', journal_or_event: '', year: new Date().getFullYear(), authors: '', doi_or_url: '', status: 'soumis' }
-
-export default function TravauxClient({ initialTravaux, types, residentName }) {
-  const [travaux] = useState(initialTravaux)
-  const [tabType, setTabType] = useState('all')
+export default function TravauxDetailActions({ travail, types }) {
+  const router = useRouter()
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState(EMPTY)
+  const [form, setForm] = useState({
+    title: travail.title,
+    type_id: travail.type_id,
+    journal_or_event: travail.journal_or_event ?? '',
+    year: travail.year,
+    authors: travail.authors ?? '',
+    doi_or_url: travail.doi_or_url ?? '',
+    status: travail.status,
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const filtered = tabType === 'all' ? travaux : travaux.filter(t => t.type_id === tabType)
-
-  function openCreate() { setForm({ ...EMPTY, type_id: types[0]?.id ?? '' }); setError(''); setModal(true) }
-
   async function handleSubmit(e) {
     e.preventDefault(); setLoading(true); setError('')
-    const res = await createTravail(form)
+    const res = await updateTravail(travail.id, form)
     setLoading(false)
     if (res.error) { setError(res.error); return }
-    window.location.reload()
+    setModal(false)
+    router.refresh()
+  }
+
+  async function handleDelete() {
+    if (!confirm('Supprimer ce travail ?')) return
+    setLoading(true)
+    await deleteTravail(travail.id)
+    router.push('/resident/travaux')
   }
 
   return (
     <>
-      <PageHeader title="Travaux scientifiques" subtitle={`${travaux.length} travail(x)`} action={
-        <div className="flex gap-2">
-          <ExportTravauxButton residentName={residentName} />
-          <button onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-medium"
-            style={{ backgroundColor: '#0D2B4E' }}>
-            <Plus size={16} /> Ajouter
-          </button>
-        </div>
-      } />
-
-      {/* Tabs par type */}
-      <div className="flex gap-2 mb-5 flex-wrap">
-        <button onClick={() => setTabType('all')}
-          className="px-4 py-1.5 rounded-full text-sm font-medium transition"
-          style={tabType === 'all' ? { backgroundColor: '#0D2B4E', color: 'white' } : { backgroundColor: 'white', color: '#0D2B4E', border: '1px solid #e2e8f0' }}>
-          Tous
+      <div className="flex gap-3">
+        <button
+          onClick={() => setModal(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50"
+          style={{ color: '#0D2B4E' }}
+        >
+          <Pencil size={15} strokeWidth={1.75} />
+          Modifier
         </button>
-        {types.map(t => (
-          <button key={t.id} onClick={() => setTabType(t.id)}
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition"
-            style={tabType === t.id
-              ? { backgroundColor: t.color_hex, color: 'white' }
-              : { backgroundColor: t.color_hex + '20', color: t.color_hex, border: `1px solid ${t.color_hex}40` }}>
-            {t.name}
-          </button>
-        ))}
+        <button
+          onClick={handleDelete}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-red-100 bg-red-50 hover:bg-red-100 text-red-600"
+        >
+          <Trash2 size={15} strokeWidth={1.75} />
+          Supprimer
+        </button>
       </div>
 
-      <div className="space-y-2">
-        {filtered.map(t => (
-          <Link key={t.id} href={`/resident/travaux/${t.id}`}
-            className="flex items-center justify-between bg-white rounded-2xl px-4 py-3.5 shadow-sm border border-slate-100 hover:border-slate-200 transition-colors">
-            <p className="text-sm font-semibold text-slate-800 leading-snug flex-1 min-w-0 pr-3">{t.title}</p>
-            <ChevronRight size={16} className="text-slate-400 flex-shrink-0" />
-          </Link>
-        ))}
-        {filtered.length === 0 && <p className="text-center text-sm text-slate-400 py-8">Aucun travail enregistré</p>}
-      </div>
-
-      {/* Modal création */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-lg" style={{ color: '#0D2B4E' }}>Ajouter un travail</h2>
+              <h2 className="font-bold text-lg" style={{ color: '#0D2B4E' }}>Modifier</h2>
               <button onClick={() => setModal(false)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">

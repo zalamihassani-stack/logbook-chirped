@@ -90,6 +90,7 @@ export async function updateTravail(id, data) {
     .eq('id', id).eq('resident_id', user.id)
   if (error) return { error: error.message }
   revalidatePath('/resident/travaux')
+  revalidatePath(`/resident/travaux/${id}`)
   return { success: true }
 }
 
