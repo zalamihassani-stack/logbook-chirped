@@ -120,8 +120,32 @@ export default function AppLayout({ profile, children }) {
         </div>
       </aside>
 
+      {/* ── Header mobile ── */}
+      <header
+        className="fixed top-0 left-0 right-0 flex md:hidden items-center justify-between px-4 h-12 z-40 border-b"
+        style={{ backgroundColor: '#0D2B4E', borderColor: 'rgba(255,255,255,0.1)' }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+            style={{ backgroundColor: '#7BB8E8', color: '#0D2B4E' }}>
+            {getInitials(profile?.full_name)}
+          </div>
+          <span className="text-white text-xs font-medium truncate max-w-[160px]">
+            {profile?.full_name ?? '—'}
+          </span>
+        </div>
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors"
+          style={{ color: 'rgba(255,255,255,0.65)' }}
+        >
+          <LogOut size={14} strokeWidth={1.75} />
+          Déconnexion
+        </button>
+      </header>
+
       {/* ── Contenu ── */}
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <main className="flex-1 overflow-y-auto pb-20 pt-12 md:pt-0 md:pb-0">
         {children}
       </main>
 
