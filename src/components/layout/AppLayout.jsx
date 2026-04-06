@@ -18,9 +18,9 @@ const NAV = {
     { label: 'Réglages',     icon: Settings,        path: '/admin/reglages' },
   ],
   enseignant: [
-    { label: 'Accueil',    icon: LayoutDashboard, path: '/enseignant' },
     { label: 'Demandes',   icon: ClipboardList,   path: '/enseignant/demandes' },
     { label: 'Résidents',  icon: UserCheck,       path: '/enseignant/residents' },
+    { label: 'Accueil',    icon: LayoutDashboard, path: '/enseignant', home: true },
     { label: 'Gestes',     icon: Scissors,        path: '/enseignant/gestes' },
     { label: 'Objectifs',  icon: Target,          path: '/enseignant/objectifs' },
   ],
@@ -130,8 +130,30 @@ export default function AppLayout({ profile, children }) {
         className="fixed bottom-0 left-0 right-0 flex md:hidden border-t z-50"
         style={{ backgroundColor: '#0D2B4E', borderColor: 'rgba(255,255,255,0.12)' }}
       >
-        {navItems.map(({ label, icon: Icon, path }) => {
+        {navItems.map(({ label, icon: Icon, path, home }) => {
           const active = isActive(path)
+          if (home) {
+            return (
+              <Link
+                key={path}
+                href={path}
+                className="flex flex-col items-center justify-center flex-1 py-1.5 gap-0.5 relative"
+              >
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center -mt-5 shadow-lg border-2"
+                  style={{
+                    backgroundColor: active ? '#7BB8E8' : '#2563eb',
+                    borderColor: '#0D2B4E',
+                  }}
+                >
+                  <Icon size={22} strokeWidth={active ? 2.25 : 1.75} color="white" />
+                </div>
+                <span className="text-[10px] leading-none" style={{ color: active ? '#7BB8E8' : 'rgba(255,255,255,0.7)' }}>
+                  {label}
+                </span>
+              </Link>
+            )
+          }
           return (
             <Link
               key={path}

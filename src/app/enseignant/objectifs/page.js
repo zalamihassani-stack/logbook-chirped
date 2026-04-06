@@ -42,10 +42,6 @@ export default async function ObjectifsPage({ searchParams }) {
         subtitle={`${filtered.length} geste(s) — Année ${year}`}
       />
 
-      <div className="rounded-xl bg-sky-50 border border-sky-200 px-4 py-3 text-sm text-sky-700 mb-5">
-        Consultation en lecture seule. Les objectifs sont définis par l'administrateur.
-      </div>
-
       <ObjectifsFilters
         year={year}
         filterCat={filterCat}

@@ -27,17 +27,21 @@ export default async function EnseignantDashboard() {
   ])
 
   const metrics = [
-    { label: 'En attente', value: pendingRes.count, icon: ClipboardList, iconBg: '#fef9c3', iconColor: '#854d0e' },
-    { label: 'Validés ce mois', value: validatedRes.count, icon: CheckCircle, iconBg: '#dcfce7', iconColor: '#166534' },
-    { label: 'Résidents actifs', value: residentsRes.count, icon: UserCheck, iconBg: '#E8F4FC', iconColor: '#0D2B4E' },
-    { label: 'Refusés ce mois', value: refusedRes.count, icon: XCircle, iconBg: '#fee2e2', iconColor: '#991b1b' },
+    { label: 'En attente', value: pendingRes.count, icon: ClipboardList, iconBg: '#fef9c3', iconColor: '#854d0e', href: '/enseignant/demandes?status=pending' },
+    { label: 'Validés ce mois', value: validatedRes.count, icon: CheckCircle, iconBg: '#dcfce7', iconColor: '#166534', href: '/enseignant/demandes?status=validated' },
+    { label: 'Résidents actifs', value: residentsRes.count, icon: UserCheck, iconBg: '#E8F4FC', iconColor: '#0D2B4E', href: '/enseignant/residents' },
+    { label: 'Refusés ce mois', value: refusedRes.count, icon: XCircle, iconBg: '#fee2e2', iconColor: '#991b1b', href: '/enseignant/demandes?status=refused' },
   ]
 
   return (
     <div className="p-5 md:p-8 max-w-4xl">
       <PageHeader title="Tableau de bord" subtitle="Vos demandes et résidents" />
       <div className="grid grid-cols-2 gap-3 mb-8 md:grid-cols-4">
-        {metrics.map(m => <MetricCard key={m.label} {...m} />)}
+        {metrics.map(m => (
+          <Link key={m.label} href={m.href} className="block hover:scale-[1.02] transition-transform active:scale-[0.98]">
+            <MetricCard {...m} />
+          </Link>
+        ))}
       </div>
       <h2 className="text-base font-semibold mb-3" style={{ color: '#0D2B4E' }}>Dernières demandes en attente</h2>
       <div className="space-y-2">

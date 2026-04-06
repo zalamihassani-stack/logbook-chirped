@@ -7,6 +7,9 @@ import Badge from '@/components/ui/Badge'
 import { formatDate, PARTICIPATION_LEVELS } from '@/lib/utils'
 import { ChevronRight } from 'lucide-react'
 
+const STATUS_LABELS = { pending: 'En attente', validated: 'Validés', refused: 'Refusés' }
+const STATUS_ORDER = { pending: 0, validated: 1, refused: 2 }
+
 export default async function DemandesPage({ searchParams }) {
   const supabase = await createClient()
   const admin = createAdminClient()
@@ -14,16 +17,17 @@ export default async function DemandesPage({ searchParams }) {
   if (!user) redirect('/login')
 
   const params = await searchParams
+  const filterStatus = params?.status ?? ''
   const filterResident = params?.resident ?? ''
   const filterProcedure = params?.procedure ?? ''
 
   let query = admin
     .from('realisations')
-    .select('id, performed_at, participation_level, ipp_patient, procedures(id, name), resident:profiles!resident_id(id, full_name)')
+    .select('id, performed_at, participation_level, ipp_patient, status, procedures(id, name), resident:profiles!resident_id(id, full_name)')
     .eq('enseignant_id', user.id)
-    .eq('status', 'pending')
     .order('created_at', { ascending: false })
 
+  if (filterStatus) query = query.eq('status', filterStatus)
   if (filterResident) query = query.eq('resident_id', filterResident)
   if (filterProcedure) query = query.eq('procedure_id', filterProcedure)
 
@@ -31,12 +35,53 @@ export default async function DemandesPage({ searchParams }) {
   const { data: residents } = await admin.from('profiles').select('id, full_name').eq('role', 'resident').order('full_name')
   const { data: procedures } = await supabase.from('procedures').select('id, name').eq('is_active', true).order('name')
 
+  // Pending en premier si pas de filtre de statut
+  const sorted = filterStatus
+    ? (realisations ?? [])
+    : [...(realisations ?? [])].sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
+
+  const counts = {
+    pending: (realisations ?? []).filter(r => r.status === 'pending').length,
+    validated: (realisations ?? []).filter(r => r.status === 'validated').length,
+    refused: (realisations ?? []).filter(r => r.status === 'refused').length,
+  }
+
   return (
     <div className="p-5 md:p-8 max-w-3xl">
-      <PageHeader title="Demandes en attente" subtitle={`${realisations?.length ?? 0} demande(s)`} />
+      <PageHeader
+        title="Demandes"
+        subtitle={`${sorted.length} demande(s)${filterStatus ? ` · ${STATUS_LABELS[filterStatus]}` : ''}`}
+      />
 
-      {/* Filtres */}
+      {/* Onglets statut */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[
+          { value: '', label: 'Toutes' },
+          { value: 'pending', label: `En attente (${counts.pending})` },
+          { value: 'validated', label: `Validées (${counts.validated})` },
+          { value: 'refused', label: `Refusées (${counts.refused})` },
+        ].map(tab => {
+          const isActive = filterStatus === tab.value
+          const params = new URLSearchParams({ ...(filterResident && { resident: filterResident }), ...(filterProcedure && { procedure: filterProcedure }), ...(tab.value && { status: tab.value }) })
+          return (
+            <Link
+              key={tab.value}
+              href={`/enseignant/demandes${params.toString() ? '?' + params.toString() : ''}`}
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+              style={isActive
+                ? { backgroundColor: '#0D2B4E', color: 'white' }
+                : { backgroundColor: 'white', color: '#475569', border: '1px solid #e2e8f0' }
+              }
+            >
+              {tab.label}
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Filtres résident / geste */}
       <form className="flex gap-3 mb-5 flex-col sm:flex-row">
+        {filterStatus && <input type="hidden" name="status" value={filterStatus} />}
         <select name="resident" defaultValue={filterResident}
           className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
           <option value="">Tous les résidents</option>
@@ -54,7 +99,7 @@ export default async function DemandesPage({ searchParams }) {
       </form>
 
       <div className="space-y-2">
-        {(realisations ?? []).map(r => (
+        {sorted.map(r => (
           <Link key={r.id} href={`/enseignant/demandes/${r.id}`}
             className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
             <div className="flex-1 min-w-0">
@@ -64,12 +109,12 @@ export default async function DemandesPage({ searchParams }) {
               </p>
               {r.ipp_patient && <p className="text-xs text-slate-400 mt-0.5">IPP : {r.ipp_patient}</p>}
             </div>
-            <Badge status="pending" />
+            <Badge status={r.status} />
             <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
           </Link>
         ))}
-        {(realisations ?? []).length === 0 && (
-          <p className="text-center text-sm text-slate-400 py-8">Aucune demande en attente</p>
+        {sorted.length === 0 && (
+          <p className="text-center text-sm text-slate-400 py-8">Aucune demande</p>
         )}
       </div>
     </div>
