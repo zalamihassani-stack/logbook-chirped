@@ -1,17 +1,17 @@
 'use client'
 import { useRouter } from 'next/navigation'
 
-export default function ObjectifsFilters({ year, filterCat, categories, tab }) {
+export default function ObjectifsFilters({ year, filterCat, filterLevel, categories }) {
   const router = useRouter()
 
   function navigate(overrides) {
     const p = new URLSearchParams({
-      tab,
       year,
       ...(filterCat && { cat: filterCat }),
+      ...(filterLevel && { level: filterLevel }),
       ...overrides,
     })
-    ;['cat'].forEach(k => { if (p.get(k) === '') p.delete(k) })
+    ;['cat', 'level'].forEach(k => { if (p.get(k) === '') p.delete(k) })
     router.push(`/enseignant/objectifs?${p}`)
   }
 
@@ -25,6 +25,17 @@ export default function ObjectifsFilters({ year, filterCat, categories, tab }) {
         {[1, 2, 3, 4, 5].map(y => (
           <option key={y} value={y}>Année {y}</option>
         ))}
+      </select>
+      <select
+        value={filterLevel}
+        onChange={e => navigate({ level: e.target.value })}
+        className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white"
+      >
+        <option value="">Tous les niveaux</option>
+        <option value="4">Autonome</option>
+        <option value="3">Sous supervision</option>
+        <option value="2">Aide opératoire</option>
+        <option value="1">Observation</option>
       </select>
       <select
         value={filterCat}
