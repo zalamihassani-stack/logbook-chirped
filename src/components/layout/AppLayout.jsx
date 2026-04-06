@@ -6,7 +6,7 @@ import { getInitials, ROLE_LABELS } from '@/lib/utils'
 import {
   LayoutDashboard, Users, Scissors, Database, Settings,
   ClipboardList, UserCheck, Target, BookOpen,
-  PlusCircle, History, FlaskConical, LogOut,
+  Plus, History, FlaskConical, LogOut, UserCircle,
 } from 'lucide-react'
 
 const NAV = {
@@ -25,11 +25,11 @@ const NAV = {
     { label: 'Objectifs',  icon: Target,          path: '/enseignant/objectifs' },
   ],
   resident: [
-    { label: 'Accueil',     icon: LayoutDashboard, path: '/resident' },
-    { label: 'Référentiel', icon: BookOpen,        path: '/resident/referentiel' },
-    { label: 'Nouveau',     icon: PlusCircle,      path: '/resident/nouveau' },
-    { label: 'Historique',  icon: History,         path: '/resident/historique' },
-    { label: 'Travaux',     icon: FlaskConical,    path: '/resident/travaux' },
+    { label: 'Objectifs',  icon: BookOpen,        path: '/resident/referentiel' },
+    { label: 'Historique', icon: History,         path: '/resident/historique' },
+    { label: 'Accueil',    icon: LayoutDashboard, path: '/resident', home: true },
+    { label: 'Travaux',    icon: FlaskConical,    path: '/resident/travaux' },
+    { label: 'Profil',     icon: UserCircle,      path: '/resident/profil' },
   ],
 }
 
@@ -148,6 +148,23 @@ export default function AppLayout({ profile, children }) {
       <main className="flex-1 overflow-y-auto pb-20 pt-12 md:pt-0 md:pb-0">
         {children}
       </main>
+
+      {/* ── FAB Nouveau geste (résident, mobile) ── */}
+      {role === 'resident' && (
+        <a
+          href="/resident/nouveau"
+          className="fixed md:hidden z-40 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg"
+          style={{
+            bottom: '72px',
+            right: '16px',
+            backgroundColor: '#0D2B4E',
+            color: 'white',
+          }}
+        >
+          <Plus size={18} strokeWidth={2} />
+          <span className="text-sm font-medium">Nouveau geste</span>
+        </a>
+      )}
 
       {/* ── Bottom nav mobile ── */}
       <nav

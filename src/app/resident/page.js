@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import MetricCard from '@/components/ui/MetricCard'
 import PageHeader from '@/components/ui/PageHeader'
 import { getResidentYear } from '@/lib/utils'
@@ -45,10 +46,10 @@ export default async function ResidentDashboard() {
   }).filter(c => c.required > 0)
 
   const metrics = [
-    { label: 'Actes validés', value: stats.validated, icon: CheckCircle, iconBg: '#dcfce7', iconColor: '#166534' },
-    { label: 'En attente', value: stats.pending, icon: Clock, iconBg: '#fef9c3', iconColor: '#854d0e' },
-    { label: 'Total actes', value: stats.total, icon: FileText, iconBg: '#E8F4FC', iconColor: '#0D2B4E' },
-    { label: 'Refusés', value: stats.refused, icon: XCircle, iconBg: '#fee2e2', iconColor: '#991b1b' },
+    { label: 'Actes validés', value: stats.validated, icon: CheckCircle, iconBg: '#dcfce7', iconColor: '#166534', href: '/resident/historique?status=validated' },
+    { label: 'En attente',    value: stats.pending,   icon: Clock,        iconBg: '#fef9c3', iconColor: '#854d0e', href: '/resident/historique?status=pending' },
+    { label: 'Total actes',   value: stats.total,     icon: FileText,     iconBg: '#E8F4FC', iconColor: '#0D2B4E', href: '/resident/historique' },
+    { label: 'Refusés',       value: stats.refused,   icon: XCircle,      iconBg: '#fee2e2', iconColor: '#991b1b', href: '/resident/historique?status=refused' },
   ]
 
   return (
@@ -56,7 +57,11 @@ export default async function ResidentDashboard() {
       <PageHeader title="Mon tableau de bord" subtitle={`Année ${year} de résidanat`} />
 
       <div className="grid grid-cols-2 gap-3 mb-6 md:grid-cols-4">
-        {metrics.map(m => <MetricCard key={m.label} {...m} />)}
+        {metrics.map(m => (
+          <Link key={m.label} href={m.href} className="block hover:scale-[1.02] transition-transform active:scale-[0.98]">
+            <MetricCard {...m} />
+          </Link>
+        ))}
       </div>
 
       {/* Progression annuelle */}

@@ -54,7 +54,7 @@ export default async function ReferentielPage({ searchParams }) {
   return (
     <div className="p-5 md:p-8 max-w-3xl">
       <PageHeader
-        title="Référentiel"
+        title="Objectifs"
         subtitle={`Année ${year} — ${filtered.length} geste(s)`}
       />
 
