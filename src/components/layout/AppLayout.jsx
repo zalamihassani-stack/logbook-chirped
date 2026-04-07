@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getInitials, ROLE_LABELS } from '@/lib/utils'
 import {
   LayoutDashboard, Users, Scissors, Database, Settings,
-  ClipboardList, UserCheck, Target, BookOpen,
+  ClipboardList, Activity, Target, BookOpen,
   Plus, History, FlaskConical, LogOut, UserCircle,
 } from 'lucide-react'
 
@@ -19,7 +19,7 @@ const NAV = {
   ],
   enseignant: [
     { label: 'Demandes',   icon: ClipboardList,   path: '/enseignant/demandes' },
-    { label: 'Résidents',  icon: UserCheck,       path: '/enseignant/residents' },
+    { label: 'Suivi',      icon: Activity,        path: '/enseignant/suivi' },
     { label: 'Accueil',    icon: LayoutDashboard, path: '/enseignant', home: true },
     { label: 'Gestes',     icon: Scissors,        path: '/enseignant/gestes' },
     { label: 'Objectifs',  icon: Target,          path: '/enseignant/objectifs' },

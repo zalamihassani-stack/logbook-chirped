@@ -104,7 +104,7 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-6">Accès réservé au personnel autorisé</p>
+        <p className="text-center text-xs text-slate-400 mt-6">Application destinée au personnel aux services de chirurgie pédiatrique du CHU de Tanger</p>
       </div>
     </div>
   )
