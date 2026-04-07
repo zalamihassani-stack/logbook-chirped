@@ -42,22 +42,26 @@ export default async function ResidentDashboard() {
     refused: reals.filter(r => r.status === 'refused').length,
   }
 
-  const totalRequired = objectives.reduce((s, o) => s + o.min_count, 0)
-  const progressPct = totalRequired ? Math.min(100, Math.round((stats.validated / totalRequired) * 100)) : 0
+  // Seuls les objectifs supervision (3) ou autonome (4) de l'année, min_count = 1
+  const activeObjectives = objectives.filter(o => o.required_level >= 3)
+  const totalRequired = activeObjectives.length  // min 1 par geste
+  const doneCount = activeObjectives.filter(obj =>
+    validated.some(r => r.procedures?.id === obj.procedure_id)
+  ).length
+  const progressPct = totalRequired ? Math.min(100, Math.round((doneCount / totalRequired) * 100)) : 0
 
-  // Progression par catégorie
+  // Progression par catégorie (supervision + autonome uniquement, min 1)
   const catProgress = categories.map(cat => {
-    const catObjs = objectives.filter(o => o.procedures?.category_id === cat.id)
-    const required = catObjs.reduce((s, o) => s + o.min_count, 0)
-    const done = validated.filter(r => r.procedures?.category_id === cat.id).length
+    const catObjs = activeObjectives.filter(o => o.procedures?.category_id === cat.id)
+    const required = catObjs.length
+    const done = catObjs.filter(obj => validated.some(r => r.procedures?.id === obj.procedure_id)).length
     return { ...cat, required, done }
   }).filter(c => c.required > 0)
 
-  // Objectifs non atteints (< min_count validés)
-  const notMet = objectives.filter(obj => {
-    const done = validated.filter(r => r.procedures?.id === obj.procedure_id).length
-    return done < obj.min_count
-  }).slice(0, 5)
+  // Objectifs non atteints (supervision + autonome, au moins 1 requis)
+  const notMet = activeObjectives.filter(obj =>
+    !validated.some(r => r.procedures?.id === obj.procedure_id)
+  ).slice(0, 5)
 
   const metrics = [
     { label: 'Actes validés', value: stats.validated, icon: CheckCircle, iconBg: '#dcfce7', iconColor: '#166534', href: '/resident/historique?status=validated' },
@@ -83,7 +87,7 @@ export default async function ResidentDashboard() {
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-5">
         <div className="flex justify-between text-sm mb-2">
           <span className="font-semibold" style={{ color: '#0D2B4E' }}>Progression annuelle</span>
-          <span className="text-slate-500">{stats.validated} / {totalRequired} actes requis</span>
+          <span className="text-slate-500">{doneCount} / {totalRequired} objectifs</span>
         </div>
         <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
           <div className="h-full rounded-full transition-all"

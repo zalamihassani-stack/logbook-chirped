@@ -35,7 +35,8 @@ export default async function ResidentFichePage({ params }) {
   if (!resident) notFound()
 
   const year = getResidentYear(resident.residanat_start_date)
-  const yearObjectives = (objectives ?? []).filter(o => o.year === year)
+  // Supervision (3) + autonome (4) uniquement, min_count = 1
+  const yearObjectives = (objectives ?? []).filter(o => o.year === year && o.required_level >= 3)
   const validated = (realisations ?? []).filter(r => r.status === 'validated')
 
   const stats = {
@@ -45,10 +46,10 @@ export default async function ResidentFichePage({ params }) {
     refused: (realisations ?? []).filter(r => r.status === 'refused').length,
   }
 
-  const insufficient = yearObjectives.filter(obj => {
-    const count = validated.filter(r => r.procedures?.id === obj.procedure_id).length
-    return count < obj.min_count
-  })
+  // Objectifs non atteints : au moins 1 realisation validée requise
+  const insufficient = yearObjectives.filter(obj =>
+    !validated.some(r => r.procedures?.id === obj.procedure_id)
+  )
 
   return (
     <div className="p-5 md:p-8 max-w-3xl">
@@ -86,18 +87,25 @@ export default async function ResidentFichePage({ params }) {
       </div>
 
       {/* Progression globale */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-5">
-        <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-          <span>Progression annuelle</span>
-          <span>{stats.validated} / {yearObjectives.length} objectifs</span>
-        </div>
-        <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-          <div className="h-full rounded-full" style={{
-            width: yearObjectives.length ? `${Math.min(100, (stats.validated / yearObjectives.length) * 100)}%` : '0%',
-            backgroundColor: '#0D2B4E',
-          }} />
-        </div>
-      </div>
+      {(() => {
+        const doneCount = yearObjectives.filter(obj => validated.some(r => r.procedures?.id === obj.procedure_id)).length
+        const pct = yearObjectives.length ? Math.min(100, Math.round((doneCount / yearObjectives.length) * 100)) : 0
+        return (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-5">
+            <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+              <span>Progression annuelle (supervision + autonome)</span>
+              <span>{doneCount} / {yearObjectives.length} objectifs</span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full transition-all" style={{
+                width: `${pct}%`,
+                backgroundColor: pct >= 80 ? '#166534' : pct >= 50 ? '#0D2B4E' : '#854d0e',
+              }} />
+            </div>
+            <p className="text-xs text-slate-400 mt-1 text-right">{pct}%</p>
+          </div>
+        )
+      })()}
 
       {/* Gestes insuffisants */}
       {insufficient.length > 0 && (

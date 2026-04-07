@@ -6,8 +6,7 @@ import { Loader2, ChevronRight } from 'lucide-react'
 import { getInitials, getResidentYear } from '@/lib/utils'
 
 export default function ProgressionTab({ residents }) {
-  const [stats, setStats] = useState({})
-  const [travaux, setTravaux] = useState({})
+  const [data, setData] = useState({}) // { residentId: { done, total, pending, travaux } }
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -19,27 +18,60 @@ export default function ProgressionTab({ residents }) {
     const supabase = createClient()
     const ids = residents.map(r => r.id)
 
-    const [realsRes, travauxRes] = await Promise.all([
-      supabase.from('realisations').select('resident_id, status').in('resident_id', ids),
+    // Objectifs supervision (3) + autonome (4) par année, min 1 par geste
+    const [realsRes, travauxRes, objectivesRes] = await Promise.all([
+      supabase.from('realisations').select('resident_id, status, procedure_id').in('resident_id', ids),
       supabase.from('travaux_scientifiques').select('resident_id').in('resident_id', ids),
+      supabase.from('procedure_objectives')
+        .select('procedure_id, year, required_level')
+        .in('required_level', [3, 4]),
     ])
 
-    // Grouper par résident
-    const statsMap = {}
-    for (const r of (realsRes.data ?? [])) {
-      if (!statsMap[r.resident_id]) statsMap[r.resident_id] = { total: 0, validated: 0, pending: 0 }
-      statsMap[r.resident_id].total++
-      if (r.status === 'validated') statsMap[r.resident_id].validated++
-      if (r.status === 'pending')   statsMap[r.resident_id].pending++
+    const reals = realsRes.data ?? []
+    const objectives = objectivesRes.data ?? []
+
+    // Grouper objectifs par année : { year -> Set(procedure_id) }
+    const objByYear = {}
+    for (const o of objectives) {
+      if (!objByYear[o.year]) objByYear[o.year] = new Set()
+      objByYear[o.year].add(o.procedure_id)
     }
 
+    // Grouper realisations validées par résident
+    const validatedByResident = {}
+    const pendingByResident = {}
+    for (const r of reals) {
+      if (r.status === 'validated') {
+        if (!validatedByResident[r.resident_id]) validatedByResident[r.resident_id] = new Set()
+        validatedByResident[r.resident_id].add(r.procedure_id)
+      }
+      if (r.status === 'pending') {
+        pendingByResident[r.resident_id] = (pendingByResident[r.resident_id] ?? 0) + 1
+      }
+    }
+
+    // Grouper travaux
     const travauxMap = {}
     for (const t of (travauxRes.data ?? [])) {
       travauxMap[t.resident_id] = (travauxMap[t.resident_id] ?? 0) + 1
     }
 
-    setStats(statsMap)
-    setTravaux(travauxMap)
+    // Calculer pour chaque résident
+    const result = {}
+    for (const r of residents) {
+      const year = getResidentYear(r.residanat_start_date)
+      const yearProcedures = objByYear[year] ?? new Set()
+      const validatedProcs = validatedByResident[r.id] ?? new Set()
+      const done = [...yearProcedures].filter(pid => validatedProcs.has(pid)).length
+      result[r.id] = {
+        done,
+        total: yearProcedures.size,
+        pending: pendingByResident[r.id] ?? 0,
+        travaux: travauxMap[r.id] ?? 0,
+      }
+    }
+
+    setData(result)
     setLoading(false)
   }
 
@@ -51,38 +83,37 @@ export default function ProgressionTab({ residents }) {
     )
   }
 
-  // Trier : résidents avec actes en attente d'abord, puis par nombre de validés desc
+  // Trier : actes en attente d'abord, puis progression desc
   const sorted = [...residents].sort((a, b) => {
-    const pa = stats[a.id]?.pending ?? 0
-    const pb = stats[b.id]?.pending ?? 0
+    const pa = data[a.id]?.pending ?? 0
+    const pb = data[b.id]?.pending ?? 0
     if (pb !== pa) return pb - pa
-    return (stats[b.id]?.validated ?? 0) - (stats[a.id]?.validated ?? 0)
+    const pctA = data[a.id]?.total ? data[a.id].done / data[a.id].total : 0
+    const pctB = data[b.id]?.total ? data[b.id].done / data[b.id].total : 0
+    return pctB - pctA
   })
 
   return (
     <div>
       <p className="text-xs text-slate-500 mb-4">
-        {residents.length} résident(s) actif(s) · trié par actes en attente puis validés
+        {residents.length} résident(s) actif(s) · progression sur objectifs supervision + autonome (min. 1 par geste)
       </p>
 
-      {/* Grille desktop / liste mobile */}
       <div className="space-y-2">
         {sorted.map(r => {
-          const s = stats[r.id] ?? { total: 0, validated: 0, pending: 0 }
-          const travailCount = travaux[r.id] ?? 0
+          const s = data[r.id] ?? { done: 0, total: 0, pending: 0, travaux: 0 }
           const year = getResidentYear(r.residanat_start_date)
-          const pct = s.total > 0 ? Math.min(100, (s.validated / s.total) * 100) : 0
+          const pct = s.total > 0 ? Math.min(100, Math.round((s.done / s.total) * 100)) : 0
+          const color = pct >= 80 ? '#166534' : pct >= 50 ? '#0D2B4E' : '#854d0e'
 
           return (
             <Link key={r.id} href={`/enseignant/residents/${r.id}`}
               className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4">
-              {/* Avatar */}
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
                 style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
                 {getInitials(r.full_name)}
               </div>
 
-              {/* Infos principales */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <p className="text-sm font-semibold text-slate-800">{r.full_name}</p>
@@ -98,23 +129,18 @@ export default function ProgressionTab({ residents }) {
                   )}
                 </div>
 
-                {/* Barre de progression */}
                 <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-1">
                   <div className="h-full rounded-full transition-all"
-                    style={{ width: `${pct}%`, backgroundColor: pct >= 80 ? '#166534' : pct >= 50 ? '#0D2B4E' : '#854d0e' }} />
+                    style={{ width: `${pct}%`, backgroundColor: color }} />
                 </div>
 
-                {/* Stats inline */}
                 <p className="text-xs text-slate-500">
-                  {s.validated} validés · {s.total} total · {travailCount} travaux
+                  {s.done}/{s.total} objectifs atteints · {s.travaux} travaux
                 </p>
               </div>
 
-              {/* % et chevron */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-sm font-bold" style={{ color: pct >= 80 ? '#166534' : pct >= 50 ? '#0D2B4E' : '#854d0e' }}>
-                  {Math.round(pct)}%
-                </span>
+                <span className="text-sm font-bold" style={{ color }}>{pct}%</span>
                 <ChevronRight size={16} className="text-slate-300" />
               </div>
             </Link>
