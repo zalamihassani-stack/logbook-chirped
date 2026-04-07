@@ -1,20 +1,11 @@
-const CACHE_NAME = 'lcp-v1'
-
-// Ressources à mettre en cache dès l'installation
-const STATIC_ASSETS = [
-  '/',
-  '/login',
-]
+const CACHE_NAME = 'lcp-v2'
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
-  )
+  // Ne pas bloquer l'install sur le cache — évite les échecs si une ressource est indisponible
   self.skipWaiting()
 })
 
 self.addEventListener('activate', event => {
-  // Supprimer les anciens caches
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
@@ -26,18 +17,17 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url)
 
-  // Ignorer les requêtes non-GET et les appels API Supabase
+  // Ignorer les requêtes non-GET, Supabase et API internes
   if (event.request.method !== 'GET') return
   if (url.hostname.includes('supabase.co')) return
   if (url.pathname.startsWith('/api/')) return
+  if (url.pathname.startsWith('/_next/')) return
 
-  // Stratégie Network First pour les pages dynamiques
-  // → essaie le réseau, repli sur le cache si offline
+  // Network First : réseau en priorité, cache en fallback
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Mettre en cache les réponses réussies
-        if (response && response.status === 200) {
+        if (response && response.status === 200 && response.type !== 'opaque') {
           const clone = response.clone()
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone))
         }

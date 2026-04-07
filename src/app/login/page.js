@@ -42,27 +42,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#E8F4FC' }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#0D2B4E' }}>
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mb-4 shadow-lg"
-            style={{ backgroundColor: '#0D2B4E' }}
-          >
-            <span className="text-white font-bold text-2xl tracking-widest">LCP</span>
-          </div>
-          <h1 className="text-xl font-bold text-center" style={{ color: '#0D2B4E' }}>
+          <img src="/logo.png" alt="LCP" className="w-24 h-24 object-contain mb-4" />
+          <h1 className="text-xl font-bold text-center text-white">
             Logbook Chirurgie Pédiatrique
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Connectez-vous à votre espace</p>
+          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.55)' }}>Connectez-vous à votre espace</p>
         </div>
 
         {/* Formulaire */}
-        <div className="bg-white rounded-2xl shadow-md p-8">
+        <div className="rounded-2xl shadow-xl p-8" style={{ backgroundColor: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: '#0D2B4E' }}>
+              <label className="block text-sm font-medium mb-1.5 text-white/80">
                 Email
               </label>
               <input
@@ -72,11 +67,12 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 placeholder="votre@email.com"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none transition text-white placeholder-white/30"
+                style={{ backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: '#0D2B4E' }}>
+              <label className="block text-sm font-medium mb-1.5 text-white/80">
                 Mot de passe
               </label>
               <input
@@ -86,25 +82,28 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none transition text-white placeholder-white/30"
+                style={{ backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}
               />
             </div>
             {error && (
-              <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+              <div className="text-sm text-red-300 bg-red-900/40 border border-red-500/40 rounded-lg px-4 py-2.5">
                 {error}
               </div>
             )}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-lg text-white font-medium text-sm transition active:scale-95 disabled:opacity-60"
-              style={{ backgroundColor: '#0D2B4E' }}
+              className="w-full py-2.5 rounded-lg font-medium text-sm transition active:scale-95 disabled:opacity-60"
+              style={{ backgroundColor: '#7BB8E8', color: '#0D2B4E' }}
             >
               {loading ? 'Connexion…' : 'Se connecter'}
             </button>
           </form>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-6">Application destinée au personnel aux services de chirurgie pédiatrique du CHU de Tanger</p>
+        <p className="text-center text-xs mt-6" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          Application destinée au personnel aux services de chirurgie pédiatrique du CHU de Tanger
+        </p>
       </div>
     </div>
   )

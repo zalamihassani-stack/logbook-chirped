@@ -33,7 +33,7 @@ const NAV = {
   ],
 }
 
-export default function AppLayout({ profile, children }) {
+export default function AppLayout({ profile, children, badges = {} }) {
   const pathname = usePathname()
   const router = useRouter()
   const role = profile?.role ?? 'resident'
@@ -61,10 +61,8 @@ export default function AppLayout({ profile, children }) {
         style={{ backgroundColor: '#0D2B4E' }}
       >
         {/* Logo */}
-        <div className="flex flex-col items-center pt-7 pb-5 px-4 border-b border-white/10">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-white/15">
-            <span className="text-white font-bold text-sm tracking-wider">LCP</span>
-          </div>
+        <div className="flex flex-col items-center pt-6 pb-5 px-4 border-b border-white/10">
+          <img src="/logo.png" alt="LCP" className="w-16 h-16 object-contain mb-2" />
           <p className="text-white font-semibold text-sm text-center leading-snug">
             Logbook Chirurgie<br />Pédiatrique
           </p>
@@ -90,6 +88,8 @@ export default function AppLayout({ profile, children }) {
         <nav className="flex-1 overflow-y-auto py-3 px-2">
           {navItems.map(({ label, icon: Icon, path }) => {
             const active = isActive(path)
+            const badgeKey = path.split('/').pop()
+            const badgeCount = badges[badgeKey] ?? 0
             return (
               <Link
                 key={path}
@@ -100,7 +100,14 @@ export default function AppLayout({ profile, children }) {
                   : { color: 'rgba(255,255,255,0.72)' }
                 }
               >
-                <Icon size={18} strokeWidth={1.75} />
+                <div className="relative flex-shrink-0">
+                  <Icon size={18} strokeWidth={1.75} />
+                  {badgeCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                      {badgeCount > 9 ? '9+' : badgeCount}
+                    </span>
+                  )}
+                </div>
                 {label}
               </Link>
             )
@@ -126,10 +133,7 @@ export default function AppLayout({ profile, children }) {
         style={{ backgroundColor: '#0D2B4E', borderColor: 'rgba(255,255,255,0.1)' }}
       >
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-            style={{ backgroundColor: '#7BB8E8', color: '#0D2B4E' }}>
-            {getInitials(profile?.full_name)}
-          </div>
+          <img src="/logo.png" alt="LCP" className="w-7 h-7 object-contain" />
           <span className="text-white text-xs font-medium truncate max-w-[160px]">
             {profile?.full_name ?? '—'}
           </span>
@@ -173,6 +177,8 @@ export default function AppLayout({ profile, children }) {
       >
         {navItems.map(({ label, icon: Icon, path, home }) => {
           const active = isActive(path)
+          const badgeKey = path.split('/').pop()
+          const badgeCount = badges[badgeKey] ?? 0
           if (home) {
             return (
               <Link
@@ -199,10 +205,17 @@ export default function AppLayout({ profile, children }) {
             <Link
               key={path}
               href={path}
-              className="flex flex-col items-center justify-center flex-1 py-2 gap-0.5"
+              className="flex flex-col items-center justify-center flex-1 py-2 gap-0.5 relative"
               style={{ color: active ? '#7BB8E8' : 'rgba(255,255,255,0.5)' }}
             >
-              <Icon size={20} strokeWidth={active ? 2 : 1.75} />
+              <div className="relative">
+                <Icon size={20} strokeWidth={active ? 2 : 1.75} />
+                {badgeCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {badgeCount > 9 ? '9+' : badgeCount}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] leading-none">{label}</span>
             </Link>
           )

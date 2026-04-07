@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
+import ExportFicheButton from './ExportFicheButton'
 import { formatDate, getInitials, getResidentYear, PARTICIPATION_LEVELS } from '@/lib/utils'
 
 const TRAVAIL_STATUS = { submitted: 'Soumis', accepted: 'Accepté', published: 'Publié', presented: 'Présenté' }
@@ -56,10 +57,17 @@ export default async function ResidentFichePage({ params }) {
           style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
           {getInitials(resident.full_name)}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold" style={{ color: '#0D2B4E' }}>{resident.full_name}</h1>
           <p className="text-sm text-slate-500">Année {year} · Promo {resident.promotion ?? '—'}</p>
         </div>
+        <ExportFicheButton
+          resident={resident}
+          realisations={realisations ?? []}
+          travaux={travaux ?? []}
+          stats={stats}
+          year={year}
+        />
       </div>
 
       {/* Stats */}

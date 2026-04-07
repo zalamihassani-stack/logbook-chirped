@@ -11,5 +11,16 @@ export default async function ResidentLayout({ children }) {
     .from('profiles').select('id, full_name, role').eq('id', user.id).single()
 
   if (profile?.role !== 'resident') redirect('/')
-  return <AppLayout profile={profile}>{children}</AppLayout>
+
+  // Counts pour badges nav
+  const [refusedRes, pendingRes] = await Promise.all([
+    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'refused'),
+    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'pending'),
+  ])
+
+  const badges = {
+    historique: (refusedRes.count ?? 0) + (pendingRes.count ?? 0),
+  }
+
+  return <AppLayout profile={profile} badges={badges}>{children}</AppLayout>
 }

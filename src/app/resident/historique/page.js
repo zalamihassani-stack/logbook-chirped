@@ -69,9 +69,16 @@ export default async function HistoriquePage({ searchParams }) {
       <div className="space-y-2">
         {(realisations ?? []).map(r => (
           <Link key={r.id} href={`/resident/historique/${r.id}`}
-            className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+            className={`flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm transition-shadow hover:shadow-md ${r.status === 'refused' ? 'border border-red-200' : 'border border-slate-100'}`}>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">{r.procedures?.name ?? '—'}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-semibold text-slate-800 truncate">{r.procedures?.name ?? '—'}</p>
+                {r.status === 'refused' && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-red-100 text-red-600 flex-shrink-0">
+                    Action requise
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 {formatDate(r.performed_at)} · {PARTICIPATION_LEVELS[r.participation_level]}
               </p>
