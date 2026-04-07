@@ -4,14 +4,25 @@ export default function manifest() {
     short_name: 'LCP',
     description: 'Application de suivi des actes chirurgicaux pédiatriques',
     start_url: '/',
+    scope: '/',
     display: 'standalone',
     orientation: 'portrait',
     background_color: '#0D2B4E',
     theme_color: '#0D2B4E',
     categories: ['medical', 'education'],
     icons: [
-      { src: '/icon.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/icon.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      {
+        src: '/icon.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
     ],
   }
 }

@@ -8,6 +8,7 @@ export const metadata = {
     statusBarStyle: 'black-translucent',
     title: 'LCP',
   },
+  formatDetection: { telephone: false },
 }
 
 export const viewport = {
@@ -22,12 +23,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fr" className="h-full">
       <head>
+        <link rel="apple-touch-icon" href="/apple-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <script dangerouslySetInnerHTML={{
           __html: `
             if ('serviceWorker' in navigator) {
-              window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-              })
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function() {});
+              });
             }
           `
         }} />
