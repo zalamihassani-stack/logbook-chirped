@@ -8,6 +8,7 @@ import {
   ClipboardList, Activity, Target, BookOpen,
   Plus, History, FlaskConical, LogOut, UserCircle,
 } from 'lucide-react'
+import PWAInstallBanner from '@/components/ui/PWAInstallBanner'
 
 const NAV = {
   admin: [
@@ -147,6 +148,8 @@ export default function AppLayout({ profile, children, badges = {} }) {
           Déconnexion
         </button>
       </header>
+
+      <PWAInstallBanner />
 
       {/* ── Contenu ── */}
       <main className="flex-1 overflow-y-auto pb-20 pt-12 md:pt-0 md:pb-0">
