@@ -1,8 +1,9 @@
 export default function manifest() {
   return {
-    name: 'Logbook Chirurgie Pédiatrique',
+    id: '/',
+    name: 'Logbook Chirurgie P\u00e9diatrique',
     short_name: 'LCP',
-    description: 'Application de suivi des actes chirurgicaux pédiatriques',
+    description: 'Application de suivi des actes chirurgicaux p\u00e9diatriques',
     start_url: '/',
     scope: '/',
     display: 'standalone',
@@ -12,16 +13,16 @@ export default function manifest() {
     categories: ['medical', 'education'],
     icons: [
       {
-        src: '/logo.png',
+        src: '/icon-192',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/logo.png',
+        src: '/icon-512',
         sizes: '512x512',
         type: 'image/png',
-        purpose: 'any maskable',
+        purpose: 'any',
       },
     ],
   }
