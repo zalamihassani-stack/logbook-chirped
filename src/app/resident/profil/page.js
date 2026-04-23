@@ -7,7 +7,7 @@ import {
   normalizeObjectives,
   countValidatedAtOrAboveByProcedure,
 } from '@/lib/utils'
-import PasswordChange from './PasswordChange'
+import PasswordChange from '@/components/profile/PasswordChange'
 
 function getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts) {
   const counts = objective.required_level >= 4 ? autonomyCounts : supervisionCounts
