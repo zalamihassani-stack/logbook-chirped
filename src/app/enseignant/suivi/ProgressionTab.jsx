@@ -1,79 +1,104 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, ChevronRight } from 'lucide-react'
-import { getInitials, getResidentYear } from '@/lib/utils'
+import { getInitials, getResidentYear, normalizeObjectives, countValidatedAtOrAboveByProcedure } from '@/lib/utils'
+
+function getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts) {
+  const counts = objective.required_level >= 4 ? autonomyCounts : supervisionCounts
+  return counts[objective.procedure_id] ?? 0
+}
 
 export default function ProgressionTab({ residents }) {
-  const [data, setData] = useState({}) // { residentId: { done, total, pending, travaux } }
+  const [data, setData] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (residents.length === 0) { setLoading(false); return }
-    fetchStats()
-  }, [])
+    let active = true
 
-  async function fetchStats() {
-    const supabase = createClient()
-    const ids = residents.map(r => r.id)
-
-    // Objectifs supervision (3) + autonome (4) par année, min 1 par geste
-    const [realsRes, travauxRes, objectivesRes] = await Promise.all([
-      supabase.from('realisations').select('resident_id, status, procedure_id').in('resident_id', ids),
-      supabase.from('travaux_scientifiques').select('resident_id').in('resident_id', ids),
-      supabase.from('procedure_objectives')
-        .select('procedure_id, year, required_level')
-        .in('required_level', [3, 4]),
-    ])
-
-    const reals = realsRes.data ?? []
-    const objectives = objectivesRes.data ?? []
-
-    // Grouper objectifs par année : { year -> Set(procedure_id) }
-    const objByYear = {}
-    for (const o of objectives) {
-      if (!objByYear[o.year]) objByYear[o.year] = new Set()
-      objByYear[o.year].add(o.procedure_id)
-    }
-
-    // Grouper realisations validées par résident
-    const validatedByResident = {}
-    const pendingByResident = {}
-    for (const r of reals) {
-      if (r.status === 'validated') {
-        if (!validatedByResident[r.resident_id]) validatedByResident[r.resident_id] = new Set()
-        validatedByResident[r.resident_id].add(r.procedure_id)
+    async function loadStats() {
+      if (residents.length === 0) {
+        if (active) {
+          setData({})
+          setLoading(false)
+        }
+        return
       }
-      if (r.status === 'pending') {
-        pendingByResident[r.resident_id] = (pendingByResident[r.resident_id] ?? 0) + 1
+
+      setLoading(true)
+
+      const supabase = createClient()
+      const ids = residents.map((resident) => resident.id)
+
+      const [realsRes, travauxRes, objectivesRes] = await Promise.all([
+        supabase
+          .from('realisations')
+          .select('resident_id, status, procedure_id, participation_level')
+          .in('resident_id', ids),
+        supabase.from('travaux_scientifiques').select('resident_id').in('resident_id', ids),
+        supabase.from('procedure_objectives').select('procedure_id, year, required_level, min_count'),
+      ])
+
+      const reals = realsRes.data ?? []
+      const objectives = normalizeObjectives(objectivesRes.data).filter((objective) => objective.required_level > 0)
+
+      const objByYear = {}
+      for (const objective of objectives) {
+        if (!objByYear[objective.year]) objByYear[objective.year] = []
+        objByYear[objective.year].push(objective)
+      }
+
+      const realsByResident = {}
+      const pendingByResident = {}
+      for (const realisation of reals) {
+        if (!realsByResident[realisation.resident_id]) {
+          realsByResident[realisation.resident_id] = []
+        }
+        realsByResident[realisation.resident_id].push(realisation)
+        if (realisation.status === 'pending') {
+          pendingByResident[realisation.resident_id] = (pendingByResident[realisation.resident_id] ?? 0) + 1
+        }
+      }
+
+      const travauxMap = {}
+      for (const travail of travauxRes.data ?? []) {
+        travauxMap[travail.resident_id] = (travauxMap[travail.resident_id] ?? 0) + 1
+      }
+
+      const result = {}
+      for (const resident of residents) {
+        const year = getResidentYear(resident.residanat_start_date)
+        const yearObjectives = objByYear[year] ?? []
+        const residentReals = realsByResident[resident.id] ?? []
+        const supervisionCounts = countValidatedAtOrAboveByProcedure(residentReals, 3)
+        const autonomyCounts = countValidatedAtOrAboveByProcedure(residentReals, 4)
+
+        const done = yearObjectives.filter((objective) => {
+          const count = getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts)
+          return count >= objective.min_count
+        }).length
+
+        result[resident.id] = {
+          done,
+          total: yearObjectives.length,
+          pending: pendingByResident[resident.id] ?? 0,
+          travaux: travauxMap[resident.id] ?? 0,
+        }
+      }
+
+      if (active) {
+        setData(result)
+        setLoading(false)
       }
     }
 
-    // Grouper travaux
-    const travauxMap = {}
-    for (const t of (travauxRes.data ?? [])) {
-      travauxMap[t.resident_id] = (travauxMap[t.resident_id] ?? 0) + 1
-    }
+    loadStats()
 
-    // Calculer pour chaque résident
-    const result = {}
-    for (const r of residents) {
-      const year = getResidentYear(r.residanat_start_date)
-      const yearProcedures = objByYear[year] ?? new Set()
-      const validatedProcs = validatedByResident[r.id] ?? new Set()
-      const done = [...yearProcedures].filter(pid => validatedProcs.has(pid)).length
-      result[r.id] = {
-        done,
-        total: yearProcedures.size,
-        pending: pendingByResident[r.id] ?? 0,
-        travaux: travauxMap[r.id] ?? 0,
-      }
+    return () => {
+      active = false
     }
-
-    setData(result)
-    setLoading(false)
-  }
+  }, [residents])
 
   if (loading) {
     return (
@@ -83,72 +108,70 @@ export default function ProgressionTab({ residents }) {
     )
   }
 
-  // Trier : actes en attente d'abord, puis progression desc
   const sorted = [...residents].sort((a, b) => {
-    const pa = data[a.id]?.pending ?? 0
-    const pb = data[b.id]?.pending ?? 0
-    if (pb !== pa) return pb - pa
-    const pctA = data[a.id]?.total ? data[a.id].done / data[a.id].total : 0
-    const pctB = data[b.id]?.total ? data[b.id].done / data[b.id].total : 0
-    return pctB - pctA
+    const pendingA = data[a.id]?.pending ?? 0
+    const pendingB = data[b.id]?.pending ?? 0
+    if (pendingB !== pendingA) return pendingB - pendingA
+
+    const progressA = data[a.id]?.total ? data[a.id].done / data[a.id].total : 0
+    const progressB = data[b.id]?.total ? data[b.id].done / data[b.id].total : 0
+    return progressB - progressA
   })
 
   return (
     <div>
-      <p className="text-xs text-slate-500 mb-4">
-        {residents.length} résident(s) actif(s) · progression sur objectifs supervision + autonome (min. 1 par geste)
+      <p className="mb-4 text-xs text-slate-500">
+        {residents.length} resident(s) actif(s) · progression sur gestes valides au niveau requis (min. 1 par geste)
       </p>
 
       <div className="space-y-2">
-        {sorted.map(r => {
-          const s = data[r.id] ?? { done: 0, total: 0, pending: 0, travaux: 0 }
-          const year = getResidentYear(r.residanat_start_date)
-          const pct = s.total > 0 ? Math.min(100, Math.round((s.done / s.total) * 100)) : 0
+        {sorted.map((resident) => {
+          const stats = data[resident.id] ?? { done: 0, total: 0, pending: 0, travaux: 0 }
+          const year = getResidentYear(resident.residanat_start_date)
+          const pct = stats.total > 0 ? Math.min(100, Math.round((stats.done / stats.total) * 100)) : 0
           const color = pct >= 80 ? '#166534' : pct >= 50 ? '#0D2B4E' : '#854d0e'
 
           return (
-            <Link key={r.id} href={`/enseignant/residents/${r.id}`}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
-                {getInitials(r.full_name)}
+            <Link
+              key={resident.id}
+              href={`/enseignant/residents/${resident.id}`}
+              className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold" style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
+                {getInitials(resident.full_name)}
               </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <p className="text-sm font-semibold text-slate-800">{r.full_name}</p>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
-                    Année {year}
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-slate-800">{resident.full_name}</p>
+                  <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
+                    Annee {year}
                   </span>
-                  {s.pending > 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{ backgroundColor: '#fef9c3', color: '#854d0e' }}>
-                      {s.pending} en attente
+                  {stats.pending > 0 && (
+                    <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#fef9c3', color: '#854d0e' }}>
+                      {stats.pending} en attente
                     </span>
                   )}
                 </div>
 
-                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-1">
-                  <div className="h-full rounded-full transition-all"
-                    style={{ width: `${pct}%`, backgroundColor: color }} />
+                <div className="mb-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
                 </div>
 
                 <p className="text-xs text-slate-500">
-                  {s.done}/{s.total} objectifs atteints · {s.travaux} travaux
+                  {stats.done}/{stats.total} objectifs atteints · {stats.travaux} travaux
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex flex-shrink-0 items-center gap-2">
                 <span className="text-sm font-bold" style={{ color }}>{pct}%</span>
                 <ChevronRight size={16} className="text-slate-300" />
               </div>
             </Link>
           )
         })}
-        {residents.length === 0 && (
-          <p className="text-center text-sm text-slate-400 py-10">Aucun résident actif</p>
-        )}
+
+        {residents.length === 0 && <p className="py-10 text-center text-sm text-slate-400">Aucun resident actif</p>}
       </div>
     </div>
   )

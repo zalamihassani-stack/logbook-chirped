@@ -1,7 +1,12 @@
 'use client'
 import { useRouter } from 'next/navigation'
 
-export default function ReferentielFilters({ filterCat, filterLevel, categories }) {
+export default function ReferentielFilters({
+  filterCat,
+  filterLevel,
+  categories,
+  basePath = '/resident/referentiel',
+}) {
   const router = useRouter()
 
   function navigate(overrides) {
@@ -11,7 +16,7 @@ export default function ReferentielFilters({ filterCat, filterLevel, categories 
       ...overrides,
     })
     ;['cat', 'level'].forEach(k => { if (p.get(k) === '') p.delete(k) })
-    router.push(`/resident/referentiel?${p}`)
+    router.push(p.size ? `${basePath}?${p}` : basePath)
   }
 
   return (

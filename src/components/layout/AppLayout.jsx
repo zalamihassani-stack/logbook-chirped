@@ -26,7 +26,7 @@ const NAV = {
     { label: 'Objectifs',  icon: Target,          path: '/enseignant/objectifs' },
   ],
   resident: [
-    { label: 'Objectifs',  icon: BookOpen,        path: '/resident/referentiel' },
+    { label: 'Progression', icon: BookOpen,       path: '/resident/progression' },
     { label: 'Historique', icon: History,         path: '/resident/historique' },
     { label: 'Accueil',    icon: LayoutDashboard, path: '/resident', home: true },
     { label: 'Travaux',    icon: FlaskConical,    path: '/resident/travaux' },
