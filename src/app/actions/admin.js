@@ -133,7 +133,29 @@ export async function deleteCategory(id) {
   return { success: true }
 }
 
-export async function createProcedure({ procedure_code, name, category_id, pathologie, objectives }) {
+function normalizeObjectiveRows(procedureId, objectives) {
+  return (objectives ?? [])
+    .filter((objective) => Number.parseInt(objective.required_level, 10) === 3)
+    .map((objective) => ({
+      procedure_id: procedureId,
+      year: objective.year,
+      required_level: 3,
+      min_count: Number.parseInt(objective.min_count, 10) || 1,
+    }))
+}
+
+export async function createProcedure({
+  procedure_code,
+  name,
+  category_id,
+  pathologie,
+  objectif_final,
+  seuil_exposition_min,
+  seuil_supervision_min,
+  seuil_autonomie_min,
+  seuil_deblocage_autonomie,
+  objectives,
+}) {
   let supabase
   try {
     ;({ supabase } = await requireAdmin())
@@ -143,32 +165,33 @@ export async function createProcedure({ procedure_code, name, category_id, patho
 
   const { data: proc, error } = await supabase
     .from('procedures')
-    .insert({ procedure_code, name, category_id, pathologie, is_active: true })
+    .insert({
+      procedure_code,
+      name,
+      category_id,
+      pathologie,
+      objectif_final,
+      seuil_exposition_min,
+      seuil_supervision_min,
+      seuil_autonomie_min,
+      seuil_deblocage_autonomie,
+      is_active: true,
+    })
     .select('id')
     .single()
   if (error) return { error: error.message }
 
-  if (objectives?.length) {
-    const rows = objectives
-      .filter((objective) => objective.required_level)
-      .map((objective) => ({
-        procedure_id: proc.id,
-        year: objective.year,
-        required_level: objective.required_level,
-        min_count: 1,
-      }))
-
-    if (rows.length) {
-      const { error: objectivesError } = await supabase.from('procedure_objectives').insert(rows)
-      if (objectivesError) return { error: objectivesError.message }
-    }
+  const rows = normalizeObjectiveRows(proc.id, objectives)
+  if (rows.length) {
+    const { error: objectivesError } = await supabase.from('procedure_objectives').insert(rows)
+    if (objectivesError) return { error: objectivesError.message }
   }
 
   revalidatePath('/admin/gestes')
   return { success: true }
 }
 
-export async function updateProcedure(id, { procedure_code, name, category_id, pathologie, objectives }) {
+export async function updateProcedure(id, payload) {
   let supabase
   try {
     ;({ supabase } = await requireAdmin())
@@ -178,26 +201,28 @@ export async function updateProcedure(id, { procedure_code, name, category_id, p
 
   const { error } = await supabase
     .from('procedures')
-    .update({ procedure_code, name, category_id, pathologie })
+    .update({
+      procedure_code: payload.procedure_code,
+      name: payload.name,
+      category_id: payload.category_id,
+      pathologie: payload.pathologie,
+      objectif_final: payload.objectif_final,
+      seuil_exposition_min: payload.seuil_exposition_min,
+      seuil_supervision_min: payload.seuil_supervision_min,
+      seuil_autonomie_min: payload.seuil_autonomie_min,
+      seuil_deblocage_autonomie: payload.seuil_deblocage_autonomie,
+    })
     .eq('id', id)
   if (error) return { error: error.message }
 
-  if (objectives) {
+  if (payload.objectives) {
     const { error: deleteError } = await supabase
       .from('procedure_objectives')
       .delete()
       .eq('procedure_id', id)
     if (deleteError) return { error: deleteError.message }
 
-    const rows = objectives
-      .filter((objective) => objective.required_level)
-      .map((objective) => ({
-        procedure_id: id,
-        year: objective.year,
-        required_level: objective.required_level,
-        min_count: 1,
-      }))
-
+    const rows = normalizeObjectiveRows(id, payload.objectives)
     if (rows.length) {
       const { error: objectivesError } = await supabase.from('procedure_objectives').insert(rows)
       if (objectivesError) return { error: objectivesError.message }
@@ -240,22 +265,44 @@ export async function saveSettings(settings) {
   return { success: true }
 }
 
-export async function deleteResidentData(residentId) {
+export async function deleteResidentData({ residentId, confirmationToken }) {
+  if (!residentId) return { error: 'Sélectionnez un résident.' }
+  if (confirmationToken !== 'SUPPRIMER') {
+    return { error: 'Confirmation requise: saisissez SUPPRIMER.' }
+  }
+
   let supabase
   try {
     ;({ supabase } = await requireAdmin())
   } catch (error) {
     return { error: error.message }
   }
+
+  const { count, error: countError } = await supabase
+    .from('realisations')
+    .select('id', { count: 'exact', head: true })
+    .eq('resident_id', residentId)
+  if (countError) return { error: countError.message }
+  if (!count) return { error: 'Aucun acte à supprimer pour ce résident.' }
 
   const { error } = await supabase.from('realisations').delete().eq('resident_id', residentId)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/donnees')
-  return { success: true }
+  return { success: true, deletedCount: count }
 }
 
-export async function deleteActesByPeriod({ from, to }) {
+export async function deleteActesByPeriod({ from, to, confirmationToken }) {
+  if (!from || !to) {
+    return { error: 'Indiquez une date de début et une date de fin.' }
+  }
+  if (from > to) {
+    return { error: 'La date de début doit précéder la date de fin.' }
+  }
+  if (confirmationToken !== 'SUPPRIMER') {
+    return { error: 'Confirmation requise: saisissez SUPPRIMER.' }
+  }
+
   let supabase
   try {
     ;({ supabase } = await requireAdmin())
@@ -263,13 +310,23 @@ export async function deleteActesByPeriod({ from, to }) {
     return { error: error.message }
   }
 
-  let query = supabase.from('realisations').delete()
-  if (from) query = query.gte('performed_at', from)
-  if (to) query = query.lte('performed_at', to)
+  let countQuery = supabase
+    .from('realisations')
+    .select('id', { count: 'exact', head: true })
+    .gte('performed_at', from)
+    .lte('performed_at', to)
 
-  const { error } = await query
+  const { count, error: countError } = await countQuery
+  if (countError) return { error: countError.message }
+  if (!count) return { error: 'Aucun acte à supprimer sur cette période.' }
+
+  const { error } = await supabase
+    .from('realisations')
+    .delete()
+    .gte('performed_at', from)
+    .lte('performed_at', to)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/donnees')
-  return { success: true }
+  return { success: true, deletedCount: count }
 }

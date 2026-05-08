@@ -1,21 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import ReferentielFilters from './ReferentielFilters'
-import RefYearFilter from './RefYearFilter'
-import {
-  getResidentYear,
-  PARTICIPATION_LEVELS,
-  normalizeObjectives,
-  countValidatedAtOrAboveByProcedure,
-} from '@/lib/utils'
+import { OBJECTIF_LEVEL_LABELS, getResidentProgressRows, indexProgressByProcedure, getCountForRequiredLevel, procedureToGlobalObjective } from '@/lib/logbook'
 
 const LEVEL_STYLE = {
   1: { bg: '#dbeafe', color: '#1e40af' },
   2: { bg: '#fef9c3', color: '#854d0e' },
-  3: { bg: '#ffedd5', color: '#9a3412' },
-  4: { bg: '#dcfce7', color: '#166534' },
+  3: { bg: '#dcfce7', color: '#166534' },
 }
 
 function progressBadge(done, required) {
@@ -24,15 +16,18 @@ function progressBadge(done, required) {
   return { bg: '#f1f5f9', color: '#64748b', text: `0/${required}` }
 }
 
-function getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts) {
-  const counts = objective.required_level >= 4 ? autonomyCounts : supervisionCounts
-  return counts[objective.procedure_id] ?? 0
+function RequirementLine({ label, value }) {
+  return (
+    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+      {label}: {value}
+    </span>
+  )
 }
 
-function GestCard({ objective, supervisionCounts, autonomyCounts }) {
+function GestCard({ objective, progressIndex }) {
   const procedure = objective.procedures
   const category = procedure?.categories
-  const done = getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts)
+  const done = getCountForRequiredLevel(progressIndex[objective.procedure_id], objective.required_level)
   const progress = progressBadge(done, objective.min_count)
   const levelStyle = LEVEL_STYLE[objective.required_level]
 
@@ -50,9 +45,14 @@ function GestCard({ objective, supervisionCounts, autonomyCounts }) {
             )}
             {levelStyle && (
               <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: levelStyle.bg, color: levelStyle.color }}>
-                {PARTICIPATION_LEVELS[objective.required_level]}
+                {OBJECTIF_LEVEL_LABELS[objective.required_level]}
               </span>
             )}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <RequirementLine label="Exposition" value={procedure?.seuil_exposition_min ?? 0} />
+            <RequirementLine label="Supervision" value={procedure?.seuil_supervision_min ?? 0} />
+            <RequirementLine label="Autonomie" value={procedure?.seuil_autonomie_min ?? 0} />
           </div>
         </div>
         <span className="flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ backgroundColor: progress.bg, color: progress.color }}>
@@ -65,126 +65,52 @@ function GestCard({ objective, supervisionCounts, autonomyCounts }) {
 
 export default async function ReferentielPage({ searchParams }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const params = await searchParams
-  const tab = params?.tab ?? 'objectifs'
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('residanat_start_date')
-    .eq('id', user.id)
-    .single()
-  const residentYear = getResidentYear(profile?.residanat_start_date)
-
   const filterCat = params?.cat ?? ''
   const filterLevel = params?.level ?? ''
-  const refYear = params?.year ? parseInt(params.year) : 1
-  const refLevel = params?.level ?? ''
 
-  const { data: validated } = await supabase
-    .from('realisations')
-    .select('procedure_id, participation_level, status')
-    .eq('resident_id', user.id)
-    .eq('status', 'validated')
+  const [progressRows, categoriesRes, proceduresRes] = await Promise.all([
+    getResidentProgressRows(supabase, user.id),
+    supabase.from('categories').select('id, name, color_hex').order('display_order'),
+    supabase
+      .from('procedures')
+      .select('id, name, pathologie, category_id, objectif_final, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, categories(name, color_hex)')
+      .eq('is_active', true)
+      .order('name'),
+  ])
 
-  const supervisionCounts = countValidatedAtOrAboveByProcedure(validated, 3)
-  const autonomyCounts = countValidatedAtOrAboveByProcedure(validated, 4)
-
-  let myObjectives = []
-  let categories = []
-  if (tab === 'objectifs') {
-    const [objRes, catRes] = await Promise.all([
-      supabase
-        .from('procedure_objectives')
-        .select('procedure_id, required_level, min_count, procedures(id, name, pathologie, category_id, categories(name, color_hex))')
-        .eq('year', residentYear),
-      supabase.from('categories').select('id, name, color_hex').order('display_order'),
-    ])
-    categories = catRes.data ?? []
-    myObjectives = normalizeObjectives(objRes.data).filter((objective) => {
+  const progressIndex = indexProgressByProcedure(progressRows)
+  const categories = categoriesRes.data ?? []
+  const objectives = (proceduresRes.data ?? [])
+    .map(procedureToGlobalObjective)
+    .filter((objective) => {
       if (!objective.required_level) return false
       if (filterCat && objective.procedures?.category_id !== filterCat) return false
       if (filterLevel && String(objective.required_level) !== filterLevel) return false
       return true
     })
-  }
-
-  let refObjectives = []
-  if (tab === 'referentiel') {
-    const { data: refObjs } = await supabase
-      .from('procedure_objectives')
-      .select('procedure_id, required_level, min_count, procedures(id, name, pathologie, category_id, categories(name, color_hex))')
-      .eq('year', refYear)
-    refObjectives = normalizeObjectives(refObjs).filter((objective) => {
-      if (!objective.required_level) return false
-      if (refLevel && String(objective.required_level) !== refLevel) return false
-      return true
-    })
-  }
-
-  function tabHref(tabValue) {
-    if (tabValue === 'objectifs') return '/resident/referentiel'
-    return '/resident/referentiel?tab=referentiel&year=1'
-  }
 
   return (
     <div className="max-w-3xl p-5 md:p-8">
-      <PageHeader
-        title="Objectifs"
-        subtitle={tab === 'objectifs' ? `Annee ${residentYear} - ${myObjectives.length} geste(s)` : `Annee ${refYear} - ${refObjectives.length} geste(s)`}
-      />
+      <PageHeader title="Référentiel" subtitle={`${objectives.length} geste(s) actifs`} />
 
-      <div className="mb-5 flex w-fit gap-1 rounded-xl p-1" style={{ backgroundColor: '#e2e8f0' }}>
-        {[
-          { value: 'objectifs', label: 'Mes objectifs' },
-          { value: 'referentiel', label: 'Referentiel' },
-        ].map((item) => (
-          <Link
-            key={item.value}
-            href={tabHref(item.value)}
-            className="rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
-            style={tab === item.value ? { backgroundColor: 'white', color: '#0D2B4E', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } : { color: '#64748b' }}
-          >
-            {item.label}
-          </Link>
-        ))}
+      <div className="mb-5 rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600 shadow-sm">
+        Les exigences minimales sont affichées sur chaque geste. La progression personnelle détaillée se trouve dans l&apos;onglet Progression.
       </div>
 
-      {tab === 'objectifs' && (
-        <>
-          <ReferentielFilters filterCat={filterCat} filterLevel={filterLevel} categories={categories} />
-          <div className="space-y-2">
-            {myObjectives.map((objective, index) => (
-              <GestCard
-                key={`${objective.procedure_id}-${index}`}
-                objective={objective}
-                supervisionCounts={supervisionCounts}
-                autonomyCounts={autonomyCounts}
-              />
-            ))}
-            {myObjectives.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Aucun objectif pour ces criteres</p>}
-          </div>
-        </>
-      )}
+      <ReferentielFilters filterCat={filterCat} filterLevel={filterLevel} categories={categories} showAllLevels />
 
-      {tab === 'referentiel' && (
-        <>
-          <RefYearFilter refYear={refYear} refLevel={refLevel} />
-          <div className="space-y-2">
-            {refObjectives.map((objective, index) => (
-              <GestCard
-                key={`${objective.procedure_id}-${index}`}
-                objective={objective}
-                supervisionCounts={supervisionCounts}
-                autonomyCounts={autonomyCounts}
-              />
-            ))}
-            {refObjectives.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Aucun objectif pour cette annee</p>}
-          </div>
-        </>
-      )}
+      <div className="space-y-2">
+        {objectives.map((objective) => (
+          <GestCard key={objective.procedure_id} objective={objective} progressIndex={progressIndex} />
+        ))}
+        {objectives.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Aucun geste pour ces critères</p>}
+      </div>
     </div>
   )
 }

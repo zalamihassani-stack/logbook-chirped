@@ -5,10 +5,25 @@ import { createProcedure, updateProcedure, deleteProcedure, createCategory, upda
 import { Plus, Pencil, Trash2, X } from 'lucide-react'
 
 const YEARS = [1, 2, 3, 4, 5]
-const LEVELS = { 0: 'Non requis', 3: 'Sous supervision', 4: 'Autonome' }
+const LEVELS = { 0: 'Non requis', 1: 'Exposition', 2: 'Sous supervision', 3: 'Autonomie' }
+const AUTONOMY_OBJECTIVE_LEVELS = { 0: 'Non affichÃ©', 3: 'Objectif autonomie' }
 
 function emptyObjectives() {
   return YEARS.map((year) => ({ year, required_level: 0, min_count: 1 }))
+}
+function emptyProcedureForm(categoryId = '') {
+  return {
+    procedure_code: '',
+    name: '',
+    category_id: categoryId,
+    pathologie: '',
+    objectif_final: 3,
+    seuil_exposition_min: 0,
+    seuil_supervision_min: 0,
+    seuil_autonomie_min: 0,
+    seuil_deblocage_autonomie: 0,
+    objectives: emptyObjectives(),
+  }
 }
 
 export default function GestesManagement({ initialProcedures, initialCategories }) {
@@ -17,7 +32,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
   const [tab, setTab] = useState('gestes')
   const [filterCat, setFilterCat] = useState('')
   const [modal, setModal] = useState(null)
-  const [form, setForm] = useState({ procedure_code: '', name: '', category_id: '', pathologie: '', objectives: emptyObjectives() })
+  const [form, setForm] = useState(emptyProcedureForm(initialCategories[0]?.id ?? ''))
   const [catModal, setCatModal] = useState(null)
   const [catForm, setCatForm] = useState({ name: '', color_hex: '#0D2B4E', display_order: 0 })
   const [loading, setLoading] = useState(false)
@@ -25,13 +40,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   function openCreate() {
-    setForm({
-      procedure_code: '',
-      name: '',
-      category_id: categories[0]?.id ?? '',
-      pathologie: '',
-      objectives: emptyObjectives(),
-    })
+    setForm(emptyProcedureForm(categories[0]?.id ?? ''))
     setError('')
     setModal('create')
   }
@@ -40,7 +49,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
     const filled = emptyObjectives().map((objective) => {
       const existing = procedure.procedure_objectives?.find((item) => item.year === objective.year)
       return existing
-        ? { year: objective.year, required_level: existing.required_level, min_count: 1 }
+        ? { year: objective.year, required_level: existing.required_level, min_count: existing.min_count ?? 1 }
         : objective
     })
     setForm({
@@ -48,6 +57,11 @@ export default function GestesManagement({ initialProcedures, initialCategories 
       name: procedure.name,
       category_id: procedure.category_id,
       pathologie: procedure.pathologie ?? '',
+      objectif_final: procedure.objectif_final ?? 1,
+      seuil_exposition_min: procedure.seuil_exposition_min ?? 0,
+      seuil_supervision_min: procedure.seuil_supervision_min ?? 0,
+      seuil_autonomie_min: procedure.seuil_autonomie_min ?? 0,
+      seuil_deblocage_autonomie: procedure.seuil_deblocage_autonomie ?? 0,
       objectives: filled,
     })
     setError('')
@@ -59,12 +73,21 @@ export default function GestesManagement({ initialProcedures, initialCategories 
     setLoading(true)
     setError('')
 
-    const objectives = form.objectives.map((objective) => ({
-      ...objective,
-      required_level: parseInt(objective.required_level),
-      min_count: 1,
-    }))
-    const payload = { ...form, objectives }
+    const payload = {
+      ...form,
+      procedure_code: form.procedure_code ? Number.parseInt(form.procedure_code, 10) : null,
+      objectif_final: Number.parseInt(form.objectif_final, 10),
+      seuil_exposition_min: Number.parseInt(form.seuil_exposition_min, 10) || 0,
+      seuil_supervision_min: Number.parseInt(form.seuil_supervision_min, 10) || 0,
+      seuil_autonomie_min: Number.parseInt(form.seuil_autonomie_min, 10) || 0,
+      seuil_deblocage_autonomie: Number.parseInt(form.seuil_deblocage_autonomie, 10) || 0,
+      objectives: form.objectives.map((objective) => ({
+        ...objective,
+        required_level: Number.parseInt(objective.required_level, 10),
+        min_count: Number.parseInt(objective.min_count, 10) || 1,
+      })),
+    }
+
     const res = modal === 'create' ? await createProcedure(payload) : await updateProcedure(modal.id, payload)
 
     setLoading(false)
@@ -143,7 +166,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
           <div className="space-y-2">
             {filtered.map((procedure) => {
               const category = categories.find((item) => item.id === procedure.category_id)
-              const hasObjectives = procedure.procedure_objectives?.filter((objective) => objective.required_level > 0)
+              const hasObjectives = procedure.procedure_objectives?.filter((objective) => objective.required_level === 3)
               return (
                 <div key={procedure.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
@@ -160,11 +183,14 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                         )}
                       </div>
                       {procedure.pathologie && <p className="mt-0.5 text-xs text-slate-500">{procedure.pathologie}</p>}
+                      <p className="mt-2 text-xs text-slate-500">
+                        Objectif final: {LEVELS[procedure.objectif_final] ?? '-'} Â· Exposition {procedure.seuil_exposition_min ?? 0} Â· Supervision {procedure.seuil_supervision_min ?? 0} Â· Autonomie {procedure.seuil_autonomie_min ?? 0} Â· DÃ©blocage auto {procedure.seuil_deblocage_autonomie ?? 0}
+                      </p>
                       {hasObjectives?.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           {hasObjectives.map((objective) => (
                             <span key={objective.year} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                              A{objective.year}: {LEVELS[objective.required_level]} ×1
+                              A{objective.year}: {LEVELS[objective.required_level]} x{objective.min_count}
                             </span>
                           ))}
                         </div>
@@ -220,7 +246,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
               <button onClick={() => setModal(null)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Field label="Code procedure" value={form.procedure_code} onChange={(value) => setForm((current) => ({ ...current, procedure_code: value }))} />
+              <Field label="Code procedure" type="number" value={form.procedure_code} onChange={(value) => setForm((current) => ({ ...current, procedure_code: value }))} />
               <Field label="Nom du geste" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} required />
               <div>
                 <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Categorie</label>
@@ -236,7 +262,23 @@ export default function GestesManagement({ initialProcedures, initialCategories 
               </div>
               <Field label="Pathologie" value={form.pathologie} onChange={(value) => setForm((current) => ({ ...current, pathologie: value }))} />
               <div>
-                <p className="mb-2 text-sm font-medium" style={{ color: '#0D2B4E' }}>Objectifs par annee</p>
+                <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Objectif final</label>
+                <select
+                  value={form.objectif_final}
+                  onChange={(event) => setForm((current) => ({ ...current, objectif_final: event.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+                >
+                  {[1, 2, 3].map((level) => <option key={level} value={level}>{LEVELS[level]}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Seuil exposition" type="number" value={form.seuil_exposition_min} onChange={(value) => setForm((current) => ({ ...current, seuil_exposition_min: value }))} />
+                <Field label="Seuil supervision" type="number" value={form.seuil_supervision_min} onChange={(value) => setForm((current) => ({ ...current, seuil_supervision_min: value }))} />
+                <Field label="Seuil autonomie" type="number" value={form.seuil_autonomie_min} onChange={(value) => setForm((current) => ({ ...current, seuil_autonomie_min: value }))} />
+                <Field label="Deblocage autonome" type="number" value={form.seuil_deblocage_autonomie} onChange={(value) => setForm((current) => ({ ...current, seuil_deblocage_autonomie: value }))} />
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-medium" style={{ color: '#0D2B4E' }}>Objectifs d&apos;autonomie par annÃ©e</p>
                 <div className="space-y-2">
                   {form.objectives.map((objective, index) => (
                     <div key={objective.year} className="flex items-center gap-2 text-sm">
@@ -246,19 +288,29 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                         onChange={(event) =>
                           setForm((current) => {
                             const next = [...current.objectives]
-                            next[index] = { ...next[index], required_level: event.target.value, min_count: 1 }
+                            next[index] = { ...next[index], required_level: event.target.value }
                             return { ...current, objectives: next }
                           })
                         }
                         className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm outline-none"
                       >
-                        {Object.entries(LEVELS).map(([key, label]) => (
+                        {Object.entries(AUTONOMY_OBJECTIVE_LEVELS).map(([key, label]) => (
                           <option key={key} value={key}>{label}</option>
                         ))}
                       </select>
-                      <div className="w-16 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-center text-sm text-slate-500">
-                        1
-                      </div>
+                      <input
+                        type="number"
+                        min="1"
+                        value={objective.min_count}
+                        onChange={(event) =>
+                          setForm((current) => {
+                            const next = [...current.objectives]
+                            next[index] = { ...next[index], min_count: event.target.value }
+                            return { ...current, objectives: next }
+                          })
+                        }
+                        className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-center text-sm outline-none"
+                      />
                     </div>
                   ))}
                 </div>
@@ -316,7 +368,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
-            <p className="mb-2 font-semibold text-slate-800">Desactiver « {confirmDelete.name} » ?</p>
+            <p className="mb-2 font-semibold text-slate-800">Desactiver &quot;{confirmDelete.name}&quot; ?</p>
             <p className="mb-5 text-sm text-slate-500">Le geste sera masque du referentiel.</p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmDelete(null)} className="flex-1 rounded-xl border border-slate-200 py-2 text-sm">Annuler</button>
@@ -334,7 +386,6 @@ export default function GestesManagement({ initialProcedures, initialCategories 
     </>
   )
 }
-
 function Field({ label, type = 'text', value, onChange, required }) {
   return (
     <div>

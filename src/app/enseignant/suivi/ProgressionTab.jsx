@@ -3,12 +3,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, ChevronRight } from 'lucide-react'
-import { getInitials, getResidentYear, normalizeObjectives, countValidatedAtOrAboveByProcedure } from '@/lib/utils'
-
-function getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts) {
-  const counts = objective.required_level >= 4 ? autonomyCounts : supervisionCounts
-  return counts[objective.procedure_id] ?? 0
-}
+import { getInitials, getResidentYear } from '@/lib/utils'
+import { groupObjectivesByYear, getCountForRequiredLevel } from '@/lib/logbook'
 
 export default function ProgressionTab({ residents }) {
   const [data, setData] = useState({})
@@ -31,34 +27,23 @@ export default function ProgressionTab({ residents }) {
       const supabase = createClient()
       const ids = residents.map((resident) => resident.id)
 
-      const [realsRes, travauxRes, objectivesRes] = await Promise.all([
-        supabase
-          .from('realisations')
-          .select('resident_id, status, procedure_id, participation_level')
-          .in('resident_id', ids),
+      const [progressRes, travauxRes, objectivesRes, pendingRes] = await Promise.all([
+        supabase.from('v_resident_niveau').select('resident_id, procedure_id, count_expose, count_supervise, count_autonome, niveau_atteint').in('resident_id', ids),
         supabase.from('travaux_scientifiques').select('resident_id').in('resident_id', ids),
-        supabase.from('procedure_objectives').select('procedure_id, year, required_level, min_count'),
+        supabase.from('procedure_objectives').select('procedure_id, year, required_level, min_count').eq('is_active', true),
+        supabase.from('realisations').select('resident_id, status').in('resident_id', ids).eq('status', 'pending'),
       ])
 
-      const reals = realsRes.data ?? []
-      const objectives = normalizeObjectives(objectivesRes.data).filter((objective) => objective.required_level > 0)
-
-      const objByYear = {}
-      for (const objective of objectives) {
-        if (!objByYear[objective.year]) objByYear[objective.year] = []
-        objByYear[objective.year].push(objective)
+      const objectivesByYear = groupObjectivesByYear((objectivesRes.data ?? []).filter((objective) => objective.required_level > 0))
+      const progressByResident = {}
+      for (const row of progressRes.data ?? []) {
+        if (!progressByResident[row.resident_id]) progressByResident[row.resident_id] = {}
+        progressByResident[row.resident_id][row.procedure_id] = row
       }
 
-      const realsByResident = {}
       const pendingByResident = {}
-      for (const realisation of reals) {
-        if (!realsByResident[realisation.resident_id]) {
-          realsByResident[realisation.resident_id] = []
-        }
-        realsByResident[realisation.resident_id].push(realisation)
-        if (realisation.status === 'pending') {
-          pendingByResident[realisation.resident_id] = (pendingByResident[realisation.resident_id] ?? 0) + 1
-        }
+      for (const row of pendingRes.data ?? []) {
+        pendingByResident[row.resident_id] = (pendingByResident[row.resident_id] ?? 0) + 1
       }
 
       const travauxMap = {}
@@ -69,13 +54,10 @@ export default function ProgressionTab({ residents }) {
       const result = {}
       for (const resident of residents) {
         const year = getResidentYear(resident.residanat_start_date)
-        const yearObjectives = objByYear[year] ?? []
-        const residentReals = realsByResident[resident.id] ?? []
-        const supervisionCounts = countValidatedAtOrAboveByProcedure(residentReals, 3)
-        const autonomyCounts = countValidatedAtOrAboveByProcedure(residentReals, 4)
-
+        const yearObjectives = objectivesByYear[year] ?? []
+        const progressIndex = progressByResident[resident.id] ?? {}
         const done = yearObjectives.filter((objective) => {
-          const count = getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts)
+          const count = getCountForRequiredLevel(progressIndex[objective.procedure_id], objective.required_level)
           return count >= objective.min_count
         }).length
 
@@ -121,7 +103,7 @@ export default function ProgressionTab({ residents }) {
   return (
     <div>
       <p className="mb-4 text-xs text-slate-500">
-        {residents.length} resident(s) actif(s) · progression sur gestes valides au niveau requis (min. 1 par geste)
+        {residents.length} résident(s) actif(s) · progression sur gestes valides au niveau requis
       </p>
 
       <div className="space-y-2">
@@ -145,7 +127,7 @@ export default function ProgressionTab({ residents }) {
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-slate-800">{resident.full_name}</p>
                   <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
-                    Annee {year}
+                    Année {year}
                   </span>
                   {stats.pending > 0 && (
                     <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#fef9c3', color: '#854d0e' }}>
@@ -171,7 +153,7 @@ export default function ProgressionTab({ residents }) {
           )
         })}
 
-        {residents.length === 0 && <p className="py-10 text-center text-sm text-slate-400">Aucun resident actif</p>}
+        {residents.length === 0 && <p className="py-10 text-center text-sm text-slate-400">Aucun résident actif</p>}
       </div>
     </div>
   )

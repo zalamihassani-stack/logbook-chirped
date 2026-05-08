@@ -53,7 +53,7 @@ export default function PWAInstallBanner() {
       <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold leading-tight text-white">Installer l&apos;application</p>
         <p className="text-[11px] leading-tight" style={{ color: '#7BB8E8' }}>
-          Acces rapide depuis votre ecran d&apos;accueil
+          Accès rapide depuis votre écran d&apos;accueil
         </p>
       </div>
       <button

@@ -23,13 +23,7 @@ export function getInitials(fullName) {
   return fullName.split(' ').map((word) => word[0]).slice(0, 2).join('').toUpperCase()
 }
 
-/** Libelles des niveaux de participation */
-export const PARTICIPATION_LEVELS = {
-  1: 'Observation',
-  2: 'Aide operatoire',
-  3: 'Sous supervision',
-  4: 'Autonome',
-}
+export { ACTIVITY_TYPE_LABELS, OBJECTIF_LEVEL_LABELS, NIVEAU_ATTEINT_LABELS } from '@/lib/logbook'
 
 export function normalizeObjective(objective) {
   if (!objective) return objective
@@ -50,23 +44,9 @@ export function normalizeObjectives(objectives) {
   return (objectives ?? []).map(normalizeObjective)
 }
 
-export function countValidatedAtOrAboveByProcedure(realisations, minParticipationLevel) {
-  const counts = {}
-
-  for (const realisation of realisations ?? []) {
-    if (realisation?.status !== 'validated') continue
-    if ((realisation?.participation_level ?? 0) < minParticipationLevel) continue
-    if (!realisation?.procedure_id) continue
-
-    counts[realisation.procedure_id] = (counts[realisation.procedure_id] ?? 0) + 1
-  }
-
-  return counts
-}
-
 /** Libelles des roles */
 export const ROLE_LABELS = {
   admin: 'Administrateur',
   enseignant: 'Enseignant',
-  resident: 'Resident',
+  resident: 'Résident',
 }

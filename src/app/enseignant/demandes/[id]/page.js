@@ -4,23 +4,25 @@ import { redirect, notFound } from 'next/navigation'
 import ValidationForm from './ValidationForm'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
-import { formatDate, PARTICIPATION_LEVELS } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
 export default async function ValidationPage({ params }) {
   const { id } = await params
   const supabase = await createClient()
   const admin = createAdminClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Admin client pour bypasser RLS sur realisations et profiles
   const { data: real } = await admin
     .from('realisations')
     .select(`
-      id, performed_at, participation_level, ipp_patient, compte_rendu,
+      id, performed_at, activity_type, ipp_patient, compte_rendu,
       commentaire, status, resident_year_at_time, is_hors_objectifs,
-      enseignant_id,
-      procedures(name, pathologie),
+      enseignant_id, resident_id, procedure_id,
+      procedures(name, pathologie, seuil_deblocage_autonomie),
       resident:profiles!resident_id(full_name),
       superviseur:profiles!superviseur_resident_id(full_name)
     `)
@@ -28,33 +30,53 @@ export default async function ValidationPage({ params }) {
     .single()
 
   if (!real) notFound()
-
-  // Vérifier que l'enseignant connecté est bien le superviseur de cet acte
   if (real.enseignant_id !== user.id) notFound()
+
+  let autonomyWarning = ''
+  if (real.activity_type === 'autonome') {
+    const { data: progress } = await admin
+      .from('v_resident_procedure_counts')
+      .select('count_supervise')
+      .eq('resident_id', real.resident_id)
+      .eq('procedure_id', real.procedure_id)
+      .maybeSingle()
+
+    const supervisedCount = progress?.count_supervise ?? 0
+    const threshold = real.procedures?.seuil_deblocage_autonomie ?? 0
+    const missing = Math.max(0, threshold - supervisedCount)
+    if (missing > 0) {
+      autonomyWarning = `Pré-requis autonomie non atteint : ${supervisedCount}/${threshold} acte(s) supervisé(s), ${missing} restant(s). La validation reste possible.`
+    }
+  }
 
   return (
     <div className="p-5 md:p-8 max-w-2xl">
       <PageHeader title="Validation d'acte" subtitle={real.procedures?.name} />
 
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-5 space-y-3">
-        <Row label="Résident" value={real.resident?.full_name} />
+        <Row label="Resident" value={real.resident?.full_name} />
         <Row label="Geste" value={real.procedures?.name} />
         {real.procedures?.pathologie && <Row label="Pathologie" value={real.procedures.pathologie} />}
         <Row label="Date" value={formatDate(real.performed_at)} />
-        <Row label="Niveau déclaré" value={PARTICIPATION_LEVELS[real.participation_level]} />
-        <Row label="Année résidanat" value={`Année ${real.resident_year_at_time}`} />
+        <Row label="Type d'activite" value={ACTIVITY_TYPE_LABELS[real.activity_type] ?? '-'} />
+        <Row label="Annee residanat" value={`Annee ${real.resident_year_at_time}`} />
         {real.ipp_patient && <Row label="IPP patient" value={real.ipp_patient} />}
         {real.superviseur?.full_name && (
-          <Row label="Résident superviseur" value={real.superviseur.full_name} />
+          <Row label="Resident superviseur" value={real.superviseur.full_name} />
         )}
         {real.is_hors_objectifs && (
           <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 text-sm text-orange-700">
             Geste hors objectifs annuels
           </div>
         )}
+        {autonomyWarning && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+            {autonomyWarning}
+          </div>
+        )}
         {real.compte_rendu && (
           <div>
-            <p className="text-xs font-medium text-slate-500 mb-1">Compte rendu opératoire</p>
+            <p className="text-xs font-medium text-slate-500 mb-1">Compte rendu operatoire</p>
             <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-3">{real.compte_rendu}</p>
           </div>
         )}
@@ -73,7 +95,7 @@ export default async function ValidationPage({ params }) {
       {real.status === 'pending' && <ValidationForm realisationId={id} />}
       {real.status !== 'pending' && (
         <div className="text-center text-sm text-slate-500 py-4">
-          Cet acte a déjà été traité.
+          Cet acte a deja ete traite.
         </div>
       )}
     </div>

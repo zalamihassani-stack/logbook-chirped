@@ -6,46 +6,46 @@ export default function ReferentielFilters({
   filterLevel,
   categories,
   basePath = '/resident/referentiel',
+  showAllLevels = false,
 }) {
   const router = useRouter()
 
   function navigate(overrides) {
-    const p = new URLSearchParams({
+    const params = new URLSearchParams({
       ...(filterCat && { cat: filterCat }),
       ...(filterLevel && { level: filterLevel }),
       ...overrides,
     })
-    ;['cat', 'level'].forEach(k => { if (p.get(k) === '') p.delete(k) })
-    router.push(p.size ? `${basePath}?${p}` : basePath)
+    ;['cat', 'level'].forEach((key) => { if (params.get(key) === '') params.delete(key) })
+    router.push(params.size ? `${basePath}?${params}` : basePath)
   }
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 mb-6">
       <div className="flex-1">
-        <label className="block text-xs font-medium text-slate-500 mb-1">Niveau requis</label>
+        <label className="block text-xs font-medium text-slate-500 mb-1">Type d&apos;objectif</label>
         <select
           value={filterLevel}
-          onChange={e => navigate({ level: e.target.value })}
+          onChange={(event) => navigate({ level: event.target.value })}
           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white focus:border-sky-400 transition"
         >
-          <option value="">Tous les niveaux</option>
-          <option value="1">Observation</option>
-          <option value="2">Aide opératoire</option>
-          <option value="3">Sous supervision</option>
-          <option value="4">Autonome</option>
+          <option value="">Tous les objectifs</option>
+          {showAllLevels && <option value="1">Exposition</option>}
+          {showAllLevels && <option value="2">Sous supervision</option>}
+          <option value="3">Autonomie</option>
         </select>
       </div>
 
       <div className="flex-1">
-        <label className="block text-xs font-medium text-slate-500 mb-1">Catégorie</label>
+        <label className="block text-xs font-medium text-slate-500 mb-1">Categorie</label>
         <select
           value={filterCat}
-          onChange={e => navigate({ cat: e.target.value })}
+          onChange={(event) => navigate({ cat: event.target.value })}
           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white focus:border-sky-400 transition"
         >
-          <option value="">Toutes les catégories</option>
-          {categories.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+          <option value="">Toutes les categories</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>{category.name}</option>
           ))}
         </select>
       </div>

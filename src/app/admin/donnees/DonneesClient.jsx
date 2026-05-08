@@ -3,7 +3,8 @@ import { useState } from 'react'
 import PageHeader from '@/components/ui/PageHeader'
 import { deleteResidentData, deleteActesByPeriod } from '@/app/actions/admin'
 import { createClient } from '@/lib/supabase/client'
-import { Download, Trash2, AlertTriangle } from 'lucide-react'
+import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
+import { Download, AlertTriangle } from 'lucide-react'
 
 export default function DonneesClient({ residents }) {
   const [pdfResident, setPdfResident] = useState('')
@@ -19,27 +20,27 @@ export default function DonneesClient({ residents }) {
     const supabase = createClient()
     const { data: reals } = await supabase
       .from('realisations')
-      .select('performed_at, participation_level, status, procedures(name), profiles!enseignant_id(full_name)')
+      .select('performed_at, activity_type, status, procedures(name), profiles!enseignant_id(full_name)')
       .eq('resident_id', pdfResident)
       .order('performed_at')
 
     const { jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
-    const resident = residents.find(r => r.id === pdfResident)
+    const resident = residents.find((item) => item.id === pdfResident)
     const doc = new jsPDF()
     doc.setFontSize(16)
-    doc.text(`Logbook — ${resident?.full_name ?? ''}`, 14, 20)
+    doc.text(`Logbook - ${resident?.full_name ?? ''}`, 14, 20)
     doc.setFontSize(10)
     doc.text(`Exporté le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28)
     autoTable(doc, {
       startY: 35,
-      head: [['Date', 'Geste', 'Niveau', 'Enseignant', 'Statut']],
-      body: (reals ?? []).map(r => [
-        new Date(r.performed_at).toLocaleDateString('fr-FR'),
-        r.procedures?.name ?? '—',
-        r.participation_level,
-        r.profiles?.full_name ?? '—',
-        r.status,
+      head: [['Date', 'Geste', 'Type', 'Enseignant', 'Statut']],
+      body: (reals ?? []).map((realisation) => [
+        new Date(realisation.performed_at).toLocaleDateString('fr-FR'),
+        realisation.procedures?.name ?? '-',
+        ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '-',
+        realisation.profiles?.full_name ?? '-',
+        realisation.status,
       ]),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [13, 43, 78] },
@@ -53,40 +54,52 @@ export default function DonneesClient({ residents }) {
     const supabase = createClient()
     const { data: reals } = await supabase
       .from('realisations')
-      .select('performed_at, participation_level, status, resident_year_at_time, is_hors_objectifs, profiles!resident_id(full_name), procedures(name), profiles!enseignant_id(full_name)')
+      .select('performed_at, activity_type, status, resident_year_at_time, is_hors_objectifs, profiles!resident_id(full_name), procedures(name), profiles!enseignant_id(full_name)')
       .order('performed_at')
 
-    const header = ['Date', 'Résident', 'Geste', 'Niveau', 'Enseignant', 'Statut', 'Année résidanat', 'Hors objectifs']
-    const rows = (reals ?? []).map(r => [
-      new Date(r.performed_at).toLocaleDateString('fr-FR'),
-      r['profiles!resident_id']?.full_name ?? '—',
-      r.procedures?.name ?? '—',
-      r.participation_level,
-      r['profiles!enseignant_id']?.full_name ?? '—',
-      r.status,
-      r.resident_year_at_time,
-      r.is_hors_objectifs ? 'Oui' : 'Non',
+    const header = ['Date', 'Résident', 'Geste', 'Type', 'Enseignant', 'Statut', 'Annee residanat', 'Hors objectifs']
+    const rows = (reals ?? []).map((realisation) => [
+      new Date(realisation.performed_at).toLocaleDateString('fr-FR'),
+      realisation['profiles!resident_id']?.full_name ?? '-',
+      realisation.procedures?.name ?? '-',
+      ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '-',
+      realisation['profiles!enseignant_id']?.full_name ?? '-',
+      realisation.status,
+      realisation.resident_year_at_time,
+      realisation.is_hors_objectifs ? 'Oui' : 'Non',
     ])
-    const csv = [header, ...rows].map(row => row.map(v => `"${v}"`).join(',')).join('\n')
+    const csv = [header, ...rows].map((row) => row.map((value) => `"${value}"`).join(',')).join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = 'actes-export.csv'; a.click()
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'actes-export.csv'
+    link.click()
     URL.revokeObjectURL(url)
     setLoading('')
   }
 
   async function handleDeleteResident() {
-    if (!deleteResident || !confirm('Supprimer tous les actes de ce résident ?')) return
+    if (!deleteResident) return
+    const confirmationToken = prompt('Tapez SUPPRIMER pour confirmer la suppression de tous les actes de ce résident.')
+    if (confirmationToken !== 'SUPPRIMER') return
     setLoading('delRes')
-    await deleteResidentData(deleteResident)
-    setLoading(''); setMsg('Actes supprimés.')
+    const res = await deleteResidentData({ residentId: deleteResident, confirmationToken })
+    setLoading('')
+    setMsg(res.error ?? `${res.deletedCount ?? 0} acte(s) supprimé(s).`)
   }
 
   async function handleDeletePeriod() {
-    if (!confirm('Supprimer les actes de cette période ?')) return
+    if (!periodFrom || !periodTo) {
+      setMsg('Indiquez une date de début et une date de fin.')
+      return
+    }
+    const confirmationToken = prompt('Tapez SUPPRIMER pour confirmer la suppression des actes de cette période.')
+    if (confirmationToken !== 'SUPPRIMER') return
     setLoading('delPeriod')
-    await deleteActesByPeriod({ from: periodFrom || undefined, to: periodTo || undefined })
-    setLoading(''); setMsg('Actes supprimés.')
+    const res = await deleteActesByPeriod({ from: periodFrom, to: periodTo, confirmationToken })
+    setLoading('')
+    setMsg(res.error ?? `${res.deletedCount ?? 0} acte(s) supprimé(s).`)
   }
 
   return (
@@ -95,62 +108,58 @@ export default function DonneesClient({ residents }) {
       {msg && <div className="mb-4 text-sm text-green-700 bg-green-50 rounded-lg px-4 py-2.5">{msg}</div>}
 
       <div className="space-y-4">
-        {/* Export PDF */}
-        <Section title="Export PDF — Logbook résident" icon={<Download size={18} />}>
+        <Section title="Export PDF - Logbook résident" icon={<Download size={18} />}>
           <div className="flex gap-3 flex-col sm:flex-row">
-            <select value={pdfResident} onChange={e => setPdfResident(e.target.value)}
+            <select value={pdfResident} onChange={(event) => setPdfResident(event.target.value)}
               className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-              <option value="">Choisir un résident…</option>
-              {residents.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
+              <option value="">Choisir un résident...</option>
+              {residents.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name}</option>)}
             </select>
             <button onClick={exportPDF} disabled={!pdfResident || loading === 'pdf'}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-60"
               style={{ backgroundColor: '#0D2B4E' }}>
-              {loading === 'pdf' ? 'Génération…' : 'Exporter PDF'}
+              {loading === 'pdf' ? 'Génération...' : 'Exporter PDF'}
             </button>
           </div>
         </Section>
 
-        {/* Export CSV */}
-        <Section title="Export CSV — Tous les actes" icon={<Download size={18} />}>
+        <Section title="Export CSV - Tous les actes" icon={<Download size={18} />}>
           <button onClick={exportCSV} disabled={loading === 'csv'}
             className="px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-60"
             style={{ backgroundColor: '#0D2B4E' }}>
-            {loading === 'csv' ? 'Génération…' : 'Télécharger CSV'}
+            {loading === 'csv' ? 'Génération...' : 'Télécharger CSV'}
           </button>
         </Section>
 
-        {/* Supprimer actes d'un résident */}
         <Section title="Supprimer les actes d'un résident" danger>
           <div className="flex gap-3 flex-col sm:flex-row">
-            <select value={deleteResident} onChange={e => setDeleteResident(e.target.value)}
+            <select value={deleteResident} onChange={(event) => setDeleteResident(event.target.value)}
               className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-              <option value="">Choisir un résident…</option>
-              {residents.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
+              <option value="">Choisir un résident...</option>
+              {residents.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name}</option>)}
             </select>
             <button onClick={handleDeleteResident} disabled={!deleteResident || loading === 'delRes'}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium bg-red-600 disabled:opacity-60">
-              {loading === 'delRes' ? 'Suppression…' : 'Supprimer'}
+              {loading === 'delRes' ? 'Suppression...' : 'Supprimer'}
             </button>
           </div>
         </Section>
 
-        {/* Supprimer par période */}
         <Section title="Supprimer les actes par période" danger>
           <div className="flex gap-3 flex-col sm:flex-row items-end">
             <div className="flex-1">
               <label className="text-xs text-slate-500 mb-1 block">Du</label>
-              <input type="date" value={periodFrom} onChange={e => setPeriodFrom(e.target.value)}
+              <input type="date" value={periodFrom} onChange={(event) => setPeriodFrom(event.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" />
             </div>
             <div className="flex-1">
               <label className="text-xs text-slate-500 mb-1 block">Au</label>
-              <input type="date" value={periodTo} onChange={e => setPeriodTo(e.target.value)}
+              <input type="date" value={periodTo} onChange={(event) => setPeriodTo(event.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" />
             </div>
-            <button onClick={handleDeletePeriod} disabled={loading === 'delPeriod'}
+            <button onClick={handleDeletePeriod} disabled={!periodFrom || !periodTo || loading === 'delPeriod'}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium bg-red-600 disabled:opacity-60">
-              {loading === 'delPeriod' ? '…' : 'Supprimer'}
+              {loading === 'delPeriod' ? '...' : 'Supprimer'}
             </button>
           </div>
         </Section>

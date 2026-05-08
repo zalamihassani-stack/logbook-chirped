@@ -4,49 +4,48 @@ import PageHeader from '@/components/ui/PageHeader'
 import ObjectifsFilters from './ObjectifsFilters'
 
 const SECTIONS = [
-  { level: 4, label: 'Autonome',         dot: '#16a34a', style: { bg: '#dcfce7', color: '#166534' } },
-  { level: 3, label: 'Sous supervision',  dot: '#ea580c', style: { bg: '#ffedd5', color: '#9a3412' } },
-  { level: 2, label: 'Aide opératoire',   dot: '#3b82f6', style: { bg: '#dbeafe', color: '#1e40af' } },
-  { level: 1, label: 'Observation',       dot: '#94a3b8', style: { bg: '#f1f5f9', color: '#475569' } },
+  { level: 3, label: 'Maitrise', dot: '#16a34a', style: { bg: '#dcfce7', color: '#166534' } },
+  { level: 2, label: 'Competence supervisee', dot: '#f59e0b', style: { bg: '#fef3c7', color: '#92400e' } },
+  { level: 1, label: 'Exposition', dot: '#3b82f6', style: { bg: '#dbeafe', color: '#1e40af' } },
 ]
 
 export default async function ObjectifsPage({ searchParams }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const params = await searchParams
-  const year = params?.year ? parseInt(params.year) : 1
+  const year = params?.year ? parseInt(params.year, 10) : 1
   const filterCat = params?.cat ?? ''
   const filterLevel = params?.level ?? ''
 
   const [{ data: allObjectives }, { data: categories }] = await Promise.all([
     supabase
       .from('procedure_objectives')
-      .select('year, required_level, min_count, procedures(id, name, pathologie, category_id, categories(name, color_hex))'),
+      .select('year, required_level, min_count, procedures(id, name, pathologie, category_id, categories(name, color_hex))')
+      .eq('is_active', true),
     supabase.from('categories').select('id, name, color_hex').order('display_order'),
   ])
 
   const all = allObjectives ?? []
-
-  // Pour chaque (procedure, level), 1ère année où ce niveau apparaît
   const firstYearAtLevel = new Map()
-  for (const o of all) {
-    const pid = o.procedures?.id
-    if (!pid) continue
-    const key = `${pid}_${o.required_level}`
+  for (const objective of all) {
+    const procedureId = objective.procedures?.id
+    if (!procedureId) continue
+    const key = `${procedureId}_${objective.required_level}`
     const current = firstYearAtLevel.get(key)
-    if (current === undefined || o.year < current) firstYearAtLevel.set(key, o.year)
+    if (current === undefined || objective.year < current) firstYearAtLevel.set(key, objective.year)
   }
 
-  // Gestes nouvellement introduits cette année à ce niveau
-  const yearObjectives = all.filter(o => {
-    if (o.year !== year) return false
-    const pid = o.procedures?.id
-    if (!pid) return false
-    if (firstYearAtLevel.get(`${pid}_${o.required_level}`) !== year) return false
-    if (filterCat && o.procedures?.category_id !== filterCat) return false
-    if (filterLevel && String(o.required_level) !== filterLevel) return false
+  const yearObjectives = all.filter((objective) => {
+    if (objective.year !== year) return false
+    const procedureId = objective.procedures?.id
+    if (!procedureId) return false
+    if (firstYearAtLevel.get(`${procedureId}_${objective.required_level}`) !== year) return false
+    if (filterCat && objective.procedures?.category_id !== filterCat) return false
+    if (filterLevel && String(objective.required_level) !== filterLevel) return false
     return true
   })
 
@@ -54,7 +53,7 @@ export default async function ObjectifsPage({ searchParams }) {
     <div className="p-5 md:p-8 max-w-3xl">
       <PageHeader
         title="Objectifs de formation"
-        subtitle={`${yearObjectives.length} geste(s) introduits en année ${year}`}
+        subtitle={`${yearObjectives.length} geste(s) introduits en annee ${year}`}
       />
 
       <ObjectifsFilters
@@ -65,7 +64,7 @@ export default async function ObjectifsPage({ searchParams }) {
       />
 
       {SECTIONS.map(({ level, label, dot, style }) => {
-        const items = yearObjectives.filter(o => o.required_level === level)
+        const items = yearObjectives.filter((objective) => objective.required_level === level)
         if (items.length === 0) return null
         return (
           <section key={level} className="mb-7">
@@ -77,25 +76,25 @@ export default async function ObjectifsPage({ searchParams }) {
               </h2>
             </div>
             <div className="space-y-2">
-              {items.map((o, i) => {
-                const p = o.procedures
-                const cat = p?.categories
+              {items.map((objective, index) => {
+                const procedure = objective.procedures
+                const category = procedure?.categories
                 return (
-                  <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <div key={index} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800">{p?.name ?? '—'}</p>
-                        {p?.pathologie && <p className="text-xs text-slate-500 mt-0.5">{p.pathologie}</p>}
-                        {cat && (
+                        <p className="text-sm font-semibold text-slate-800">{procedure?.name ?? '—'}</p>
+                        {procedure?.pathologie && <p className="text-xs text-slate-500 mt-0.5">{procedure.pathologie}</p>}
+                        {category && (
                           <span className="text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block"
-                            style={{ backgroundColor: cat.color_hex + '25', color: cat.color_hex }}>
-                            {cat.name}
+                            style={{ backgroundColor: `${category.color_hex}25`, color: category.color_hex }}>
+                            {category.name}
                           </span>
                         )}
                       </div>
                       <span className="text-xs px-2.5 py-0.5 rounded-full font-medium flex-shrink-0"
                         style={{ backgroundColor: style.bg, color: style.color }}>
-                        min. {o.min_count}
+                        min. {objective.min_count}
                       </span>
                     </div>
                   </div>
@@ -107,7 +106,7 @@ export default async function ObjectifsPage({ searchParams }) {
       })}
 
       {yearObjectives.length === 0 && (
-        <p className="text-center text-sm text-slate-400 py-8">Aucun objectif pour ces critères</p>
+        <p className="text-center text-sm text-slate-400 py-8">Aucun objectif pour ces criteres</p>
       )}
     </div>
   )

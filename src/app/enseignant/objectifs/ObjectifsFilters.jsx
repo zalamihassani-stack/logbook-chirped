@@ -5,46 +5,45 @@ export default function ObjectifsFilters({ year, filterCat, filterLevel, categor
   const router = useRouter()
 
   function navigate(overrides) {
-    const p = new URLSearchParams({
+    const params = new URLSearchParams({
       year,
-      ...(filterCat   && { cat:   filterCat }),
+      ...(filterCat && { cat: filterCat }),
       ...(filterLevel && { level: filterLevel }),
       ...overrides,
     })
-    ;['cat', 'level'].forEach(k => { if (p.get(k) === '') p.delete(k) })
-    router.push(`/enseignant/objectifs?${p}`)
+    ;['cat', 'level'].forEach((key) => { if (params.get(key) === '') params.delete(key) })
+    router.push(`/enseignant/objectifs?${params}`)
   }
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 mb-5">
       <select
         value={year}
-        onChange={e => navigate({ year: e.target.value })}
+        onChange={(event) => navigate({ year: event.target.value })}
         className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white"
       >
-        {[1, 2, 3, 4, 5].map(y => (
-          <option key={y} value={y}>Année {y}</option>
+        {[1, 2, 3, 4, 5].map((value) => (
+          <option key={value} value={value}>Annee {value}</option>
         ))}
       </select>
       <select
         value={filterLevel}
-        onChange={e => navigate({ level: e.target.value })}
+        onChange={(event) => navigate({ level: event.target.value })}
         className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white"
       >
         <option value="">Tous les niveaux</option>
-        <option value="4">Autonome</option>
-        <option value="3">Sous supervision</option>
-        <option value="2">Aide opératoire</option>
-        <option value="1">Observation</option>
+        <option value="3">Maitrise</option>
+        <option value="2">Competence supervisee</option>
+        <option value="1">Exposition</option>
       </select>
       <select
         value={filterCat}
-        onChange={e => navigate({ cat: e.target.value })}
+        onChange={(event) => navigate({ cat: event.target.value })}
         className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white"
       >
-        <option value="">Toutes les spécialités</option>
-        {categories.map(c => (
-          <option key={c.id} value={c.id}>{c.name}</option>
+        <option value="">Toutes les specialites</option>
+        {categories.map((category) => (
+          <option key={category.id} value={category.id}>{category.name}</option>
         ))}
       </select>
     </div>

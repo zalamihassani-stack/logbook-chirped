@@ -1,54 +1,54 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import {
-  getInitials,
-  getResidentYear,
-  formatDate,
-  normalizeObjectives,
-  countValidatedAtOrAboveByProcedure,
-} from '@/lib/utils'
+import { getInitials, getResidentYear, formatDate } from '@/lib/utils'
+import { getResidentProgressRows, indexProgressByProcedure, getCountForRequiredLevel } from '@/lib/logbook'
 import PasswordChange from '@/components/profile/PasswordChange'
-
-function getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts) {
-  const counts = objective.required_level >= 4 ? autonomyCounts : supervisionCounts
-  return counts[objective.procedure_id] ?? 0
-}
 
 export default async function ProfilPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, { data: reals }, { data: objectives }, { data: categories }, { count: travauxCount }] = await Promise.all([
+  const [
+    { data: profile },
+    { data: objectives },
+    { data: categories },
+    { count: travauxCount },
+    progressRows,
+    totalRes,
+    validatedRes,
+    pendingRes,
+    refusedRes,
+  ] = await Promise.all([
     supabase.from('profiles').select('full_name, residanat_start_date, promotion').eq('id', user.id).single(),
-    supabase
-      .from('realisations')
-      .select('status, procedure_id, participation_level, procedures(category_id)')
-      .eq('resident_id', user.id),
-    supabase.from('procedure_objectives').select('procedure_id, min_count, required_level, procedures(category_id)'),
+    supabase.from('procedure_objectives').select('procedure_id, min_count, required_level, procedures(category_id)').eq('is_active', true),
     supabase.from('categories').select('id, name, color_hex').order('display_order'),
     supabase.from('travaux_scientifiques').select('id', { count: 'exact', head: true }).eq('resident_id', user.id),
+    getResidentProgressRows(supabase, user.id),
+    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id),
+    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'validated'),
+    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'pending'),
+    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'refused'),
   ])
 
   const year = getResidentYear(profile?.residanat_start_date)
-  const allReals = reals ?? []
-  const validated = allReals.filter((realisation) => realisation.status === 'validated')
-  const normalizedObjectives = normalizeObjectives(objectives).filter((objective) => objective.required_level > 0)
-  const supervisionCounts = countValidatedAtOrAboveByProcedure(allReals, 3)
-  const autonomyCounts = countValidatedAtOrAboveByProcedure(allReals, 4)
+  const normalizedObjectives = (objectives ?? []).filter((objective) => objective.required_level > 0)
+  const progressIndex = indexProgressByProcedure(progressRows)
 
   const stats = {
-    total: allReals.length,
-    validated: validated.length,
-    pending: allReals.filter((realisation) => realisation.status === 'pending').length,
-    refused: allReals.filter((realisation) => realisation.status === 'refused').length,
+    total: totalRes.count ?? 0,
+    validated: validatedRes.count ?? 0,
+    pending: pendingRes.count ?? 0,
+    refused: refusedRes.count ?? 0,
     travaux: travauxCount ?? 0,
   }
 
   const totalRequired = normalizedObjectives.reduce((sum, objective) => sum + objective.min_count, 0)
   const totalDone = normalizedObjectives.reduce((sum, objective) => {
-    const done = getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts)
-    return sum + Math.min(done, objective.min_count)
+    const count = getCountForRequiredLevel(progressIndex[objective.procedure_id], objective.required_level)
+    return sum + Math.min(count, objective.min_count)
   }, 0)
   const progressPct = totalRequired ? Math.min(100, Math.round((totalDone / totalRequired) * 100)) : 0
 
@@ -57,7 +57,7 @@ export default async function ProfilPage() {
       const catObjectives = normalizedObjectives.filter((objective) => objective.procedures?.category_id === category.id)
       const required = catObjectives.reduce((sum, objective) => sum + objective.min_count, 0)
       const done = catObjectives.reduce((sum, objective) => {
-        const count = getValidatedCountForObjective(objective, supervisionCounts, autonomyCounts)
+        const count = getCountForRequiredLevel(progressIndex[objective.procedure_id], objective.required_level)
         return sum + Math.min(count, objective.min_count)
       }, 0)
       return { ...category, required, done, pct: required ? Math.min(100, Math.round((done / required) * 100)) : 0 }
@@ -73,7 +73,7 @@ export default async function ProfilPage() {
           </div>
           <div>
             <h1 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>{profile?.full_name}</h1>
-            <p className="text-sm text-slate-500">Resident · Annee {year}</p>
+            <p className="text-sm text-slate-500">Resident · Année {year}</p>
             <p className="mt-0.5 text-xs text-slate-400">{user.email}</p>
           </div>
         </div>
@@ -94,9 +94,9 @@ export default async function ProfilPage() {
         <p className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Statistiques</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: 'Valides', value: stats.validated, bg: '#dcfce7', color: '#166534' },
+            { label: 'Validés', value: stats.validated, bg: '#dcfce7', color: '#166534' },
             { label: 'En attente', value: stats.pending, bg: '#fef9c3', color: '#854d0e' },
-            { label: 'Refuses', value: stats.refused, bg: '#fee2e2', color: '#991b1b' },
+            { label: 'Refusés', value: stats.refused, bg: '#fee2e2', color: '#991b1b' },
             { label: 'Travaux', value: stats.travaux, bg: '#f3e8ff', color: '#6b21a8' },
           ].map((stat) => (
             <div key={stat.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: stat.bg }}>

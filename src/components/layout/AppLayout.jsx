@@ -26,8 +26,8 @@ const NAV = {
     { label: 'Accueil', icon: LayoutDashboard, path: '/admin' },
     { label: 'Utilisateurs', icon: Users, path: '/admin/utilisateurs' },
     { label: 'Gestes', icon: Scissors, path: '/admin/gestes' },
-    { label: 'Donnees', icon: Database, path: '/admin/donnees' },
-    { label: 'Reglages', icon: Settings, path: '/admin/reglages' },
+    { label: 'Données', icon: Database, path: '/admin/donnees' },
+    { label: 'Réglages', icon: Settings, path: '/admin/reglages' },
   ],
   enseignant: [
     { label: 'Demandes', icon: ClipboardList, path: '/enseignant/demandes' },
@@ -50,7 +50,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
   const router = useRouter()
   const role = profile?.role ?? 'resident'
   const navItems = NAV[role] ?? []
-  const profilePath = role === 'resident' ? '/resident/profil' : role === 'enseignant' ? '/enseignant/profil' : null
+  const profilePath = role === 'admin' ? '/admin/reglages' : role === 'resident' ? '/resident/profil' : role === 'enseignant' ? '/enseignant/profil' : null
 
   function isActive(path) {
     if (path === '/admin' || path === '/enseignant' || path === '/resident') {
@@ -76,7 +76,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
           <p className="text-center text-sm font-semibold leading-snug text-white">
             Logbook Chirurgie
             <br />
-            Pediatrique
+            Pédiatrique
           </p>
         </div>
 
@@ -128,7 +128,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
             style={{ color: 'rgba(255,255,255,0.55)' }}
           >
             <LogOut size={18} strokeWidth={1.75} />
-            Deconnexion
+            Déconnexion
           </button>
         </div>
       </aside>
@@ -159,7 +159,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
             style={{ color: 'rgba(255,255,255,0.65)' }}
           >
             <LogOut size={14} strokeWidth={1.75} />
-            Deconnexion
+            Déconnexion
           </button>
         </div>
       </header>

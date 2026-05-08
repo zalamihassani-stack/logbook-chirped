@@ -5,17 +5,20 @@ import { ChevronLeft } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
 import ResubmitForm from './ResubmitForm'
-import { formatDate, PARTICIPATION_LEVELS } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
 export default async function DetailRealisationPage({ params }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const [{ data: real }, { data: feedback }, { data: procedures }, { data: enseignants }] = await Promise.all([
     supabase.from('realisations')
-      .select('id, performed_at, participation_level, status, ipp_patient, compte_rendu, commentaire, resident_year_at_time, is_hors_objectifs, procedure_id, enseignant_id, procedures(name), profiles!enseignant_id(full_name)')
+      .select('id, performed_at, activity_type, status, ipp_patient, compte_rendu, commentaire, resident_year_at_time, is_hors_objectifs, procedure_id, enseignant_id, procedures(name), profiles!enseignant_id(full_name)')
       .eq('id', id).eq('resident_id', user.id).single(),
     supabase.from('validation_history')
       .select('action, feedback, created_at, profiles!enseignant_id(full_name)')
@@ -33,7 +36,7 @@ export default async function DetailRealisationPage({ params }) {
         <ChevronLeft size={16} strokeWidth={1.75} />
         Retour
       </Link>
-      <PageHeader title={real.procedures?.name ?? 'Détail réalisation'} subtitle={formatDate(real.performed_at)} />
+      <PageHeader title={real.procedures?.name ?? 'Detail realisation'} subtitle={formatDate(real.performed_at)} />
 
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-5 space-y-3">
         <div className="flex items-center gap-2">
@@ -42,28 +45,26 @@ export default async function DetailRealisationPage({ params }) {
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">Hors objectifs</span>
           )}
         </div>
-        <Row label="Niveau déclaré" value={PARTICIPATION_LEVELS[real.participation_level]} />
+        <Row label="Type d'activite" value={ACTIVITY_TYPE_LABELS[real.activity_type] ?? '-'} />
         <Row label="Enseignant" value={real.profiles?.full_name} />
-        <Row label="Année résidanat" value={`Année ${real.resident_year_at_time}`} />
+        <Row label="Annee residanat" value={`Annee ${real.resident_year_at_time}`} />
         {real.ipp_patient && <Row label="IPP patient" value={real.ipp_patient} />}
         {real.compte_rendu && (
           <div>
-            <p className="text-xs font-medium text-slate-500 mb-1">Compte rendu opératoire</p>
+            <p className="text-xs font-medium text-slate-500 mb-1">Compte rendu operatoire</p>
             <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-3">{real.compte_rendu}</p>
           </div>
         )}
         {real.commentaire && <Row label="Commentaire" value={real.commentaire} />}
       </div>
 
-      {/* Feedback enseignant */}
       {lastFeedback?.feedback && (
         <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 mb-5">
-          <p className="text-xs font-medium text-sky-700 mb-1.5">Feedback — {lastFeedback.profiles?.full_name}</p>
+          <p className="text-xs font-medium text-sky-700 mb-1.5">Feedback - {lastFeedback.profiles?.full_name}</p>
           <p className="text-sm text-slate-700">{lastFeedback.feedback}</p>
         </div>
       )}
 
-      {/* Re-soumettre si refusé */}
       {real.status === 'refused' && (
         <ResubmitForm
           realisationId={id}

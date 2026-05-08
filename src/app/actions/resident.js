@@ -54,7 +54,7 @@ export async function createRealisation(formData) {
       superviseur_resident_id: formData.superviseur_resident_id || null,
       performed_at: formData.performed_at,
       resident_year_at_time: residentYear,
-      participation_level: formData.participation_level,
+      activity_type: formData.activity_type,
       ipp_patient: formData.ipp_patient || null,
       compte_rendu: formData.compte_rendu || null,
       commentaire: formData.commentaire || null,
@@ -87,11 +87,21 @@ export async function createRealisation(formData) {
 export async function resubmitRealisation(id, formData) {
   let supabase
   let user
+  let profile
   try {
-    ;({ supabase, user } = await requireResident())
+    ;({ supabase, user, profile } = await requireResident())
   } catch (error) {
     return { error: error.message }
   }
+
+  const residentYear = getResidentYear(profile?.residanat_start_date)
+
+  const { data: objective } = await supabase
+    .from('procedure_objectives')
+    .select('id')
+    .eq('procedure_id', formData.procedure_id)
+    .eq('year', residentYear)
+    .maybeSingle()
 
   const { error } = await supabase
     .from('realisations')
@@ -99,11 +109,13 @@ export async function resubmitRealisation(id, formData) {
       procedure_id: formData.procedure_id,
       enseignant_id: formData.enseignant_id,
       performed_at: formData.performed_at,
-      participation_level: formData.participation_level,
+      resident_year_at_time: residentYear,
+      activity_type: formData.activity_type,
       ipp_patient: formData.ipp_patient || null,
       compte_rendu: formData.compte_rendu || null,
       commentaire: formData.commentaire || null,
       status: 'pending',
+      is_hors_objectifs: !objective,
     })
     .eq('id', id)
     .eq('resident_id', user.id)
