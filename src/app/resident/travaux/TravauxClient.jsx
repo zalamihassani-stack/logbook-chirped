@@ -1,37 +1,92 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ChevronRight, Plus, X } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import ExportTravauxButton from './ExportTravauxButton'
 import { createTravail } from '@/app/actions/resident'
+import { formatTravailAuthors, getStatusOptionsForType, TRAVAIL_STATUS_LABELS, TRAVAIL_STATUS_STYLES, TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
 
-const STATUS_OPTIONS = [
-  { value: 'soumis', label: 'Soumis' },
-  { value: 'accepte', label: 'Accepté' },
-  { value: 'publie', label: 'Publié' },
-  { value: 'presente', label: 'Présenté' },
-]
+const EMPTY = {
+  title: '',
+  type_id: '',
+  journal_or_event: '',
+  year: new Date().getFullYear(),
+  encadrant_id: '',
+  profile_author_ids: [],
+  external_authors: [''],
+  doi_or_url: '',
+  status: '',
+}
 
-const EMPTY = { title: '', type_id: '', journal_or_event: '', year: new Date().getFullYear(), authors: '', doi_or_url: '', status: 'soumis' }
-
-export default function TravauxClient({ initialTravaux, types, residentName }) {
+export default function TravauxClient({ initialTravaux, types, residentName, enseignants, residents }) {
   const [travaux] = useState(initialTravaux)
   const [tabType, setTabType] = useState('all')
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState(EMPTY)
+  const [form, setForm] = useState(() => initForm(types))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const filtered = tabType === 'all' ? travaux : travaux.filter(t => t.type_id === tabType)
+  const filtered = tabType === 'all' ? travaux : travaux.filter((travail) => travail.type_id === tabType)
+  const people = useMemo(() => [...enseignants, ...residents], [enseignants, residents])
 
-  function openCreate() { setForm({ ...EMPTY, type_id: types[0]?.id ?? '' }); setError(''); setModal(true) }
+  function openCreate() {
+    setForm(initForm(types))
+    setError('')
+    setModal(true)
+  }
 
-  async function handleSubmit(e) {
-    e.preventDefault(); setLoading(true); setError('')
+  function setField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }))
+  }
+
+  function setType(typeId) {
+    const type = types.find((item) => item.id === typeId)
+    const options = getStatusOptionsForType(type)
+    setForm((current) => ({
+      ...current,
+      type_id: typeId,
+      status: options.some((option) => option.value === current.status) ? current.status : options[0]?.value ?? '',
+    }))
+  }
+
+  function toggleAuthor(profileId) {
+    setForm((current) => {
+      const selected = new Set(current.profile_author_ids)
+      if (selected.has(profileId)) selected.delete(profileId)
+      else selected.add(profileId)
+      return { ...current, profile_author_ids: Array.from(selected) }
+    })
+  }
+
+  function setExternalAuthor(index, value) {
+    setForm((current) => ({
+      ...current,
+      external_authors: current.external_authors.map((name, itemIndex) => itemIndex === index ? value : name),
+    }))
+  }
+
+  function addExternalAuthor() {
+    setForm((current) => ({ ...current, external_authors: [...current.external_authors, ''] }))
+  }
+
+  function removeExternalAuthor(index) {
+    setForm((current) => ({
+      ...current,
+      external_authors: current.external_authors.filter((_, itemIndex) => itemIndex !== index),
+    }))
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
     const res = await createTravail(form)
     setLoading(false)
-    if (res.error) { setError(res.error); return }
+    if (res.error) {
+      setError(res.error)
+      return
+    }
     window.location.reload()
   }
 
@@ -41,104 +96,189 @@ export default function TravauxClient({ initialTravaux, types, residentName }) {
         <div className="flex gap-2">
           <ExportTravauxButton residentName={residentName} />
           <button onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-medium"
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white"
             style={{ backgroundColor: '#0D2B4E' }}>
             <Plus size={16} /> Ajouter
           </button>
         </div>
       } />
 
-      {/* Tabs par type */}
-      <div className="flex gap-2 mb-5 flex-wrap">
+      <div className="mb-5 flex flex-wrap gap-2">
         <button onClick={() => setTabType('all')}
-          className="px-4 py-1.5 rounded-full text-sm font-medium transition"
+          className="rounded-full px-4 py-1.5 text-sm font-medium transition"
           style={tabType === 'all' ? { backgroundColor: '#0D2B4E', color: 'white' } : { backgroundColor: 'white', color: '#0D2B4E', border: '1px solid #e2e8f0' }}>
           Tous
         </button>
-        {types.map(t => (
-          <button key={t.id} onClick={() => setTabType(t.id)}
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition"
-            style={tabType === t.id
-              ? { backgroundColor: t.color_hex, color: 'white' }
-              : { backgroundColor: t.color_hex + '20', color: t.color_hex, border: `1px solid ${t.color_hex}40` }}>
-            {t.name}
+        {types.map((type) => (
+          <button key={type.id} onClick={() => setTabType(type.id)}
+            className="rounded-full px-4 py-1.5 text-sm font-medium transition"
+            style={tabType === type.id
+              ? { backgroundColor: type.color_hex, color: 'white' }
+              : { backgroundColor: `${type.color_hex}20`, color: type.color_hex, border: `1px solid ${type.color_hex}40` }}>
+            {type.name}
           </button>
         ))}
       </div>
 
       <div className="space-y-2">
-        {filtered.map(t => (
-          <Link key={t.id} href={`/resident/travaux/${t.id}`}
-            className="flex items-center justify-between bg-white rounded-2xl px-4 py-3.5 shadow-sm border border-slate-100 hover:border-slate-200 transition-colors">
-            <p className="text-sm font-semibold text-slate-800 leading-snug flex-1 min-w-0 pr-3">{t.title}</p>
-            <ChevronRight size={16} className="text-slate-400 flex-shrink-0" />
-          </Link>
-        ))}
-        {filtered.length === 0 && <p className="text-center text-sm text-slate-400 py-8">Aucun travail enregistré</p>}
+        {filtered.map((travail) => {
+          const statusStyle = TRAVAIL_STATUS_STYLES[travail.status] ?? { bg: '#f1f5f9', color: '#64748b' }
+          const validationStyle = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
+          return (
+            <Link key={travail.id} href={`/resident/travaux/${travail.id}`}
+              className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3.5 shadow-sm transition-colors hover:border-slate-200">
+              <div className="min-w-0 flex-1 pr-3">
+                <p className="truncate text-sm font-semibold text-slate-800">{travail.title}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {travail.year} · {formatTravailAuthors(travail) || 'Auteurs non renseignés'}
+                </p>
+              </div>
+              <div className="mr-2 flex flex-shrink-0 flex-col items-end gap-1">
+                <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}>
+                  {TRAVAIL_STATUS_LABELS[travail.status] ?? travail.status}
+                </span>
+                <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: validationStyle.bg, color: validationStyle.color }}>
+                  {TRAVAIL_VALIDATION_LABELS[travail.validation_status] ?? travail.validation_status}
+                </span>
+              </div>
+              <ChevronRight size={16} className="flex-shrink-0 text-slate-400" />
+            </Link>
+          )
+        })}
+        {filtered.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Aucun travail enregistré</p>}
       </div>
 
-      {/* Modal création */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-lg" style={{ color: '#0D2B4E' }}>Ajouter un travail</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>Ajouter un travail</h2>
               <button onClick={() => setModal(false)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Titre *</label>
-                <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Type *</label>
-                <select value={form.type_id} onChange={e => setForm(f => ({ ...f, type_id: e.target.value }))} required
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-                  {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Journal / Congrès</label>
-                <input type="text" value={form.journal_or_event} onChange={e => setForm(f => ({ ...f, journal_or_event: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Année</label>
-                  <input type="number" value={form.year} onChange={e => setForm(f => ({ ...f, year: parseInt(e.target.value) }))}
-                    min="2000" max="2100"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Statut</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-                    {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Auteurs</label>
-                <input type="text" value={form.authors} onChange={e => setForm(f => ({ ...f, authors: e.target.value }))}
-                  placeholder="Nom1, Nom2…"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>DOI / URL</label>
-                <input type="text" value={form.doi_or_url} onChange={e => setForm(f => ({ ...f, doi_or_url: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-              </div>
-              {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+              <TravailFields
+                form={form}
+                setField={setField}
+                setType={setType}
+                types={types}
+                enseignants={enseignants}
+                people={people}
+                toggleAuthor={toggleAuthor}
+                setExternalAuthor={setExternalAuthor}
+                addExternalAuthor={addExternalAuthor}
+                removeExternalAuthor={removeExternalAuthor}
+              />
+              {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
               <button type="submit" disabled={loading}
-                className="w-full py-2.5 rounded-xl text-white font-medium text-sm disabled:opacity-60"
+                className="w-full rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
                 style={{ backgroundColor: '#0D2B4E' }}>
-                {loading ? 'Enregistrement…' : 'Enregistrer'}
+                {loading ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </form>
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+function initForm(types) {
+  const type = types[0]
+  const status = getStatusOptionsForType(type)[0]?.value ?? ''
+  return { ...EMPTY, type_id: type?.id ?? '', status }
+}
+
+export function TravailFields({ form, setField, setType, types, enseignants, people, toggleAuthor, setExternalAuthor, addExternalAuthor, removeExternalAuthor }) {
+  const selectedType = types.find((type) => type.id === form.type_id)
+  const statusOptions = getStatusOptionsForType(selectedType)
+
+  return (
+    <>
+      <div>
+        <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Titre *</label>
+        <input type="text" value={form.title} onChange={(event) => setField('title', event.target.value)} required
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Type *</label>
+          <select value={form.type_id} onChange={(event) => setType(event.target.value)} required
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+            {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Statut</label>
+          <select value={form.status} onChange={(event) => setField('status', event.target.value)}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+            {statusOptions.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Enseignant encadrant</label>
+        <select value={form.encadrant_id} onChange={(event) => setField('encadrant_id', event.target.value)}
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+          <option value="">Non renseigné</option>
+          {enseignants.map((enseignant) => <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Journal / Congrès</label>
+        <input type="text" value={form.journal_or_event} onChange={(event) => setField('journal_or_event', event.target.value)}
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Année</label>
+          <input type="number" value={form.year} onChange={(event) => setField('year', Number.parseInt(event.target.value, 10))}
+            min="2000" max="2100"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>DOI / URL</label>
+          <input type="text" value={form.doi_or_url} onChange={(event) => setField('doi_or_url', event.target.value)}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
+        </div>
+      </div>
+      <div>
+        <p className="mb-2 text-sm font-medium" style={{ color: '#0D2B4E' }}>Co-auteurs du service</p>
+        <div className="max-h-36 space-y-1 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50 p-2">
+          {people.map((person) => (
+            <label key={person.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.profile_author_ids.includes(person.id)}
+                onChange={() => toggleAuthor(person.id)}
+              />
+              <span className="flex-1">{person.full_name}</span>
+              <span className="text-xs text-slate-400">{person.role === 'enseignant' ? 'Enseignant' : 'Résident'}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p className="text-sm font-medium" style={{ color: '#0D2B4E' }}>Auteurs externes</p>
+          <button type="button" onClick={addExternalAuthor} className="text-xs font-medium" style={{ color: '#0D2B4E' }}>Ajouter</button>
+        </div>
+        <div className="space-y-2">
+          {form.external_authors.map((name, index) => (
+            <div key={index} className="flex gap-2">
+              <input
+                type="text"
+                value={name}
+                onChange={(event) => setExternalAuthor(index, event.target.value)}
+                placeholder="Nom et prénom"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+              />
+              {form.external_authors.length > 1 && (
+                <button type="button" onClick={() => removeExternalAuthor(index)} className="rounded-lg border border-slate-200 px-3 text-sm text-slate-500">Retirer</button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </>
   )
 }

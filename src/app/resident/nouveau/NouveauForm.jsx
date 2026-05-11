@@ -1,17 +1,19 @@
 'use client'
+
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import { createRealisation } from '@/app/actions/resident'
 import { createClient } from '@/lib/supabase/client'
-import { ACTIVITY_TYPES, OBJECTIF_LEVEL_LABELS, getAutonomeSubmissionGuard } from '@/lib/logbook'
-import { AlertTriangle, CheckCircle, Search, Target } from 'lucide-react'
+import { ACTIVITY_TYPES, getAutonomeSubmissionGuard } from '@/lib/logbook'
+import { AlertTriangle, CheckCircle, Search } from 'lucide-react'
 
 const ACTIVITY_HELP = {
   expose: 'Observation ou exposition au geste.',
-  supervise: 'RÃ©alisation avec encadrement direct.',
-  autonome: 'RÃ©alisation autonome aprÃ¨s seuil de supervision.',
+  supervise: 'Réalisation avec encadrement direct.',
+  autonome: 'Réalisation autonome après seuil de supervision.',
 }
+
 export default function NouveauForm({ procedures, enseignants, residents, residentYear }) {
   const router = useRouter()
   const [form, setForm] = useState({
@@ -49,7 +51,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
   const groupedProcedures = useMemo(() => {
     const groups = new Map()
     for (const procedure of filteredProcedures) {
-      const categoryName = procedure.categories?.name ?? 'Sans catÃ©gorie'
+      const categoryName = procedure.categories?.name ?? 'Sans catégorie'
       if (!groups.has(categoryName)) groups.set(categoryName, [])
       groups.get(categoryName).push(procedure)
     }
@@ -74,8 +76,8 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         if (!ignore && !guard.allowed) {
           setAutonomyWarning(
             guard.missingSuperviseCount > 0
-              ? `PrÃ©-requis autonomie non atteint : il manque ${guard.missingSuperviseCount} acte(s) supervisÃ©(s) pour ce geste. La soumission reste possible.`
-              : 'PrÃ©-requis autonomie non atteint pour ce geste. La soumission reste possible.'
+              ? `Pré-requis autonomie non atteint : il manque ${guard.missingSuperviseCount} acte(s) supervisé(s) pour ce geste. La soumission reste possible.`
+              : 'Pré-requis autonomie non atteint pour ce geste. La soumission reste possible.'
           )
         }
       } catch {
@@ -91,12 +93,12 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
     event.preventDefault()
 
     if (!form.procedure_id) {
-      setError('SÃ©lectionnez un geste.')
+      setError('Sélectionnez un geste.')
       return
     }
 
     if (!form.activity_type) {
-      setError("SÃ©lectionnez un type d'activitÃ©.")
+      setError("Sélectionnez un type d'activité.")
       return
     }
 
@@ -112,7 +114,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
       return
     }
 
-    setSuccess('Geste envoyé pour validation. L’enseignant concerné est notifié.')
+    setSuccess("Geste envoyé pour validation. L'enseignant concerné est notifié.")
     setTimeout(() => router.push('/resident/historique'), 900)
   }
 
@@ -127,17 +129,17 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
 
   return (
     <>
-      <PageHeader title="Nouvelle rÃ©alisation" subtitle="Choisir le geste, prÃ©ciser le contexte, puis envoyer en validation" />
+      <PageHeader title="Nouvelle réalisation" subtitle="Choisir le geste, préciser le contexte, puis envoyer en validation" />
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Geste chirurgical</h2>
-              <p className="mt-0.5 text-xs text-slate-500">Recherche par nom, pathologie ou catÃ©gorie</p>
+              <p className="mt-0.5 text-xs text-slate-500">Recherche par nom, pathologie ou catégorie</p>
             </div>
             <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
-              AnnÃ©e {residentYear}
+              Année {residentYear}
             </span>
           </div>
 
@@ -184,38 +186,14 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
               </div>
             ))}
             {filteredProcedures.length === 0 && (
-              <p className="py-5 text-center text-sm text-slate-400">Aucun geste trouvÃ©</p>
+              <p className="py-5 text-center text-sm text-slate-400">Aucun geste trouvé</p>
             )}
           </div>
-
-          {selectedProc && (
-            <div className="mt-4 rounded-xl border border-sky-100 bg-sky-50 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white text-sky-700">
-                  <Target size={18} strokeWidth={1.8} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-800">{selectedProc.name}</p>
-                  <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
-                    <InfoLine label="CatÃ©gorie" value={selectedProc.categories?.name ?? '-'} />
-                    <InfoLine label="Statut" value={selectedProc.isObjectif ? `Objectif A${residentYear}` : 'Hors objectifs annuels'} />
-                    <InfoLine label="Niveau attendu" value={OBJECTIF_LEVEL_LABELS[selectedProc.objective?.required_level] ?? '-'} />
-                    <InfoLine label="Minimum requis" value={selectedProc.objective?.min_count ? `${selectedProc.objective.min_count} acte(s)` : '-'} />
-                    <InfoLine label="Min. exposition" value={`${selectedProc.seuil_exposition_min ?? 0} acte(s)`} />
-                    <InfoLine label="Min. supervision" value={`${selectedProc.seuil_supervision_min ?? 0} acte(s)`} />
-                    <InfoLine label="Min. autonomie" value={`${selectedProc.seuil_autonomie_min ?? 0} acte(s)`} />
-                    <InfoLine label="Pré-requis autonomie" value={selectedProc.seuil_deblocage_autonomie ? `${selectedProc.seuil_deblocage_autonomie} acte(s) supervisé(s)` : '-'} />
-                    <InfoLine label="Objectif final" value={OBJECTIF_LEVEL_LABELS[selectedProc.objectif_final] ?? '-'} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {isHorsObjectifs && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm text-orange-700">
               <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-              Ce geste est hors de vos objectifs pour l&apos;annÃ©e {residentYear}. Il sera tout de mÃªme envoyÃ© comme hors objectifs.
+              Ce geste est hors de vos objectifs pour l&apos;année {residentYear}. Il sera tout de même envoyé comme hors objectifs.
             </div>
           )}
           {autonomyWarning && (
@@ -227,7 +205,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         </section>
 
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Contexte de rÃ©alisation</h2>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Contexte de réalisation</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="IPP patient">
               <input
@@ -238,7 +216,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                 className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
               />
             </Field>
-            <Field label="Date de rÃ©alisation *">
+            <Field label="Date de réalisation *">
               <input
                 type="date"
                 value={form.performed_at}
@@ -251,7 +229,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
 
           <div className="mt-4">
             <p className="mb-2 block text-sm font-medium" style={{ color: '#0D2B4E' }}>
-              Type d&apos;activitÃ© *
+              Type d&apos;activité *
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {ACTIVITY_TYPES.map((activityType) => {
@@ -295,7 +273,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
               </select>
             </Field>
 
-            <Field label="RÃ©sident superviseur (optionnel)">
+            <Field label="Résident superviseur (optionnel)">
               <select
                 value={form.superviseur_resident_id}
                 onChange={(event) => setField('superviseur_resident_id', event.target.value)}
@@ -313,12 +291,12 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
           <h2 className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Notes</h2>
           <div className="space-y-4">
-            <Field label="Compte rendu opÃ©ratoire">
+            <Field label="Compte rendu opératoire">
               <textarea
                 value={form.compte_rendu}
                 onChange={(event) => setField('compte_rendu', event.target.value)}
                 rows={4}
-                placeholder="Description de l'acte rÃ©alisÃ©..."
+                placeholder="Description de l'acte réalisé..."
                 className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
               />
             </Field>
@@ -358,14 +336,5 @@ function Field({ label, children }) {
       <span className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>{label}</span>
       {children}
     </label>
-  )
-}
-
-function InfoLine({ label, value }) {
-  return (
-    <div>
-      <p className="font-medium text-slate-500">{label}</p>
-      <p className="mt-0.5 text-slate-800">{value}</p>
-    </div>
   )
 }

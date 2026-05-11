@@ -1,36 +1,70 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Pencil, Trash2, X } from 'lucide-react'
 import { updateTravail, deleteTravail } from '@/app/actions/resident'
+import { getStatusOptionsForType } from '@/lib/travaux'
+import { TravailFields } from '../TravauxClient'
 
-const STATUS_OPTIONS = [
-  { value: 'soumis', label: 'Soumis' },
-  { value: 'accepte', label: 'Accepté' },
-  { value: 'publie', label: 'Publié' },
-  { value: 'presente', label: 'Présenté' },
-]
-
-export default function TravauxDetailActions({ travail, types }) {
+export default function TravauxDetailActions({ travail, types, enseignants, residents }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState({
-    title: travail.title,
-    type_id: travail.type_id,
-    journal_or_event: travail.journal_or_event ?? '',
-    year: travail.year,
-    authors: travail.authors ?? '',
-    doi_or_url: travail.doi_or_url ?? '',
-    status: travail.status,
-  })
+  const [form, setForm] = useState(() => initForm(travail, types))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const people = useMemo(() => [...enseignants, ...residents], [enseignants, residents])
 
-  async function handleSubmit(e) {
-    e.preventDefault(); setLoading(true); setError('')
+  function setField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }))
+  }
+
+  function setType(typeId) {
+    const type = types.find((item) => item.id === typeId)
+    const options = getStatusOptionsForType(type)
+    setForm((current) => ({
+      ...current,
+      type_id: typeId,
+      status: options.some((option) => option.value === current.status) ? current.status : options[0]?.value ?? '',
+    }))
+  }
+
+  function toggleAuthor(profileId) {
+    setForm((current) => {
+      const selected = new Set(current.profile_author_ids)
+      if (selected.has(profileId)) selected.delete(profileId)
+      else selected.add(profileId)
+      return { ...current, profile_author_ids: Array.from(selected) }
+    })
+  }
+
+  function setExternalAuthor(index, value) {
+    setForm((current) => ({
+      ...current,
+      external_authors: current.external_authors.map((name, itemIndex) => itemIndex === index ? value : name),
+    }))
+  }
+
+  function addExternalAuthor() {
+    setForm((current) => ({ ...current, external_authors: [...current.external_authors, ''] }))
+  }
+
+  function removeExternalAuthor(index) {
+    setForm((current) => ({
+      ...current,
+      external_authors: current.external_authors.filter((_, itemIndex) => itemIndex !== index),
+    }))
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
     const res = await updateTravail(travail.id, form)
     setLoading(false)
-    if (res.error) { setError(res.error); return }
+    if (res.error) {
+      setError(res.error)
+      return
+    }
     setModal(false)
     router.refresh()
   }
@@ -47,7 +81,7 @@ export default function TravauxDetailActions({ travail, types }) {
       <div className="flex gap-3">
         <button
           onClick={() => setModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50"
+          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
           style={{ color: '#0D2B4E' }}
         >
           <Pencil size={15} strokeWidth={1.75} />
@@ -56,7 +90,7 @@ export default function TravauxDetailActions({ travail, types }) {
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-red-100 bg-red-50 hover:bg-red-100 text-red-600"
+          className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
         >
           <Trash2 size={15} strokeWidth={1.75} />
           Supprimer
@@ -64,61 +98,30 @@ export default function TravauxDetailActions({ travail, types }) {
       </div>
 
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-lg" style={{ color: '#0D2B4E' }}>Modifier</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>Modifier</h2>
               <button onClick={() => setModal(false)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Titre *</label>
-                <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Type *</label>
-                <select value={form.type_id} onChange={e => setForm(f => ({ ...f, type_id: e.target.value }))} required
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-                  {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Journal / Congrès</label>
-                <input type="text" value={form.journal_or_event} onChange={e => setForm(f => ({ ...f, journal_or_event: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Année</label>
-                  <input type="number" value={form.year} onChange={e => setForm(f => ({ ...f, year: parseInt(e.target.value) }))}
-                    min="2000" max="2100"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Statut</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-                    {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Auteurs</label>
-                <input type="text" value={form.authors} onChange={e => setForm(f => ({ ...f, authors: e.target.value }))}
-                  placeholder="Nom1, Nom2…"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>DOI / URL</label>
-                <input type="text" value={form.doi_or_url} onChange={e => setForm(f => ({ ...f, doi_or_url: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-              </div>
-              {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+              <TravailFields
+                form={form}
+                setField={setField}
+                setType={setType}
+                types={types}
+                enseignants={enseignants}
+                people={people}
+                toggleAuthor={toggleAuthor}
+                setExternalAuthor={setExternalAuthor}
+                addExternalAuthor={addExternalAuthor}
+                removeExternalAuthor={removeExternalAuthor}
+              />
+              {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
               <button type="submit" disabled={loading}
-                className="w-full py-2.5 rounded-xl text-white font-medium text-sm disabled:opacity-60"
+                className="w-full rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
                 style={{ backgroundColor: '#0D2B4E' }}>
-                {loading ? 'Enregistrement…' : 'Enregistrer'}
+                {loading ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </form>
           </div>
@@ -126,4 +129,26 @@ export default function TravauxDetailActions({ travail, types }) {
       )}
     </>
   )
+}
+
+function initForm(travail, types) {
+  const selectedType = types.find((type) => type.id === travail.type_id) ?? types[0]
+  const options = getStatusOptionsForType(selectedType)
+  const structuredAuthors = travail.travail_auteurs ?? []
+  const externalAuthors = structuredAuthors
+    .filter((author) => !author.profile_id && author.external_name)
+    .sort((a, b) => (a.author_order ?? 0) - (b.author_order ?? 0))
+    .map((author) => author.external_name)
+
+  return {
+    title: travail.title,
+    type_id: travail.type_id ?? selectedType?.id ?? '',
+    journal_or_event: travail.journal_or_event ?? '',
+    year: travail.year,
+    encadrant_id: travail.encadrant_id ?? '',
+    profile_author_ids: structuredAuthors.filter((author) => author.profile_id).map((author) => author.profile_id),
+    external_authors: externalAuthors.length > 0 ? externalAuthors : [''],
+    doi_or_url: travail.doi_or_url ?? '',
+    status: options.some((option) => option.value === travail.status) ? travail.status : options[0]?.value ?? '',
+  }
 }

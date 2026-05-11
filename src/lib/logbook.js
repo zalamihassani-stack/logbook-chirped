@@ -1,12 +1,12 @@
 export const ACTIVITY_TYPES = [
-  { value: 'expose', label: 'Expose' },
-  { value: 'supervise', label: 'Supervise' },
+  { value: 'expose', label: 'Exposé' },
+  { value: 'supervise', label: 'Supervisé' },
   { value: 'autonome', label: 'Autonome' },
 ]
 
 export const ACTIVITY_TYPE_LABELS = {
-  expose: 'Expose',
-  supervise: 'Supervise',
+  expose: 'Exposé',
+  supervise: 'Supervisé',
   autonome: 'Autonome',
 }
 
@@ -17,10 +17,10 @@ export const OBJECTIF_LEVEL_LABELS = {
 }
 
 export const NIVEAU_ATTEINT_LABELS = {
-  0: 'Non debute',
+  0: 'Non débuté',
   1: 'Exposition atteinte',
-  2: 'Competence supervisee atteinte',
-  3: 'Maitrise atteinte',
+  2: 'Compétence supervisée atteinte',
+  3: 'Maîtrise atteinte',
 }
 
 export function normalizeObjectifLevel(value) {

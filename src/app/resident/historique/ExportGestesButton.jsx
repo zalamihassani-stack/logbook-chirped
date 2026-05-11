@@ -4,7 +4,7 @@ import { FileDown, X, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
-const STATUS_LABELS = { pending: 'En attente', validated: 'Valide', refused: 'Refuse' }
+const STATUS_LABELS = { pending: 'En attente', validated: 'Validé', refused: 'Refusé' }
 
 function fmtDate(dateStr) {
   if (!dateStr) return '—'
@@ -27,7 +27,7 @@ export default function ExportGestesButton({ residentName }) {
   const [error, setError] = useState('')
 
   async function handleExport() {
-    if (!from || !to) { setError('Veuillez selectionner les deux dates.'); return }
+    if (!from || !to) { setError('Veuillez sélectionner les deux dates.'); return }
     setLoading(true)
     setError('')
 
@@ -40,8 +40,8 @@ export default function ExportGestesButton({ residentName }) {
       .order('performed_at', { ascending: false })
 
     setLoading(false)
-    if (err) { setError('Erreur lors du chargement des donnees.'); return }
-    if (!data || data.length === 0) { setError('Aucun geste trouve pour cette periode.'); return }
+    if (err) { setError('Erreur lors du chargement des données.'); return }
+    if (!data || data.length === 0) { setError('Aucun geste trouvé pour cette période.'); return }
 
     const { jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
@@ -55,18 +55,18 @@ export default function ExportGestesButton({ residentName }) {
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
-    doc.text('Logbook Chirurgie Pediatrique', 14, 11)
+    doc.text('Logbook Chirurgie Pédiatrique', 14, 11)
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text('Recapitulatif des gestes realises', 14, 18)
+    doc.text('Récapitulatif des gestes réalisés', 14, 18)
     doc.text(`du ${fmtDateLong(from)} au ${fmtDateLong(to)}`, 14, 24)
 
     doc.setTextColor(40, 40, 40)
     doc.setFontSize(9)
     if (residentName) {
-      doc.text(`Resident : ${residentName}`, 14, 36)
+      doc.text(`Résident : ${residentName}`, 14, 36)
     }
-    doc.text(`Exporte le ${fmtDate(today)}`, 14, residentName ? 41 : 36)
+    doc.text(`Exporté le ${fmtDate(today)}`, 14, residentName ? 41 : 36)
 
     autoTable(doc, {
       startY: residentName ? 46 : 41,
@@ -105,7 +105,7 @@ export default function ExportGestesButton({ residentName }) {
     <>
       <button
         onClick={() => { setOpen(true); setError('') }}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50"
+        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
         style={{ color: '#0D2B4E' }}
       >
         <FileDown size={15} strokeWidth={1.75} />
@@ -113,31 +113,31 @@ export default function ExportGestesButton({ residentName }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-base" style={{ color: '#0D2B4E' }}>Exporter les gestes</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-base font-bold" style={{ color: '#0D2B4E' }}>Exporter les gestes</h2>
               <button onClick={() => setOpen(false)}><X size={18} className="text-slate-400" /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Du</label>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Du</label>
                 <input type="date" value={from} onChange={(event) => setFrom(event.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Au</label>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Au</label>
                 <input type="date" value={to} onChange={(event) => setTo(event.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
               </div>
-              {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+              {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
               <button
                 onClick={handleExport}
                 disabled={loading}
-                className="w-full py-2.5 rounded-xl text-white font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
                 style={{ backgroundColor: '#0D2B4E' }}
               >
-                {loading ? <><Loader2 size={15} className="animate-spin" /> Generation...</> : <><FileDown size={15} /> Telecharger</>}
+                {loading ? <><Loader2 size={15} className="animate-spin" /> Génération...</> : <><FileDown size={15} /> Télécharger</>}
               </button>
             </div>
           </div>

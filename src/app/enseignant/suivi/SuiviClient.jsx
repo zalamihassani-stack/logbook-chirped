@@ -1,32 +1,29 @@
 'use client'
 import { useState } from 'react'
-import { Activity, FlaskConical, TrendingUp, ClipboardList, Clock, Users, BookOpen } from 'lucide-react'
+import { Activity, TrendingUp, ClipboardList, Clock, Users } from 'lucide-react'
 import ActesTab from './ActesTab'
-import TravauxTab from './TravauxTab'
 import ProgressionTab from './ProgressionTab'
 
 const TABS = [
-  { id: 'actes', label: 'Actes realises', icon: ClipboardList },
-  { id: 'travaux', label: 'Travaux scientifiques', icon: FlaskConical },
-  { id: 'progression', label: 'Progression', icon: TrendingUp },
+  { id: 'progression', label: 'Suivi des résidents', icon: TrendingUp },
+  { id: 'actes', label: 'Suivi des gestes', icon: ClipboardList },
 ]
 
-export default function SuiviClient({ stats, residents, procedures, enseignants, travailTypes }) {
-  const [tab, setTab] = useState('actes')
+export default function SuiviClient({ stats, residents, procedures, enseignants }) {
+  const [tab, setTab] = useState('progression')
 
   return (
     <div className="max-w-6xl p-5 md:p-8">
       <h1 className="mb-1 text-xl font-bold" style={{ color: '#0D2B4E' }}>
-        Suivi des activites
+        Suivi
       </h1>
-      <p className="mb-6 text-sm text-slate-500">Vue globale de l&apos;activite des residents</p>
+      <p className="mb-6 text-sm text-slate-500">Suivi des résidents et des gestes validés ou en attente</p>
 
       <div className="mb-7 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { label: 'Actes ce mois', value: stats.actesMonth, icon: Activity, bg: '#E8F4FC', color: '#0D2B4E' },
           { label: 'En attente', value: stats.actesAttente, icon: Clock, bg: '#fef9c3', color: '#854d0e' },
-          { label: 'Residents actifs', value: stats.residentsActifs, icon: Users, bg: '#dcfce7', color: '#166534' },
-          { label: 'Travaux soumis', value: stats.travauxSoumis, icon: BookOpen, bg: '#f3e8ff', color: '#6b21a8' },
+          { label: 'Résidents actifs', value: stats.residentsActifs, icon: Users, bg: '#dcfce7', color: '#166534' },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -63,9 +60,8 @@ export default function SuiviClient({ stats, residents, procedures, enseignants,
         ))}
       </div>
 
-      {tab === 'actes' && <ActesTab residents={residents} procedures={procedures} enseignants={enseignants} />}
-      {tab === 'travaux' && <TravauxTab residents={residents} travailTypes={travailTypes} />}
       {tab === 'progression' && <ProgressionTab residents={residents} />}
+      {tab === 'actes' && <ActesTab residents={residents} procedures={procedures} enseignants={enseignants} />}
     </div>
   )
 }
