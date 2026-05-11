@@ -11,5 +11,12 @@ export default async function EnseignantLayout({ children }) {
     .from('profiles').select('id, full_name, role').eq('id', user.id).single()
 
   if (profile?.role !== 'enseignant') redirect('/')
-  return <AppLayout profile={profile}>{children}</AppLayout>
+
+  const { count: pendingCount } = await supabase
+    .from('realisations')
+    .select('*', { count: 'exact', head: true })
+    .eq('enseignant_id', user.id)
+    .eq('status', 'pending')
+
+  return <AppLayout profile={profile} badges={{ demandes: pendingCount ?? 0 }}>{children}</AppLayout>
 }

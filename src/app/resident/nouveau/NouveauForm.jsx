@@ -27,6 +27,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [autonomyWarning, setAutonomyWarning] = useState('')
 
   const selectedProc = procedures.find((procedure) => procedure.id === form.procedure_id)
@@ -101,6 +102,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
 
     setLoading(true)
     setError('')
+    setSuccess('')
 
     const res = await createRealisation(form)
 
@@ -110,7 +112,8 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
       return
     }
 
-    router.push('/resident/historique')
+    setSuccess('Geste envoyé pour validation. L’enseignant concerné est notifié.')
+    setTimeout(() => router.push('/resident/historique'), 900)
   }
 
   function setField(key, value) {
@@ -332,6 +335,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         </section>
 
         {error && <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>}
+        {success && <p className="rounded-lg bg-green-50 px-4 py-2.5 text-sm text-green-700">{success}</p>}
 
         <div className="sticky bottom-20 z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
           <button

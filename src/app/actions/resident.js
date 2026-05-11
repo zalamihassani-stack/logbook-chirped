@@ -78,9 +78,13 @@ export async function createRealisation(formData) {
     type: 'new_submission',
     is_read: false,
   })
-  if (notificationError) return { error: notificationError.message }
+  if (notificationError) {
+    console.error('Notification enseignant non creee', notificationError)
+  }
 
   revalidatePath('/resident/historique')
+  revalidatePath('/enseignant')
+  revalidatePath('/enseignant/demandes')
   return { success: true, id: realisation.id }
 }
 
@@ -134,9 +138,14 @@ export async function resubmitRealisation(id, formData) {
     type: 'new_submission',
     is_read: false,
   })
-  if (notificationError) return { error: notificationError.message }
+  if (notificationError) {
+    console.error('Notification enseignant non creee', notificationError)
+  }
 
   revalidatePath(`/resident/historique/${id}`)
+  revalidatePath('/resident/historique')
+  revalidatePath('/enseignant')
+  revalidatePath('/enseignant/demandes')
   return { success: true }
 }
 
