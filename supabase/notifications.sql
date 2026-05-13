@@ -28,8 +28,9 @@ create policy "notifications updatable by owner"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
-create policy "notifications insertable by authenticated users"
+drop policy if exists "notifications insertable by authenticated users" on public.notifications;
+create policy "notifications insertable by owner"
   on public.notifications
   for insert
   to authenticated
-  with check (true);
+  with check (auth.uid() = user_id);

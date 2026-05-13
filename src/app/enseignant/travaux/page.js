@@ -27,6 +27,7 @@ export default async function EnseignantTravauxPage() {
         residents={residents ?? []}
         enseignants={enseignants ?? []}
         travailTypes={normalizeTravailTypes(travailTypes ?? [])}
+        currentEnseignantId={user.id}
       />
     </div>
   )

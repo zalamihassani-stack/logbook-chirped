@@ -21,6 +21,9 @@ export default async function ProfilPage() {
     validatedRes,
     pendingRes,
     refusedRes,
+    pendingTravaux,
+    initialValidatedTravaux,
+    finalValidatedTravaux,
   ] = await Promise.all([
     supabase.from('profiles').select('full_name, residanat_start_date, promotion').eq('id', user.id).single(),
     supabase.from('procedure_objectives').select('procedure_id, min_count, required_level, procedures(category_id)').eq('is_active', true),
@@ -31,6 +34,9 @@ export default async function ProfilPage() {
     supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'validated'),
     supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'pending'),
     supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'refused'),
+    supabase.from('travaux_scientifiques').select('id', { count: 'exact', head: true }).eq('resident_id', user.id).in('validation_status', ['pending_initial', 'pending_final']),
+    supabase.from('travaux_scientifiques').select('id', { count: 'exact', head: true }).eq('resident_id', user.id).eq('validation_status', 'initial_validated'),
+    supabase.from('travaux_scientifiques').select('id', { count: 'exact', head: true }).eq('resident_id', user.id).eq('validation_status', 'final_validated'),
   ])
 
   const year = getResidentYear(profile?.residanat_start_date)
@@ -43,6 +49,9 @@ export default async function ProfilPage() {
     pending: pendingRes.count ?? 0,
     refused: refusedRes.count ?? 0,
     travaux: travauxCount ?? 0,
+    travauxPending: pendingTravaux.count ?? 0,
+    travauxInitial: initialValidatedTravaux.count ?? 0,
+    travauxFinal: finalValidatedTravaux.count ?? 0,
   }
 
   const totalRequired = normalizedObjectives.reduce((sum, objective) => sum + objective.min_count, 0)
@@ -100,6 +109,22 @@ export default async function ProfilPage() {
             { label: 'Travaux', value: stats.travaux, bg: '#f3e8ff', color: '#6b21a8' },
           ].map((stat) => (
             <div key={stat.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: stat.bg }}>
+              <p className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
+              <p className="mt-0.5 text-xs" style={{ color: `${stat.color}cc` }}>{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <p className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Validation des travaux scientifiques</p>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          {[
+            { label: 'À valider', value: stats.travauxPending, bg: '#fef9c3', color: '#854d0e' },
+            { label: 'Initiale faite', value: stats.travauxInitial, bg: '#dbeafe', color: '#1e40af' },
+            { label: 'Finale faite', value: stats.travauxFinal, bg: '#dcfce7', color: '#166534' },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-xl p-3" style={{ backgroundColor: stat.bg }}>
               <p className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
               <p className="mt-0.5 text-xs" style={{ color: `${stat.color}cc` }}>{stat.label}</p>
             </div>

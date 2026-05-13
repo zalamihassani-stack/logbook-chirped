@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getResidentYear } from '@/lib/utils'
 import { sendPushToUser } from '@/lib/push'
-import { isFinalWorkStatus } from '@/lib/travaux'
+import { getTravailTypeKey, isFinalWorkStatus } from '@/lib/travaux'
 import { revalidatePath } from 'next/cache'
 
 async function requireResident() {
@@ -190,8 +190,10 @@ export async function createTravail(data) {
     return { error: error.message }
   }
   const admin = createAdminClient()
-  const { profile_author_ids: profileAuthorIds, external_authors: externalAuthors, ...travailData } = data
-  const authorsText = await buildAuthorsText(admin, profileAuthorIds, externalAuthors, travailData.authors)
+  const { authorInput, ...travailData } = normalizeTravailAuthorInput(data)
+  const requiredError = validateTravailRequiredFields(travailData)
+  if (requiredError) return { error: requiredError }
+  const authorsText = await buildAuthorsText(admin, authorInput.orderedAuthors, travailData.authors)
   const typeId = await resolveTravailTypeId(admin, travailData.type_id)
   if (!typeId) return { error: "Type de travail introuvable. Exécutez le script SQL des travaux scientifiques puis réessayez." }
 
@@ -210,10 +212,22 @@ export async function createTravail(data) {
     .single()
   if (error) return { error: formatTravailSchemaError(error) }
 
-  const authorsError = await replaceTravailAuthors(admin, travail.id, profileAuthorIds, externalAuthors)
+  const authorsError = await replaceTravailAuthors(admin, travail.id, authorInput.orderedAuthors)
   if (authorsError) return { error: formatTravailSchemaError(authorsError) }
 
+  await notifyEncadrantForTravail(admin, {
+    travailId: travail.id,
+    encadrantId: travailData.encadrant_id,
+    residentId: user.id,
+    title: travailData.title,
+    validationStatus: 'pending_initial',
+  })
+
+  revalidatePath('/resident')
   revalidatePath('/resident/travaux')
+  revalidatePath('/enseignant/travaux')
+  revalidatePath('/enseignant')
+  revalidatePath('/enseignant/profil')
   return { success: true }
 }
 
@@ -226,17 +240,21 @@ export async function updateTravail(id, data) {
     return { error: error.message }
   }
   const admin = createAdminClient()
-  const { profile_author_ids: profileAuthorIds, external_authors: externalAuthors, ...travailData } = data
-  const authorsText = await buildAuthorsText(admin, profileAuthorIds, externalAuthors, travailData.authors)
+  const { authorInput, ...travailData } = normalizeTravailAuthorInput(data)
+  const requiredError = validateTravailRequiredFields(travailData)
+  if (requiredError) return { error: requiredError }
+  const authorsText = await buildAuthorsText(admin, authorInput.orderedAuthors, travailData.authors)
   const typeId = await resolveTravailTypeId(admin, travailData.type_id)
   if (!typeId) return { error: "Type de travail introuvable. Exécutez le script SQL des travaux scientifiques puis réessayez." }
   const { data: currentTravail } = await supabase
     .from('travaux_scientifiques')
-    .select('validation_status, initial_validated_by')
+    .select('validation_status, initial_validated_by, encadrant_id')
     .eq('id', id)
     .eq('resident_id', user.id)
     .maybeSingle()
   const validationStatus = nextTravailValidationStatus(currentTravail, travailData.status)
+  const shouldNotifyEncadrant = ['pending_initial', 'pending_final'].includes(validationStatus)
+    && (currentTravail?.validation_status !== validationStatus || currentTravail?.encadrant_id !== travailData.encadrant_id)
 
   const { error } = await supabase
     .from('travaux_scientifiques')
@@ -252,11 +270,101 @@ export async function updateTravail(id, data) {
     .eq('resident_id', user.id)
   if (error) return { error: formatTravailSchemaError(error) }
 
-  const authorsError = await replaceTravailAuthors(admin, id, profileAuthorIds, externalAuthors)
+  const authorsError = await replaceTravailAuthors(admin, id, authorInput.orderedAuthors)
   if (authorsError) return { error: formatTravailSchemaError(authorsError) }
 
+  if (shouldNotifyEncadrant) {
+    await notifyEncadrantForTravail(admin, {
+      travailId: id,
+      encadrantId: travailData.encadrant_id,
+      residentId: user.id,
+      title: travailData.title,
+      validationStatus,
+    })
+  }
+
+  revalidatePath('/resident')
   revalidatePath('/resident/travaux')
   revalidatePath(`/resident/travaux/${id}`)
+  revalidatePath('/enseignant/travaux')
+  revalidatePath('/enseignant')
+  revalidatePath('/enseignant/profil')
+  return { success: true }
+}
+
+export async function submitTravailFinalValidation(id, data) {
+  let supabase
+  let user
+  try {
+    ;({ supabase, user } = await requireResident())
+  } catch (error) {
+    return { error: error.message }
+  }
+  const admin = createAdminClient()
+
+  const { data: currentTravail, error: readError } = await supabase
+    .from('travaux_scientifiques')
+    .select('id, title, authors, resident_id, validation_status, initial_validated_by, initial_validated_at, encadrant_id, type_id, travail_types(name)')
+    .eq('id', id)
+    .eq('resident_id', user.id)
+    .maybeSingle()
+  if (readError) return { error: formatTravailSchemaError(readError) }
+  if (!currentTravail) return { error: 'Travail introuvable.' }
+  const hasInitialValidation = Boolean(currentTravail.initial_validated_by || currentTravail.initial_validated_at)
+  const canSubmitFinal = currentTravail.validation_status === 'initial_validated'
+    || (currentTravail.validation_status === 'refused' && hasInitialValidation)
+  if (!canSubmitFinal) {
+    return { error: 'Ce travail doit être validé initialement avant la soumission finale.' }
+  }
+  if (!currentTravail.encadrant_id) {
+    return { error: 'Un encadrant est obligatoire pour soumettre en validation finale.' }
+  }
+
+  const typeKey = getTravailTypeKey(currentTravail.travail_types)
+  const finalStatus = typeKey === 'article' ? 'publie' : 'presente'
+  const { authorInput, ...travailData } = normalizeTravailAuthorInput(data ?? {})
+  const title = travailData.title?.trim()
+  if (!title) {
+    return { error: 'Le titre est obligatoire pour la soumission finale.' }
+  }
+  const doiOrUrl = data?.doi_or_url?.trim() ?? ''
+  if (typeKey === 'article' && !doiOrUrl) {
+    return { error: 'Le DOI / URL est obligatoire pour soumettre un article en validation finale.' }
+  }
+  const authorsText = await buildAuthorsText(admin, authorInput.orderedAuthors, currentTravail.authors)
+
+  const { error } = await supabase
+    .from('travaux_scientifiques')
+    .update({
+      title,
+      authors: authorsText,
+      status: finalStatus,
+      journal_or_event: travailData.journal_or_event?.trim() || null,
+      doi_or_url: doiOrUrl || null,
+      validation_status: 'pending_final',
+      validation_feedback: null,
+    })
+    .eq('id', id)
+    .eq('resident_id', user.id)
+  if (error) return { error: formatTravailSchemaError(error) }
+
+  const authorsError = await replaceTravailAuthors(admin, id, authorInput.orderedAuthors)
+  if (authorsError) return { error: formatTravailSchemaError(authorsError) }
+
+  await notifyEncadrantForTravail(admin, {
+    travailId: id,
+    encadrantId: currentTravail.encadrant_id,
+    residentId: user.id,
+    title,
+    validationStatus: 'pending_final',
+  })
+
+  revalidatePath('/resident')
+  revalidatePath('/resident/travaux')
+  revalidatePath(`/resident/travaux/${id}`)
+  revalidatePath('/enseignant')
+  revalidatePath('/enseignant/profil')
+  revalidatePath('/enseignant/travaux')
   return { success: true }
 }
 
@@ -276,51 +384,103 @@ export async function deleteTravail(id) {
     .eq('resident_id', user.id)
   if (error) return { error: error.message }
 
+  revalidatePath('/resident')
   revalidatePath('/resident/travaux')
+  revalidatePath('/enseignant')
+  revalidatePath('/enseignant/profil')
+  revalidatePath('/enseignant/travaux')
   return { success: true }
 }
 
-async function buildAuthorsText(admin, profileAuthorIds = [], externalAuthors = [], fallback = '') {
-  const external = Array.isArray(externalAuthors) ? externalAuthors : []
-  const ids = (profileAuthorIds ?? []).filter(Boolean)
-  const hasStructuredAuthors = ids.length > 0 || external.some((name) => name?.trim())
+async function buildAuthorsText(admin, orderedAuthors = [], fallback = '') {
+  const authors = (orderedAuthors ?? []).filter((author) => author.profileId || author.externalName)
+  const ids = authors.map((author) => author.profileId).filter(Boolean)
+  const hasStructuredAuthors = authors.length > 0
   if (!hasStructuredAuthors) return fallback || null
 
-  let internalNames = []
+  let nameById = new Map()
   if (ids.length > 0) {
     const { data } = await admin.from('profiles').select('id, full_name').in('id', ids)
-    const nameById = new Map((data ?? []).map((profile) => [profile.id, profile.full_name]))
-    internalNames = ids.map((id) => nameById.get(id)).filter(Boolean)
+    nameById = new Map((data ?? []).map((profile) => [profile.id, profile.full_name]))
   }
 
-  const externalNames = external.map((name) => name.trim()).filter(Boolean)
-  return [...internalNames, ...externalNames].join(', ') || null
+  return authors
+    .map((author) => author.profileId ? nameById.get(author.profileId) : author.externalName)
+    .filter(Boolean)
+    .join(', ') || null
 }
 
-async function replaceTravailAuthors(admin, travailId, profileAuthorIds = [], externalAuthors = []) {
+function normalizeTravailAuthorInput(data) {
+  const {
+    first_author_profile_id: firstProfileId,
+    first_external_author: firstExternalAuthor,
+    second_author_profile_id: secondProfileId,
+    second_external_author: secondExternalAuthor,
+    other_profile_author_ids: otherProfileAuthorIds,
+    other_external_authors: otherExternalAuthors,
+    profile_author_ids: legacyProfileAuthorIds,
+    external_authors: legacyExternalAuthors,
+    ...travailData
+  } = data
+
+  const firstAuthor = normalizeAuthorSlot(firstProfileId, firstExternalAuthor)
+  const secondAuthor = normalizeAuthorSlot(secondProfileId, secondExternalAuthor)
+  const primaryProfileIds = new Set([firstAuthor?.profileId, secondAuthor?.profileId].filter(Boolean))
+  const primaryExternalNames = new Set([firstAuthor?.externalName, secondAuthor?.externalName].filter(Boolean).map(normalizeLookup))
+  const otherProfileIds = (otherProfileAuthorIds ?? legacyProfileAuthorIds ?? [])
+    .filter(Boolean)
+    .filter((profileId) => !primaryProfileIds.has(profileId))
+  const otherExternalNames = (otherExternalAuthors ?? legacyExternalAuthors ?? [])
+    .map((name) => name?.trim())
+    .filter(Boolean)
+    .filter((name) => !primaryExternalNames.has(normalizeLookup(name)))
+
+  const orderedAuthors = dedupeAuthors([
+    firstAuthor,
+    secondAuthor,
+    ...otherProfileIds.map((profileId) => ({ profileId, externalName: null })),
+    ...otherExternalNames.map((name) => normalizeAuthorSlot('', name)),
+  ])
+
+  return { authorInput: { orderedAuthors }, ...travailData }
+}
+
+function dedupeAuthors(authors = []) {
+  const seenProfiles = new Set()
+  const seenExternalNames = new Set()
+
+  return authors.filter((author) => {
+    if (!author) return false
+    if (author.profileId) {
+      if (seenProfiles.has(author.profileId)) return false
+      seenProfiles.add(author.profileId)
+      return true
+    }
+    const externalKey = normalizeLookup(author.externalName)
+    if (!externalKey || seenExternalNames.has(externalKey)) return false
+    seenExternalNames.add(externalKey)
+    return true
+  })
+}
+
+function normalizeAuthorSlot(profileId, externalName) {
+  if (profileId) return { profileId, externalName: null }
+  const name = externalName?.trim()
+  return name ? { profileId: null, externalName: name } : null
+}
+
+async function replaceTravailAuthors(admin, travailId, orderedAuthors = []) {
   const { error: deleteError } = await admin.from('travail_auteurs').delete().eq('travail_id', travailId)
   if (deleteError) return deleteError
 
-  const profileRows = (profileAuthorIds ?? [])
-    .filter(Boolean)
-    .map((profileId, index) => ({
+  const rows = (orderedAuthors ?? [])
+    .filter((author) => author.profileId || author.externalName)
+    .map((author, index) => ({
       travail_id: travailId,
-      profile_id: profileId,
-      external_name: null,
+      profile_id: author.profileId,
+      external_name: author.externalName,
       author_order: index,
     }))
-
-  const externalRows = (externalAuthors ?? [])
-    .map((name) => name?.trim())
-    .filter(Boolean)
-    .map((name, index) => ({
-      travail_id: travailId,
-      profile_id: null,
-      external_name: name,
-      author_order: profileRows.length + index,
-    }))
-
-  const rows = [...profileRows, ...externalRows]
   if (rows.length === 0) return null
 
   const { error } = await admin.from('travail_auteurs').insert(rows)
@@ -329,10 +489,19 @@ async function replaceTravailAuthors(admin, travailId, profileAuthorIds = [], ex
 
 function formatTravailSchemaError(error) {
   const message = error?.message ?? ''
+  if (message.includes('travail_status')) {
+    return "La liste des statuts Supabase n'est pas encore à jour. Relancez le script supabase/travaux_scientifiques_enhancements.sql dans Supabase, puis réessayez."
+  }
   if (message.includes('encadrant_id') || message.includes('validation_status') || message.includes('travail_auteurs') || message.includes('schema cache')) {
     return "La structure Supabase des travaux scientifiques n'est pas encore à jour. Exécutez le script supabase/travaux_scientifiques_enhancements.sql dans Supabase, puis rechargez le schéma."
   }
   return message
+}
+
+function validateTravailRequiredFields(travailData) {
+  if (!travailData.status) return 'Le statut est obligatoire.'
+  if (!travailData.encadrant_id) return "L'encadrant est obligatoire."
+  return ''
 }
 
 function nextTravailValidationStatus(currentTravail, nextScientificStatus) {
@@ -341,6 +510,38 @@ function nextTravailValidationStatus(currentTravail, nextScientificStatus) {
     return wasInitiallyValidated ? 'pending_final' : 'pending_initial'
   }
   return wasInitiallyValidated ? 'initial_validated' : 'pending_initial'
+}
+
+async function notifyEncadrantForTravail(admin, { travailId, encadrantId, residentId, title, validationStatus }) {
+  if (!encadrantId) return
+
+  const { data: residentProfile } = await admin
+    .from('profiles')
+    .select('full_name')
+    .eq('id', residentId)
+    .maybeSingle()
+
+  const isFinal = validationStatus === 'pending_final'
+  const notificationType = isFinal ? 'travail_pending_final' : 'travail_pending_initial'
+  const pushTitle = isFinal ? 'Travail à valider définitivement' : 'Nouveau travail à valider'
+  const pushBody = `${residentProfile?.full_name ?? 'Un résident'} a soumis "${title ?? 'un travail scientifique'}".`
+
+  const { error: notificationError } = await admin.from('notifications').insert({
+    user_id: encadrantId,
+    travail_id: travailId,
+    type: notificationType,
+    is_read: false,
+  })
+  if (notificationError) {
+    console.error('Notification enseignant non créée pour le travail', notificationError)
+  }
+
+  await sendPushToUser(encadrantId, {
+    title: pushTitle,
+    body: pushBody,
+    url: `/enseignant/travaux?validation=${validationStatus}`,
+    tag: `travail-${travailId}-${validationStatus}`,
+  })
 }
 
 async function resolveTravailTypeId(admin, typeIdOrKey) {

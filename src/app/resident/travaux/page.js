@@ -26,6 +26,7 @@ export default async function TravauxPage() {
         initialTravaux={travaux ?? []}
         types={normalizeTravailTypes(types ?? [])}
         residentName={profile?.full_name}
+        residentId={user.id}
         enseignants={enseignants ?? []}
         residents={residents ?? []}
       />

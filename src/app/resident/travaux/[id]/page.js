@@ -4,9 +4,8 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
-import Badge from '@/components/ui/Badge'
 import TravauxDetailActions from './TravauxDetailActions'
-import { formatTravailAuthors, normalizeTravailTypes, TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
+import { formatTravailAuthors, getTravailValidationHelp, normalizeTravailTypes, TRAVAIL_STATUS_LABELS, TRAVAIL_STATUS_STYLES, TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
 
 export default async function TravauxDetailPage({ params }) {
   const { id } = await params
@@ -17,7 +16,7 @@ export default async function TravauxDetailPage({ params }) {
 
   const [{ data: travail }, { data: types }, { data: enseignants }, { data: residents }] = await Promise.all([
     supabase.from('travaux_scientifiques')
-      .select('id, title, journal_or_event, year, authors, doi_or_url, status, validation_status, validation_feedback, initial_validated_at, final_validated_at, type_id, encadrant_id, travail_types(name, color_hex), encadrant:profiles!encadrant_id(id, full_name), travail_auteurs(id, profile_id, external_name, author_order, profiles(id, full_name, role))')
+      .select('id, title, journal_or_event, year, authors, doi_or_url, status, validation_status, validation_feedback, initial_validated_by, initial_validated_at, final_validated_at, type_id, encadrant_id, travail_types(name, color_hex), encadrant:profiles!encadrant_id(id, full_name), travail_auteurs(id, profile_id, external_name, author_order, profiles(id, full_name, role))')
       .eq('id', id).eq('resident_id', user.id).single(),
     supabase.from('travail_types').select('id, name, color_hex').eq('is_active', true).order('display_order'),
     admin.from('profiles').select('id, full_name, role').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
@@ -25,7 +24,9 @@ export default async function TravauxDetailPage({ params }) {
   ])
 
   if (!travail) notFound()
+  const statusStyle = TRAVAIL_STATUS_STYLES[travail.status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const validationStyle = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
+  const validationHelp = getTravailValidationHelp(travail.validation_status)
 
   return (
     <div className="max-w-2xl p-5 md:p-8">
@@ -44,11 +45,14 @@ export default async function TravauxDetailPage({ params }) {
               {travail.travail_types.name}
             </span>
           )}
-          <Badge status={travail.status} />
+          <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}>
+            Statut : {TRAVAIL_STATUS_LABELS[travail.status] ?? travail.status}
+          </span>
           <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: validationStyle.bg, color: validationStyle.color }}>
-            {TRAVAIL_VALIDATION_LABELS[travail.validation_status] ?? travail.validation_status}
+            Validation : {TRAVAIL_VALIDATION_LABELS[travail.validation_status] ?? travail.validation_status}
           </span>
         </div>
+        {validationHelp && <p className="text-xs text-slate-500">{validationHelp}</p>}
 
         {travail.journal_or_event && <Row label="Journal / Congrès" value={travail.journal_or_event} />}
         {travail.encadrant?.full_name && <Row label="Encadrant" value={travail.encadrant.full_name} />}

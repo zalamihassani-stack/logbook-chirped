@@ -5,7 +5,7 @@ export const FALLBACK_TRAVAIL_TYPES = [
 ]
 
 export const ARTICLE_STATUS_OPTIONS = [
-  { value: 'ecriture', label: "En cours d'écriture" },
+  { value: 'en_cours', label: "En cours d'écriture" },
   { value: 'soumis', label: 'Soumis' },
   { value: 'accepte', label: 'Accepté' },
   { value: 'publie', label: 'Publié' },
@@ -26,7 +26,6 @@ export const ALL_TRAVAIL_STATUS_OPTIONS = [
 export const TRAVAIL_STATUS_LABELS = Object.fromEntries(ALL_TRAVAIL_STATUS_OPTIONS.map((item) => [item.value, item.label]))
 
 export const TRAVAIL_STATUS_STYLES = {
-  ecriture: { bg: '#E8F4FC', color: '#0D2B4E' },
   en_cours: { bg: '#E8F4FC', color: '#0D2B4E' },
   soumis: { bg: '#fef9c3', color: '#854d0e' },
   accepte: { bg: '#dbeafe', color: '#1e40af' },
@@ -37,11 +36,11 @@ export const TRAVAIL_STATUS_STYLES = {
 export const FINAL_WORK_STATUSES = ['publie', 'presente']
 
 export const TRAVAIL_VALIDATION_LABELS = {
-  pending_initial: 'À valider',
+  pending_initial: 'Validation initiale à faire',
   initial_validated: 'Validation initiale faite',
-  pending_final: 'Validation définitive demandée',
-  final_validated: 'Validé définitivement',
-  refused: 'Correction demandée',
+  pending_final: 'Validation finale à faire',
+  final_validated: 'Validation finale faite',
+  refused: 'Corrections demandées',
 }
 
 export const TRAVAIL_VALIDATION_STYLES = {
@@ -54,6 +53,23 @@ export const TRAVAIL_VALIDATION_STYLES = {
 
 export function isFinalWorkStatus(status) {
   return FINAL_WORK_STATUSES.includes(status)
+}
+
+export function isPendingTravailValidation(status) {
+  return status === 'pending_initial' || status === 'pending_final'
+}
+
+export function getTravailValidationActionLabel(status) {
+  return status === 'pending_final' ? 'Valider final' : 'Valider initial'
+}
+
+export function getTravailValidationHelp(status) {
+  if (status === 'pending_initial') return "Le travail attend la première validation de l'encadrant."
+  if (status === 'initial_validated') return 'Le travail est validé au stade initial. Une validation finale sera demandée quand il sera publié ou présenté.'
+  if (status === 'pending_final') return "Le travail est terminé et attend la validation finale de l'encadrant."
+  if (status === 'final_validated') return 'Le travail est validé définitivement.'
+  if (status === 'refused') return 'Des corrections ont été demandées. Modifiez puis enregistrez pour renvoyer en validation.'
+  return ''
 }
 
 export function normalizeTravailTypeName(name = '') {
@@ -91,4 +107,18 @@ export function formatTravailAuthors(travail) {
 
   if (structured.length > 0) return structured.join(', ')
   return travail?.authors ?? ''
+}
+
+export function getTravailAuthorsByPosition(travail) {
+  const authors = (travail?.travail_auteurs ?? [])
+    .slice()
+    .sort((a, b) => (a.author_order ?? 0) - (b.author_order ?? 0))
+    .map((author) => author.profiles?.full_name ?? author.external_name)
+    .filter(Boolean)
+
+  return {
+    first: authors[0] ?? '',
+    second: authors[1] ?? '',
+    others: authors.slice(2),
+  }
 }

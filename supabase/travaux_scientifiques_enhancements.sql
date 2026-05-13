@@ -13,6 +13,24 @@ insert into public.travail_types (name, color_hex, display_order, is_active)
 select 'Communication affichée', '#854d0e', 3, true
 where not exists (select 1 from public.travail_types where lower(name) in ('communication affichée', 'communication affichee'));
 
+do $$
+declare
+  status_value text;
+begin
+  if exists (
+    select 1
+    from pg_type t
+    join pg_namespace n on n.oid = t.typnamespace
+    where n.nspname = 'public'
+      and t.typname = 'travail_status'
+  ) then
+    foreach status_value in array array['en_cours', 'soumis', 'accepte', 'publie', 'presente']
+    loop
+      execute format('alter type public.travail_status add value if not exists %L', status_value);
+    end loop;
+  end if;
+end $$;
+
 alter table public.travaux_scientifiques
   add column if not exists encadrant_id uuid references public.profiles(id) on delete set null;
 
@@ -54,6 +72,18 @@ create index if not exists travail_auteurs_profile_idx on public.travail_auteurs
 create index if not exists travaux_scientifiques_encadrant_idx on public.travaux_scientifiques(encadrant_id);
 create index if not exists travaux_scientifiques_validation_status_idx on public.travaux_scientifiques(validation_status);
 
+alter table public.notifications
+  add column if not exists travail_id uuid references public.travaux_scientifiques(id) on delete cascade;
+
+create index if not exists notifications_travail_idx
+  on public.notifications(travail_id);
+
+update public.travaux_scientifiques
+set validation_status = 'pending_final',
+    validation_feedback = null
+where validation_status = 'initial_validated'
+  and status::text in ('publie', 'presente');
+
 create table if not exists public.travail_validation_history (
   id uuid primary key default gen_random_uuid(),
   travail_id uuid not null references public.travaux_scientifiques(id) on delete cascade,
@@ -82,7 +112,15 @@ create policy "travail validation history insertable by teachers and admins"
     exists (
       select 1 from public.profiles
       where profiles.id = auth.uid()
-        and profiles.role in ('admin', 'enseignant')
+        and profiles.role = 'admin'
+    )
+    or exists (
+      select 1
+      from public.travaux_scientifiques ts
+      join public.profiles p on p.id = auth.uid()
+      where ts.id = travail_id
+        and ts.encadrant_id = auth.uid()
+        and p.role = 'enseignant'
     )
   );
 
@@ -106,9 +144,14 @@ create policy "travail auteurs insertable by residents and admins"
         and ts.resident_id = auth.uid()
     )
     or exists (
-      select 1 from public.profiles
-      where profiles.id = auth.uid()
-        and profiles.role in ('admin', 'enseignant')
+      select 1
+      from public.travaux_scientifiques ts
+      join public.profiles p on p.id = auth.uid()
+      where ts.id = travail_id
+        and (
+          p.role = 'admin'
+          or (p.role = 'enseignant' and ts.encadrant_id = auth.uid())
+        )
     )
   );
 
@@ -124,9 +167,14 @@ create policy "travail auteurs updatable by owner and staff"
         and ts.resident_id = auth.uid()
     )
     or exists (
-      select 1 from public.profiles
-      where profiles.id = auth.uid()
-        and profiles.role in ('admin', 'enseignant')
+      select 1
+      from public.travaux_scientifiques ts
+      join public.profiles p on p.id = auth.uid()
+      where ts.id = travail_id
+        and (
+          p.role = 'admin'
+          or (p.role = 'enseignant' and ts.encadrant_id = auth.uid())
+        )
     )
   )
   with check (
@@ -137,10 +185,15 @@ create policy "travail auteurs updatable by owner and staff"
         and ts.resident_id = auth.uid()
     )
     or exists (
-      select 1 from public.profiles
-      where profiles.id = auth.uid()
-        and profiles.role in ('admin', 'enseignant')
-      )
+      select 1
+      from public.travaux_scientifiques ts
+      join public.profiles p on p.id = auth.uid()
+      where ts.id = travail_id
+        and (
+          p.role = 'admin'
+          or (p.role = 'enseignant' and ts.encadrant_id = auth.uid())
+        )
+    )
   );
 
 -- Ask Supabase/PostgREST to reload the schema cache after the migration.

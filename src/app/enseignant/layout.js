@@ -12,11 +12,18 @@ export default async function EnseignantLayout({ children }) {
 
   if (profile?.role !== 'enseignant') redirect('/')
 
-  const { count: pendingCount } = await supabase
-    .from('realisations')
-    .select('*', { count: 'exact', head: true })
-    .eq('enseignant_id', user.id)
-    .eq('status', 'pending')
+  const [pendingRes, pendingTravauxRes] = await Promise.all([
+    supabase
+      .from('realisations')
+      .select('*', { count: 'exact', head: true })
+      .eq('enseignant_id', user.id)
+      .eq('status', 'pending'),
+    supabase
+      .from('travaux_scientifiques')
+      .select('*', { count: 'exact', head: true })
+      .eq('encadrant_id', user.id)
+      .in('validation_status', ['pending_initial', 'pending_final']),
+  ])
 
-  return <AppLayout profile={profile} badges={{ demandes: pendingCount ?? 0 }}>{children}</AppLayout>
+  return <AppLayout profile={profile} badges={{ demandes: pendingRes.count ?? 0, travaux: pendingTravauxRes.count ?? 0 }}>{children}</AppLayout>
 }

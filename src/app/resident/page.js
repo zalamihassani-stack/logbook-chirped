@@ -4,7 +4,8 @@ import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import { formatDate, getResidentYear } from '@/lib/utils'
 import { ACTIVITY_TYPE_LABELS, getResidentProgressRows, indexProgressByProcedure, getCountForRequiredLevel, procedureToGlobalObjective } from '@/lib/logbook'
-import { AlertTriangle, CheckCircle, ChevronRight, Clock, FilePlus2, Target, TrendingUp, XCircle } from 'lucide-react'
+import { TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
+import { AlertTriangle, CheckCircle, ChevronRight, Clock, FilePlus2, FlaskConical, Target, TrendingUp, XCircle } from 'lucide-react'
 
 const LEVEL_COLORS = {
   1: { bg: '#dbeafe', color: '#1e40af', label: 'Exposition' },
@@ -27,7 +28,7 @@ export default async function ResidentDashboard() {
 
   const year = getResidentYear(profile?.residanat_start_date)
 
-  const [progressRows, objectivesRes, proceduresRes, categoriesRes, pendingRealsRes, refusedRealsRes, validatedRes, pendingRes, totalRes, refusedRes] = await Promise.all([
+  const [progressRows, objectivesRes, proceduresRes, categoriesRes, pendingRealsRes, refusedRealsRes, validatedRes, pendingRes, totalRes, refusedRes, pendingTravauxRes, refusedTravauxRes, recentTravauxRes] = await Promise.all([
     getResidentProgressRows(supabase, user.id),
     supabase
       .from('procedure_objectives')
@@ -56,6 +57,15 @@ export default async function ResidentDashboard() {
     supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'pending'),
     supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id),
     supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'refused'),
+    supabase.from('travaux_scientifiques').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).in('validation_status', ['pending_initial', 'pending_final']),
+    supabase.from('travaux_scientifiques').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('validation_status', 'refused'),
+    supabase
+      .from('travaux_scientifiques')
+      .select('id, title, year, validation_status, encadrant:profiles!encadrant_id(full_name)')
+      .eq('resident_id', user.id)
+      .in('validation_status', ['pending_initial', 'pending_final', 'refused'])
+      .order('year', { ascending: false })
+      .limit(4),
   ])
 
   const progressIndex = indexProgressByProcedure(progressRows)
@@ -67,12 +77,15 @@ export default async function ResidentDashboard() {
   const categories = categoriesRes.data ?? []
   const pendingReals = pendingRealsRes.data ?? []
   const refusedReals = refusedRealsRes.data ?? []
+  const recentTravaux = recentTravauxRes.data ?? []
 
   const stats = {
     validated: validatedRes.count ?? 0,
     pending: pendingRes.count ?? 0,
     total: totalRes.count ?? 0,
     refused: refusedRes.count ?? 0,
+    travauxPending: pendingTravauxRes.count ?? 0,
+    travauxRefused: refusedTravauxRes.count ?? 0,
   }
 
   const annual = summarizeObjectives(objectives, progressIndex)
@@ -113,6 +126,20 @@ export default async function ResidentDashboard() {
       detail: 'Suivez les validations récentes et relancez si nécessaire.',
       href: '/resident/historique?status=pending',
       icon: Clock,
+      tone: 'warning',
+    },
+    stats.travauxRefused > 0 && {
+      title: `${stats.travauxRefused} travail/travaux à corriger`,
+      detail: 'Ouvrez l’onglet travaux pour renvoyer la version corrigée.',
+      href: '/resident/travaux',
+      icon: FlaskConical,
+      tone: 'danger',
+    },
+    stats.travauxPending > 0 && {
+      title: `${stats.travauxPending} travail/travaux en validation`,
+      detail: 'Suivez la validation initiale ou finale par l’encadrant.',
+      href: '/resident/travaux',
+      icon: FlaskConical,
       tone: 'warning',
     },
     notMet[0] && {
@@ -216,6 +243,24 @@ export default async function ResidentDashboard() {
           <ActivityPanel title="En attente de validation" href="/resident/historique?status=pending" empty="Aucun acte en attente">
             {pendingReals.map((realisation) => <RealisationRow key={realisation.id} realisation={realisation} icon={Clock} tone="warning" />)}
           </ActivityPanel>
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Travaux scientifiques</p>
+            <p className="mt-0.5 text-xs text-slate-500">Validations en cours et corrections demandées</p>
+          </div>
+          <Link href="/resident/travaux" className="text-xs font-medium" style={{ color: '#0D2B4E' }}>Gérer</Link>
+        </div>
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <MiniStat label="À valider" value={stats.travauxPending} color="#854d0e" bg="#fef9c3" />
+          <MiniStat label="Corrections" value={stats.travauxRefused} color="#991b1b" bg="#fee2e2" />
+        </div>
+        <div className="space-y-2">
+          {recentTravaux.map((travail) => <TravailRow key={travail.id} travail={travail} href={`/resident/travaux/${travail.id}`} />)}
+          {recentTravaux.length === 0 && <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-400">Aucun travail en attente</p>}
         </div>
       </section>
 
@@ -345,6 +390,35 @@ function RealisationRow({ realisation, icon: Icon, tone }) {
         </p>
       </div>
       <ChevronRight size={13} className="flex-shrink-0 text-slate-300" />
+    </Link>
+  )
+}
+
+function MiniStat({ label, value, color, bg }) {
+  return (
+    <div className="rounded-xl p-3" style={{ backgroundColor: bg }}>
+      <p className="text-2xl font-bold" style={{ color }}>{value}</p>
+      <p className="mt-0.5 text-xs" style={{ color: `${color}cc` }}>{label}</p>
+    </div>
+  )
+}
+
+function TravailRow({ travail, href }) {
+  const style = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
+  return (
+    <Link href={href} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2.5 transition hover:bg-slate-100">
+      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: style.bg, color: style.color }}>
+        <FlaskConical size={15} strokeWidth={1.8} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-slate-800">{travail.title ?? '-'}</p>
+        <p className="mt-0.5 text-[11px] text-slate-500">
+          {travail.year} · {travail.encadrant?.full_name ?? 'Encadrant non renseigné'}
+        </p>
+      </div>
+      <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ backgroundColor: style.bg, color: style.color }}>
+        {TRAVAIL_VALIDATION_LABELS[travail.validation_status] ?? travail.validation_status}
+      </span>
     </Link>
   )
 }
