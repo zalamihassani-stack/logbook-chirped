@@ -73,6 +73,83 @@ export function getMinimumForRequiredLevel(procedure, requiredLevel) {
   return 1
 }
 
+function objectiveKey(objective) {
+  return `${objective.procedure_id}-${objective.year ?? 1}-${objective.required_level}`
+}
+
+function buildObjective({ procedure, year, requiredLevel, minCount, source = 'derived' }) {
+  const normalizedLevel = normalizeObjectifLevel(requiredLevel)
+  if (!procedure?.id || !normalizedLevel) return null
+
+  return {
+    procedure_id: procedure.id,
+    year: normalizedLevel === 1 ? 1 : year,
+    required_level: normalizedLevel,
+    min_count: minCount || getMinimumForRequiredLevel(procedure, normalizedLevel),
+    procedures: procedure,
+    source,
+    is_transversal: normalizedLevel === 1,
+  }
+}
+
+export function buildCurriculumObjectives({ procedures = [], objectiveRows = [] }) {
+  const procedureById = new Map((procedures ?? []).filter(Boolean).map((procedure) => [procedure.id, procedure]))
+  const yearly = []
+  const exposureByProcedure = new Map()
+  const seenYearly = new Set()
+
+  for (const procedure of procedures ?? []) {
+    if (!procedure?.id || normalizeObjectifLevel(procedure.objectif_final) !== 1) continue
+    const exposure = buildObjective({
+      procedure,
+      year: 1,
+      requiredLevel: 1,
+      minCount: getMinimumForRequiredLevel(procedure, 1),
+      source: 'exposure',
+    })
+    if (exposure) exposureByProcedure.set(procedure.id, exposure)
+  }
+
+  for (const row of objectiveRows ?? []) {
+    const procedure = row.procedures ?? procedureById.get(row.procedure_id)
+    const requiredLevel = normalizeObjectifLevel(row.required_level)
+    if (!procedure || requiredLevel < 2) continue
+
+    const objective = buildObjective({
+      procedure,
+      year: Number.parseInt(row.year, 10),
+      requiredLevel,
+      minCount: Number.parseInt(row.min_count, 10) || getMinimumForRequiredLevel(procedure, requiredLevel),
+      source: 'explicit',
+    })
+    if (!objective?.year) continue
+
+    const key = objectiveKey(objective)
+    if (seenYearly.has(key)) continue
+    seenYearly.add(key)
+    yearly.push(objective)
+  }
+
+  return {
+    exposure: Array.from(exposureByProcedure.values()).sort((a, b) => (a.procedures?.name ?? '').localeCompare(b.procedures?.name ?? '')),
+    yearly: yearly.sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year
+      if (a.required_level !== b.required_level) return b.required_level - a.required_level
+      return (a.procedures?.name ?? '').localeCompare(b.procedures?.name ?? '')
+    }),
+    all: [...Array.from(exposureByProcedure.values()), ...yearly],
+  }
+}
+
+export function enrichObjectiveProgress(objectives = [], progressIndex = {}) {
+  return objectives.map((objective) => {
+    const count = getCountForRequiredLevel(progressIndex[objective.procedure_id], objective.required_level)
+    const done = count >= objective.min_count
+    const pct = objective.min_count ? Math.min(100, Math.round((count / objective.min_count) * 100)) : 0
+    return { ...objective, count, done, pct }
+  })
+}
+
 export function procedureToGlobalObjective(procedure) {
   const requiredLevel = normalizeObjectifLevel(procedure?.objectif_final)
 

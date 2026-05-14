@@ -4,9 +4,11 @@ import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
 import ExportGestesButton from './ExportGestesButton'
-import { formatDate } from '@/lib/utils'
+import { formatDate, maskPatientIdentifier } from '@/lib/utils'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 import { ChevronRight } from 'lucide-react'
+
+const PAGE_SIZE = 25
 
 export default async function HistoriquePage({ searchParams }) {
   const supabase = await createClient()
@@ -23,6 +25,9 @@ export default async function HistoriquePage({ searchParams }) {
   const filterEnseignant = params?.enseignant ?? ''
   const filterActivity = params?.activity ?? ''
   const filterYear = params?.year ?? ''
+  const page = Math.max(1, Number.parseInt(params?.page ?? '1', 10) || 1)
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE
 
   let query = supabase
     .from('realisations')
@@ -37,7 +42,7 @@ export default async function HistoriquePage({ searchParams }) {
   if (filterYear) query = query.eq('resident_year_at_time', Number.parseInt(filterYear, 10))
 
   const [{ data: realisations }, { data: procedures }, { data: enseignants }] = await Promise.all([
-    query,
+    query.range(from, to),
     supabase.from('procedures').select('id, name').eq('is_active', true).order('name'),
     supabase.from('profiles').select('id, full_name').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
   ])
@@ -80,14 +85,22 @@ export default async function HistoriquePage({ searchParams }) {
           <option value="">Toutes les années</option>
           {[1, 2, 3, 4, 5].map((year) => <option key={year} value={year}>Année {year}</option>)}
         </select>
-        <button type="submit"
-          className="rounded-lg px-4 py-2 text-sm font-medium text-white" style={{ backgroundColor: '#0D2B4E' }}>
-          Filtrer
-        </button>
+        <div className="flex gap-2">
+          <button type="submit"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-white" style={{ backgroundColor: 'var(--color-navy)' }}>
+            Filtrer
+          </button>
+          {(filterStatus || filterProc || filterEnseignant || filterActivity || filterYear) && (
+            <Link href="/resident/historique"
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700">
+              Réinitialiser
+            </Link>
+          )}
+        </div>
       </form>
 
       <div className="space-y-2">
-        {(realisations ?? []).map((realisation) => (
+        {(realisations ?? []).slice(0, PAGE_SIZE).map((realisation) => (
           <Link key={realisation.id} href={`/resident/historique/${realisation.id}`}
             className={`flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${realisation.status === 'refused' ? 'border border-red-200' : 'border border-slate-100'}`}>
             <div className="min-w-0 flex-1">
@@ -107,7 +120,7 @@ export default async function HistoriquePage({ searchParams }) {
               <p className="mt-0.5 text-xs text-slate-500">
                 {formatDate(realisation.performed_at)} · A{realisation.resident_year_at_time ?? '-'} · {ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '—'}
               </p>
-              {realisation.ipp_patient && <p className="mt-0.5 text-xs text-slate-400">IPP : {realisation.ipp_patient}</p>}
+              {realisation.ipp_patient && <p className="mt-0.5 text-xs text-slate-400">IPP : {maskPatientIdentifier(realisation.ipp_patient)}</p>}
             </div>
             <Badge status={realisation.status} />
             <ChevronRight size={16} className="flex-shrink-0 text-slate-300" />
@@ -117,6 +130,36 @@ export default async function HistoriquePage({ searchParams }) {
           <p className="py-8 text-center text-sm text-slate-400">Aucun acte enregistré</p>
         )}
       </div>
+      <PaginationControls
+        page={page}
+        hasNext={(realisations ?? []).length > PAGE_SIZE}
+        params={params}
+      />
+    </div>
+  )
+}
+
+function PaginationControls({ page, hasNext, params }) {
+  if (page === 1 && !hasNext) return null
+
+  const previousParams = new URLSearchParams(params)
+  const nextParams = new URLSearchParams(params)
+  previousParams.set('page', String(Math.max(1, page - 1)))
+  nextParams.set('page', String(page + 1))
+
+  return (
+    <div className="mt-5 flex items-center justify-between gap-3">
+      {page > 1 ? (
+        <Link href={`/resident/historique?${previousParams.toString()}`} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+          Page précédente
+        </Link>
+      ) : <span />}
+      <span className="text-xs text-slate-400">Page {page}</span>
+      {hasNext ? (
+        <Link href={`/resident/historique?${nextParams.toString()}`} className="rounded-xl px-4 py-2 text-sm font-medium text-white" style={{ backgroundColor: 'var(--color-navy)' }}>
+          Page suivante
+        </Link>
+      ) : <span />}
     </div>
   )
 }

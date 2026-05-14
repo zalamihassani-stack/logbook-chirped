@@ -68,12 +68,12 @@ export default async function EnseignantDashboard() {
   ])
 
   const metrics = [
-    { label: 'Actes en attente', value: pendingRes.count, icon: ClipboardList, iconBg: '#fef9c3', iconColor: '#854d0e', href: '/enseignant/demandes?status=pending' },
+    { label: 'Actes en attente', value: pendingRes.count, icon: ClipboardList, iconBg: 'var(--color-warning-light)', iconColor: 'var(--color-warning)', href: '/enseignant/demandes?status=pending' },
     { label: 'Travaux à valider', value: pendingTravauxRes.count, icon: FlaskConical, iconBg: '#ffedd5', iconColor: '#9a3412', href: '/enseignant/travaux' },
-    { label: 'Validation finale', value: pendingFinalTravauxRes.count, icon: CheckCircle, iconBg: '#dcfce7', iconColor: '#166534', href: '/enseignant/travaux?validation=pending_final' },
-    { label: 'Validés ce mois', value: validatedRes.count, icon: CheckCircle, iconBg: '#dcfce7', iconColor: '#166534', href: '/enseignant/demandes?status=validated' },
-    { label: 'Résidents actifs', value: residentsRes.count, icon: UserCheck, iconBg: '#E8F4FC', iconColor: '#0D2B4E', href: '/enseignant/residents' },
-    { label: 'Refusés ce mois', value: refusedRes.count, icon: XCircle, iconBg: '#fee2e2', iconColor: '#991b1b', href: '/enseignant/demandes?status=refused' },
+    { label: 'Validation finale', value: pendingFinalTravauxRes.count, icon: CheckCircle, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)', href: '/enseignant/travaux?validation=pending_final' },
+    { label: 'Validés ce mois', value: validatedRes.count, icon: CheckCircle, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)', href: '/enseignant/demandes?status=validated' },
+    { label: 'Résidents actifs', value: residentsRes.count, icon: UserCheck, iconBg: 'var(--color-ice)', iconColor: 'var(--color-navy)', href: '/enseignant/residents' },
+    { label: 'Refusés ce mois', value: refusedRes.count, icon: XCircle, iconBg: 'var(--color-danger-light)', iconColor: 'var(--color-danger)', href: '/enseignant/demandes?status=refused' },
   ]
 
   return (
@@ -130,8 +130,8 @@ function DashboardPanel({ title, href, children }) {
   return (
     <section>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold" style={{ color: '#0D2B4E' }}>{title}</h2>
-        <Link href={href} className="text-xs font-medium" style={{ color: '#0D2B4E' }}>Tout voir</Link>
+        <h2 className="text-base font-semibold" style={{ color: 'var(--color-navy)' }}>{title}</h2>
+        <Link href={href} className="text-xs font-medium" style={{ color: 'var(--color-navy)' }}>Tout voir</Link>
       </div>
       <div className="space-y-2">{children}</div>
     </section>

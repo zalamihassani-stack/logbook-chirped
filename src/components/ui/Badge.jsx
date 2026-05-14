@@ -1,16 +1,16 @@
 const STYLES = {
-  pending: { bg: '#fef9c3', color: '#854d0e', label: 'En attente' },
-  validated: { bg: '#dcfce7', color: '#166534', label: 'Validé' },
-  refused: { bg: '#fee2e2', color: '#991b1b', label: 'Refusé' },
-  ecriture: { bg: '#E8F4FC', color: '#0D2B4E', label: "En cours d'écriture" },
-  en_cours: { bg: '#E8F4FC', color: '#0D2B4E', label: 'En cours' },
-  soumis: { bg: '#dbeafe', color: '#1e40af', label: 'Soumis' },
+  pending: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', label: 'En attente' },
+  validated: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Validé' },
+  refused: { bg: 'var(--color-danger-light)', color: 'var(--color-danger)', label: 'Refusé' },
+  ecriture: { bg: 'var(--color-ice)', color: 'var(--color-navy)', label: "En cours d'écriture" },
+  en_cours: { bg: 'var(--color-ice)', color: 'var(--color-navy)', label: 'En cours' },
+  soumis: { bg: 'var(--color-info-light)', color: 'var(--color-info)', label: 'Soumis' },
   accepte: { bg: '#ccfbf1', color: '#065f46', label: 'Accepté' },
   publie: { bg: '#ede9fe', color: '#5b21b6', label: 'Publié' },
   presente: { bg: '#f3e8ff', color: '#6b21a8', label: 'Présenté' },
-  admin: { bg: '#fee2e2', color: '#991b1b', label: 'Admin' },
-  enseignant: { bg: '#dbeafe', color: '#1e40af', label: 'Enseignant' },
-  resident: { bg: '#dcfce7', color: '#166534', label: 'Résident' },
+  admin: { bg: 'var(--color-danger-light)', color: 'var(--color-danger)', label: 'Admin' },
+  enseignant: { bg: 'var(--color-info-light)', color: 'var(--color-info)', label: 'Enseignant' },
+  resident: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Résident' },
 }
 
 export default function Badge({ status, className = '' }) {

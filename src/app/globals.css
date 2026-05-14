@@ -4,6 +4,14 @@
   --color-navy: #0D2B4E;
   --color-sky: #7BB8E8;
   --color-ice: #E8F4FC;
+  --color-success: #166534;
+  --color-success-light: #dcfce7;
+  --color-warning: #854d0e;
+  --color-warning-light: #fef9c3;
+  --color-danger: #991b1b;
+  --color-danger-light: #fee2e2;
+  --color-info: #1e40af;
+  --color-info-light: #dbeafe;
 }
 
 :root {
@@ -16,7 +24,7 @@
 
 body {
   margin: 0;
-  background-color: #E8F4FC;
+  background-color: var(--color-ice);
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }

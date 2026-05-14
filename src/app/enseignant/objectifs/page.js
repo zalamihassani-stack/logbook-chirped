@@ -4,9 +4,9 @@ import PageHeader from '@/components/ui/PageHeader'
 import ObjectifsFilters from './ObjectifsFilters'
 
 const SECTIONS = [
-  { level: 3, label: 'Maitrise', dot: '#16a34a', style: { bg: '#dcfce7', color: '#166534' } },
+  { level: 3, label: 'Maitrise', dot: '#16a34a', style: { bg: 'var(--color-success-light)', color: 'var(--color-success)' } },
   { level: 2, label: 'Competence supervisee', dot: '#f59e0b', style: { bg: '#fef3c7', color: '#92400e' } },
-  { level: 1, label: 'Exposition', dot: '#3b82f6', style: { bg: '#dbeafe', color: '#1e40af' } },
+  { level: 1, label: 'Exposition', dot: '#3b82f6', style: { bg: 'var(--color-info-light)', color: 'var(--color-info)' } },
 ]
 
 export default async function ObjectifsPage({ searchParams }) {

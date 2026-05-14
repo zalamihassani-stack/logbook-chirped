@@ -1,67 +1,46 @@
 'use client'
 import { useState } from 'react'
-import { Activity, TrendingUp, ClipboardList, Clock, Users } from 'lucide-react'
+import { Activity, TrendingUp, ClipboardList, Target } from 'lucide-react'
 import ActesTab from './ActesTab'
 import ProgressionTab from './ProgressionTab'
+import ObjectifsTab from './ObjectifsTab'
+import PrioritesTab from './PrioritesTab'
 
 const TABS = [
-  { id: 'progression', label: 'Suivi des résidents', icon: TrendingUp },
-  { id: 'actes', label: 'Suivi des gestes', icon: ClipboardList },
+  { id: 'priorites', label: 'Priorités', icon: Activity },
+  { id: 'residents', label: 'Residents', icon: TrendingUp },
+  { id: 'objectifs', label: 'Objectifs', icon: Target },
+  { id: 'journal', label: 'Journal des actes', icon: ClipboardList },
 ]
 
-export default function SuiviClient({ stats, residents, procedures, enseignants }) {
-  const [tab, setTab] = useState('progression')
+export default function SuiviClient({ residents, procedures, enseignants }) {
+  const [tab, setTab] = useState('priorites')
 
   return (
-    <div className="max-w-6xl p-5 md:p-8">
-      <h1 className="mb-1 text-xl font-bold" style={{ color: '#0D2B4E' }}>
+    <div className="max-w-6xl p-4 md:p-8">
+      <h1 className="mb-1 text-xl font-bold" style={{ color: 'var(--color-navy)' }}>
         Suivi
       </h1>
-      <p className="mb-6 text-sm text-slate-500">Suivi des résidents et des gestes validés ou en attente</p>
+      <p className="mb-4 text-sm text-slate-500 md:mb-6">Suivi pedagogique des residents, des objectifs et du journal des actes</p>
 
-      <div className="mb-7 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          { label: 'Actes ce mois', value: stats.actesMonth, icon: Activity, bg: '#E8F4FC', color: '#0D2B4E' },
-          { label: 'En attente', value: stats.actesAttente, icon: Clock, bg: '#fef9c3', color: '#854d0e' },
-          { label: 'Résidents actifs', value: stats.residentsActifs, icon: Users, bg: '#dcfce7', color: '#166534' },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
-          >
-            <div
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
-              style={{ backgroundColor: stat.bg }}
-            >
-              <stat.icon size={18} color={stat.color} strokeWidth={1.75} />
-            </div>
-            <div>
-              <p className="text-xl font-bold leading-none" style={{ color: stat.color }}>
-                {stat.value}
-              </p>
-              <p className="mt-0.5 text-xs text-slate-500">{stat.label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mb-6 flex w-full gap-1 rounded-xl bg-slate-100 p-1 md:w-fit">
+      <div className="mb-5 grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 md:mb-6 md:flex">
         {TABS.map((tabItem) => (
           <button
             key={tabItem.id}
             onClick={() => setTab(tabItem.id)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors md:flex-none md:justify-start md:px-4"
-            style={tab === tabItem.id ? { backgroundColor: '#0D2B4E', color: 'white' } : { color: '#64748b' }}
+            className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 py-2 text-xs font-medium transition-colors sm:text-sm"
+            style={tab === tabItem.id ? { backgroundColor: 'var(--color-navy)', color: 'white' } : { color: '#64748b' }}
           >
-            <tabItem.icon size={15} strokeWidth={1.75} />
-            <span className="hidden sm:inline">{tabItem.label}</span>
-            <span className="text-xs sm:hidden">{tabItem.label.split(' ')[0]}</span>
+            <tabItem.icon size={15} className="flex-shrink-0" strokeWidth={1.75} />
+            <span className="truncate">{tabItem.label}</span>
           </button>
         ))}
       </div>
 
-      {tab === 'progression' && <ProgressionTab residents={residents} />}
-      {tab === 'actes' && <ActesTab residents={residents} procedures={procedures} enseignants={enseignants} />}
+      {tab === 'priorites' && <PrioritesTab residents={residents} />}
+      {tab === 'residents' && <ProgressionTab residents={residents} />}
+      {tab === 'objectifs' && <ObjectifsTab residents={residents} />}
+      {tab === 'journal' && <ActesTab residents={residents} procedures={procedures} enseignants={enseignants} />}
     </div>
   )
 }

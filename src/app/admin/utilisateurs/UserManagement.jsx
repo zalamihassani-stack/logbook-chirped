@@ -1,8 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
-import { getInitials, ROLE_LABELS } from '@/lib/utils'
+import { getInitials } from '@/lib/utils'
 import { createUser, updateUser, deleteUser } from '@/app/actions/admin'
 import { Plus, Pencil, Trash2, X } from 'lucide-react'
 
@@ -12,6 +13,7 @@ const TAB_ROLE = { 'Résidents': 'resident', 'Enseignants': 'enseignant', 'Admin
 const EMPTY_FORM = { full_name: '', email: '', password: '', role: 'resident', residanat_start_date: '', promotion: '' }
 
 export default function UserManagement({ initialUsers }) {
+  const router = useRouter()
   const [users, setUsers] = useState(initialUsers)
   const [tab, setTab] = useState('Tous')
   const [modal, setModal] = useState(null) // null | 'create' | { ...user }
@@ -19,6 +21,10 @@ export default function UserManagement({ initialUsers }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+
+  useEffect(() => {
+    setUsers(initialUsers)
+  }, [initialUsers])
 
   const filtered = tab === 'Tous' ? users : users.filter(u => u.role === TAB_ROLE[tab])
 
@@ -41,15 +47,23 @@ export default function UserManagement({ initialUsers }) {
     }
     setLoading(false)
     if (res.error) { setError(res.error); return }
-    window.location.reload()
+    setModal(null)
+    router.refresh()
   }
 
   async function handleDelete(id) {
     setLoading(true)
-    await deleteUser(id)
+    setError('')
+    const res = await deleteUser(id)
     setLoading(false)
+    if (res.error) {
+      setError(res.error)
+      setConfirmDelete(null)
+      return
+    }
     setConfirmDelete(null)
     setUsers(prev => prev.filter(u => u.id !== id))
+    router.refresh()
   }
 
   return (
@@ -60,11 +74,14 @@ export default function UserManagement({ initialUsers }) {
         action={
           <button onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-medium"
-            style={{ backgroundColor: '#0D2B4E' }}>
+            style={{ backgroundColor: 'var(--color-navy)' }}>
             <Plus size={16} /> Ajouter
           </button>
         }
       />
+      {error && !modal && (
+        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -72,8 +89,8 @@ export default function UserManagement({ initialUsers }) {
           <button key={t} onClick={() => setTab(t)}
             className="px-4 py-1.5 rounded-full text-sm font-medium transition"
             style={tab === t
-              ? { backgroundColor: '#0D2B4E', color: 'white' }
-              : { backgroundColor: 'white', color: '#0D2B4E', border: '1px solid #e2e8f0' }}>
+              ? { backgroundColor: 'var(--color-navy)', color: 'white' }
+              : { backgroundColor: 'white', color: 'var(--color-navy)', border: '1px solid #e2e8f0' }}>
             {t}
           </button>
         ))}
@@ -84,7 +101,7 @@ export default function UserManagement({ initialUsers }) {
         {filtered.map(u => (
           <div key={u.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-              style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
+              style={{ backgroundColor: 'var(--color-ice)', color: 'var(--color-navy)' }}>
               {getInitials(u.full_name)}
             </div>
             <div className="flex-1 min-w-0">
@@ -114,7 +131,7 @@ export default function UserManagement({ initialUsers }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-lg" style={{ color: '#0D2B4E' }}>
+              <h2 className="font-bold text-lg" style={{ color: 'var(--color-navy)' }}>
                 {modal === 'create' ? 'Ajouter un utilisateur' : 'Modifier'}
               </h2>
               <button onClick={() => setModal(null)}><X size={20} className="text-slate-400" /></button>
@@ -126,7 +143,7 @@ export default function UserManagement({ initialUsers }) {
                 <Field label="Mot de passe" type="password" value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} required />
               </>}
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>Rôle</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-navy)' }}>Rôle</label>
                 <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none">
                   <option value="resident">Résident</option>
@@ -141,7 +158,7 @@ export default function UserManagement({ initialUsers }) {
               {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
               <button type="submit" disabled={loading}
                 className="w-full py-2.5 rounded-xl text-white font-medium text-sm disabled:opacity-60"
-                style={{ backgroundColor: '#0D2B4E' }}>
+                style={{ backgroundColor: 'var(--color-navy)' }}>
                 {loading ? 'Enregistrement…' : 'Enregistrer'}
               </button>
             </form>
@@ -172,7 +189,7 @@ export default function UserManagement({ initialUsers }) {
 function Field({ label, type = 'text', value, onChange, required }) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-1" style={{ color: '#0D2B4E' }}>{label}</label>
+      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-navy)' }}>{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} required={required}
         className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400 transition" />
     </div>

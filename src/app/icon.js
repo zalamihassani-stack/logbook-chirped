@@ -12,7 +12,7 @@ export default async function Icon() {
   return new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
-        <img src={base64} width={512} height={512} style={{ objectFit: 'contain' }} />
+        <img src={base64} width={512} height={512} alt="LCP" style={{ objectFit: 'contain' }} />
       </div>
     ),
     { ...size }

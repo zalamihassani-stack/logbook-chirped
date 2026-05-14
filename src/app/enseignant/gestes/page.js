@@ -71,8 +71,8 @@ export default async function EnseignantGestesPage({ searchParams }) {
 
   function color(count) {
     if (count === 0) return { bg: '#f1f5f9', text: '#64748b' }
-    if (count < 3) return { bg: '#fef9c3', text: '#854d0e' }
-    return { bg: '#dcfce7', text: '#166534' }
+    if (count < 3) return { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' }
+    return { bg: 'var(--color-success-light)', text: 'var(--color-success)' }
   }
 
   return (
@@ -95,7 +95,7 @@ export default async function EnseignantGestesPage({ searchParams }) {
                 )}
               </div>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                <span className="text-sm font-bold" style={{ color: '#0D2B4E' }}>{procedure.total} expositions</span>
+                <span className="text-sm font-bold" style={{ color: 'var(--color-navy)' }}>{procedure.total} expositions</span>
                 {procedure.lastAutonomeYear && (
                   <span className="text-xs text-slate-400">Autonome : {procedure.lastAutonomeYear}</span>
                 )}

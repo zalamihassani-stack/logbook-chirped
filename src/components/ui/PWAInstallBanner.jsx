@@ -52,14 +52,14 @@ export default function PWAInstallBanner() {
     >
       <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold leading-tight text-white">Installer l&apos;application</p>
-        <p className="text-[11px] leading-tight" style={{ color: '#7BB8E8' }}>
+        <p className="text-[11px] leading-tight" style={{ color: 'var(--color-sky)' }}>
           Accès rapide depuis votre écran d&apos;accueil
         </p>
       </div>
       <button
         onClick={handleInstall}
         className="flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-        style={{ backgroundColor: '#7BB8E8', color: '#0D2B4E' }}
+        style={{ backgroundColor: 'var(--color-sky)', color: 'var(--color-navy)' }}
       >
         <Download size={13} strokeWidth={2.5} />
         Installer

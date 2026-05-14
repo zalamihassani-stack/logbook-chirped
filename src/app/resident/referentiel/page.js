@@ -5,14 +5,14 @@ import ReferentielFilters from './ReferentielFilters'
 import { OBJECTIF_LEVEL_LABELS, getResidentProgressRows, indexProgressByProcedure, getCountForRequiredLevel, procedureToGlobalObjective } from '@/lib/logbook'
 
 const LEVEL_STYLE = {
-  1: { bg: '#dbeafe', color: '#1e40af' },
-  2: { bg: '#fef9c3', color: '#854d0e' },
-  3: { bg: '#dcfce7', color: '#166534' },
+  1: { bg: 'var(--color-info-light)', color: 'var(--color-info)' },
+  2: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },
+  3: { bg: 'var(--color-success-light)', color: 'var(--color-success)' },
 }
 
 function progressBadge(done, required) {
-  if (done >= required) return { bg: '#dcfce7', color: '#166534', text: `OK ${done}/${required}` }
-  if (done > 0) return { bg: '#fef9c3', color: '#854d0e', text: `${done}/${required}` }
+  if (done >= required) return { bg: 'var(--color-success-light)', color: 'var(--color-success)', text: `OK ${done}/${required}` }
+  if (done > 0) return { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', text: `${done}/${required}` }
   return { bg: '#f1f5f9', color: '#64748b', text: `0/${required}` }
 }
 

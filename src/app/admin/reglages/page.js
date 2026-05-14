@@ -1,14 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAppSettings } from '@/lib/app-settings'
 import ReglagesClient from './ReglagesClient'
 
 export default async function ReglagesPage() {
   const supabase = await createClient()
-  const { data: settings } = await supabase
-    .from('app_settings').select('*').eq('id', 1).maybeSingle()
+  const { settings, missingTable } = await getAppSettings(supabase)
 
   return (
     <div className="p-5 md:p-8">
-      <ReglagesClient initialSettings={settings ?? {}} />
+      <ReglagesClient initialSettings={settings} missingSettingsTable={missingTable} />
     </div>
   )
 }

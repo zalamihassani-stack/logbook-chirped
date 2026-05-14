@@ -32,16 +32,16 @@ export default async function ValidationPage({ params }) {
   if (!real) notFound()
   if (real.enseignant_id !== user.id) notFound()
 
+  const { data: procedureProgress } = await admin
+    .from('v_resident_procedure_counts')
+    .select('count_expose, count_supervise, count_autonome')
+    .eq('resident_id', real.resident_id)
+    .eq('procedure_id', real.procedure_id)
+    .maybeSingle()
+
   let autonomyWarning = ''
   if (real.activity_type === 'autonome') {
-    const { data: progress } = await admin
-      .from('v_resident_procedure_counts')
-      .select('count_supervise')
-      .eq('resident_id', real.resident_id)
-      .eq('procedure_id', real.procedure_id)
-      .maybeSingle()
-
-    const supervisedCount = progress?.count_supervise ?? 0
+    const supervisedCount = procedureProgress?.count_supervise ?? 0
     const threshold = real.procedures?.seuil_deblocage_autonomie ?? 0
     const missing = Math.max(0, threshold - supervisedCount)
     if (missing > 0) {
@@ -61,6 +61,14 @@ export default async function ValidationPage({ params }) {
         <Row label="Type d'activite" value={ACTIVITY_TYPE_LABELS[real.activity_type] ?? '-'} />
         <Row label="Annee residanat" value={`Annee ${real.resident_year_at_time}`} />
         {real.ipp_patient && <Row label="IPP patient" value={real.ipp_patient} />}
+        <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+          <p className="mb-2 text-xs font-medium text-slate-500">Historique validé sur ce geste</p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <MiniCount label="Exposé" value={procedureProgress?.count_expose ?? 0} />
+            <MiniCount label="Supervisé" value={procedureProgress?.count_supervise ?? 0} />
+            <MiniCount label="Autonome" value={procedureProgress?.count_autonome ?? 0} />
+          </div>
+        </div>
         {real.superviseur?.full_name && (
           <Row label="Resident superviseur" value={real.superviseur.full_name} />
         )}
@@ -107,6 +115,15 @@ function Row({ label, value }) {
     <div className="flex gap-3">
       <span className="text-xs font-medium text-slate-500 w-36 flex-shrink-0 pt-0.5">{label}</span>
       <span className="text-sm text-slate-800">{value ?? '—'}</span>
+    </div>
+  )
+}
+
+function MiniCount({ label, value }) {
+  return (
+    <div className="rounded-lg bg-white px-2 py-2">
+      <p className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{value}</p>
+      <p className="text-[11px] text-slate-500">{label}</p>
     </div>
   )
 }

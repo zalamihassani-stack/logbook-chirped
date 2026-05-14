@@ -7,6 +7,7 @@ import { ACTIVITY_TYPES } from '@/lib/logbook'
 export default function ResubmitForm({ realisationId, current, enseignants, residents }) {
   const router = useRouter()
   const isPending = current.status === 'pending'
+  const today = new Date().toISOString().slice(0, 10)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
     procedure_id: current.procedure_id,
@@ -44,7 +45,7 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
       <button
         onClick={() => setOpen(true)}
         className="w-full rounded-xl border-2 py-2.5 text-sm font-medium transition hover:bg-slate-50"
-        style={{ borderColor: '#0D2B4E', color: '#0D2B4E' }}
+        style={{ borderColor: 'var(--color-navy)', color: 'var(--color-navy)' }}
       >
         {isPending ? 'Modifier le geste en attente' : 'Modifier et re-soumettre'}
       </button>
@@ -53,22 +54,23 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
 
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <p className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>
+      <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>
         {isPending ? 'Modifier le geste en attente' : 'Modifier et re-soumettre'}
       </p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Date</label>
+          <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Date</label>
           <input
             type="date"
             value={form.performed_at}
             onChange={(event) => set('performed_at', event.target.value)}
+            max={today}
             required
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Type d&apos;activité</label>
+          <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Type d&apos;activité</label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {ACTIVITY_TYPES.map((activityType, index) => (
               <button
@@ -77,7 +79,7 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
                 onClick={() => set('activity_type', activityType.value)}
                 className="rounded-xl border-2 px-3 py-2 text-sm font-medium transition"
                 style={form.activity_type === activityType.value
-                  ? { borderColor: '#0D2B4E', backgroundColor: '#0D2B4E', color: 'white' }
+                  ? { borderColor: 'var(--color-navy)', backgroundColor: 'var(--color-navy)', color: 'white' }
                   : { borderColor: '#e2e8f0', color: '#374151' }}
               >
                 {index + 1}. {activityType.label}
@@ -86,7 +88,7 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Enseignant</label>
+          <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Enseignant</label>
           <select
             value={form.enseignant_id}
             onChange={(event) => set('enseignant_id', event.target.value)}
@@ -97,7 +99,7 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Résident superviseur</label>
+          <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Résident superviseur</label>
           <select
             value={form.superviseur_resident_id}
             onChange={(event) => set('superviseur_resident_id', event.target.value)}
@@ -108,7 +110,7 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Compte rendu</label>
+          <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Compte rendu</label>
           <textarea
             value={form.compte_rendu}
             onChange={(event) => set('compte_rendu', event.target.value)}
@@ -117,7 +119,7 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Commentaire</label>
+          <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Commentaire</label>
           <textarea
             value={form.commentaire}
             onChange={(event) => set('commentaire', event.target.value)}
@@ -132,7 +134,7 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
             type="submit"
             disabled={loading}
             className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
-            style={{ backgroundColor: '#0D2B4E' }}
+            style={{ backgroundColor: 'var(--color-navy)' }}
           >
             {loading ? 'Envoi...' : isPending ? 'Enregistrer' : 'Re-soumettre'}
           </button>

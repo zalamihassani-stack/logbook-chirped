@@ -1,7 +1,11 @@
 'use server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isMissingAppSettingsTable } from '@/lib/app-settings'
 import { revalidatePath } from 'next/cache'
+
+const VALID_ROLES = new Set(['admin', 'enseignant', 'resident'])
+const SETTING_KEYS = ['push_notifications', 'validation_required', 'allow_hors_objectifs', 'compte_rendu_required']
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -23,7 +27,79 @@ async function requireAdmin() {
     throw new Error('Acces administrateur requis.')
   }
 
-  return { supabase, user }
+  return { supabase, user, profile }
+}
+
+function normalizeUserPayload(data) {
+  const role = data?.role
+  if (!VALID_ROLES.has(role)) return { error: 'Role invalide.' }
+
+  const fullName = data?.full_name?.trim()
+  if (!fullName) return { error: 'Le nom complet est obligatoire.' }
+
+  return {
+    data: {
+      full_name: fullName,
+      role,
+      residanat_start_date: role === 'resident' ? data.residanat_start_date || null : null,
+      promotion: role === 'resident' ? data.promotion?.trim() || null : null,
+    },
+  }
+}
+
+function normalizeCategoryPayload(data) {
+  const name = data?.name?.trim()
+  if (!name) return { error: 'Le nom de categorie est obligatoire.' }
+
+  const color = /^#[0-9a-f]{6}$/i.test(data?.color_hex ?? '') ? data.color_hex : '#0D2B4E'
+  return {
+    data: {
+      name,
+      color_hex: color,
+      display_order: Number.parseInt(data?.display_order, 10) || 0,
+    },
+  }
+}
+
+function nextDateInputValue(dateInput) {
+  const [year, month, day] = String(dateInput).split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day + 1))
+  return date.toISOString().slice(0, 10)
+}
+
+async function getActiveAdminCount(client) {
+  const { count, error } = await client
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'admin')
+    .eq('is_active', true)
+
+  if (error) throw new Error(error.message)
+  return count ?? 0
+}
+
+async function assertAdminCanChangeUser(client, { targetId, currentUserId, nextRole, deleting = false }) {
+  const { data: target, error } = await client
+    .from('profiles')
+    .select('id, role, is_active')
+    .eq('id', targetId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!target) throw new Error('Utilisateur introuvable.')
+
+  if (targetId === currentUserId && (deleting || nextRole !== 'admin')) {
+    throw new Error('Vous ne pouvez pas retirer votre propre acces administrateur depuis cette page.')
+  }
+
+  if (target.role === 'admin' && target.is_active !== false && (deleting || nextRole !== 'admin')) {
+    const activeAdminCount = await getActiveAdminCount(client)
+    if (activeAdminCount <= 1) {
+      throw new Error('Impossible de retirer le dernier administrateur actif.')
+    }
+  }
+
+  return target
 }
 
 export async function createUser({ email, password, full_name, role, residanat_start_date, promotion }) {
@@ -33,9 +109,14 @@ export async function createUser({ email, password, full_name, role, residanat_s
     return { error: error.message }
   }
 
+  const normalized = normalizeUserPayload({ full_name, role, residanat_start_date, promotion })
+  if (normalized.error) return { error: normalized.error }
+  if (!email?.trim()) return { error: "L'email est obligatoire." }
+  if (!password || password.length < 6) return { error: 'Le mot de passe doit contenir au moins 6 caracteres.' }
+
   const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.createUser({
-    email,
+    email: email.trim(),
     password,
     email_confirm: true,
   })
@@ -46,36 +127,56 @@ export async function createUser({ email, password, full_name, role, residanat_s
 
   const { error: profileError } = await admin.from('profiles').upsert({
     id: user.id,
-    full_name,
-    role,
+    ...normalized.data,
     is_active: true,
-    residanat_start_date: residanat_start_date || null,
-    promotion: promotion || null,
   })
-  if (profileError) return { error: profileError.message }
+  if (profileError) {
+    await admin.auth.admin.deleteUser(user.id)
+    return { error: profileError.message }
+  }
 
   revalidatePath('/admin/utilisateurs')
+  revalidatePath('/admin')
   return { success: true }
 }
 
 export async function updateUser(id, data) {
   let supabase
+  let user
   try {
-    ;({ supabase } = await requireAdmin())
+    ;({ supabase, user } = await requireAdmin())
   } catch (error) {
     return { error: error.message }
   }
 
-  const { error } = await supabase.from('profiles').update(data).eq('id', id)
+  const normalized = normalizeUserPayload(data)
+  if (normalized.error) return { error: normalized.error }
+
+  try {
+    await assertAdminCanChangeUser(supabase, { targetId: id, currentUserId: user.id, nextRole: normalized.data.role })
+  } catch (error) {
+    return { error: error.message }
+  }
+
+  const { error } = await supabase.from('profiles').update(normalized.data).eq('id', id)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/utilisateurs')
+  revalidatePath('/admin')
   return { success: true }
 }
 
 export async function deleteUser(id) {
+  let supabase
+  let user
   try {
-    await requireAdmin()
+    ;({ supabase, user } = await requireAdmin())
+  } catch (error) {
+    return { error: error.message }
+  }
+
+  try {
+    await assertAdminCanChangeUser(supabase, { targetId: id, currentUserId: user.id, nextRole: null, deleting: true })
   } catch (error) {
     return { error: error.message }
   }
@@ -85,6 +186,7 @@ export async function deleteUser(id) {
   if (error) return { error: error.message }
 
   revalidatePath('/admin/utilisateurs')
+  revalidatePath('/admin')
   return { success: true }
 }
 
@@ -96,7 +198,10 @@ export async function createCategory({ name, color_hex, display_order }) {
     return { error: error.message }
   }
 
-  const { error } = await supabase.from('categories').insert({ name, color_hex, display_order })
+  const normalized = normalizeCategoryPayload({ name, color_hex, display_order })
+  if (normalized.error) return { error: normalized.error }
+
+  const { error } = await supabase.from('categories').insert(normalized.data)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/gestes')
@@ -111,7 +216,10 @@ export async function updateCategory(id, data) {
     return { error: error.message }
   }
 
-  const { error } = await supabase.from('categories').update(data).eq('id', id)
+  const normalized = normalizeCategoryPayload(data)
+  if (normalized.error) return { error: normalized.error }
+
+  const { error } = await supabase.from('categories').update(normalized.data).eq('id', id)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/gestes')
@@ -135,13 +243,18 @@ export async function deleteCategory(id) {
 
 function normalizeObjectiveRows(procedureId, objectives) {
   return (objectives ?? [])
-    .filter((objective) => Number.parseInt(objective.required_level, 10) === 3)
     .map((objective) => ({
       procedure_id: procedureId,
-      year: objective.year,
-      required_level: 3,
+      year: Number.parseInt(objective.year, 10),
+      required_level: Number.parseInt(objective.required_level, 10),
       min_count: Number.parseInt(objective.min_count, 10) || 1,
     }))
+    .filter((objective) =>
+      objective.year >= 1 &&
+      objective.year <= 5 &&
+      objective.required_level >= 2 &&
+      objective.required_level <= 3
+    )
 }
 
 export async function createProcedure({
@@ -256,12 +369,22 @@ export async function saveSettings(settings) {
     return { error: error.message }
   }
 
+  const normalizedSettings = Object.fromEntries(
+    SETTING_KEYS.map((key) => [key, Boolean(settings?.[key])])
+  )
+
   const { error } = await supabase
     .from('app_settings')
-    .upsert({ id: 1, ...settings }, { onConflict: 'id' })
-  if (error) return { error: error.message }
+    .upsert({ id: 1, ...normalizedSettings }, { onConflict: 'id' })
+  if (error) {
+    if (isMissingAppSettingsTable(error)) {
+      return { error: 'Table app_settings absente. Executez le script supabase/app_settings.sql dans Supabase, puis rechargez cette page.' }
+    }
+    return { error: error.message }
+  }
 
   revalidatePath('/admin/reglages')
+  revalidatePath('/resident/nouveau')
   return { success: true }
 }
 
@@ -296,6 +419,9 @@ export async function deleteActesByPeriod({ from, to, confirmationToken }) {
   if (!from || !to) {
     return { error: 'Indiquez une date de début et une date de fin.' }
   }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return { error: 'Format de date invalide.' }
+  }
   if (from > to) {
     return { error: 'La date de début doit précéder la date de fin.' }
   }
@@ -310,11 +436,13 @@ export async function deleteActesByPeriod({ from, to, confirmationToken }) {
     return { error: error.message }
   }
 
+  const exclusiveTo = nextDateInputValue(to)
+
   let countQuery = supabase
     .from('realisations')
     .select('id', { count: 'exact', head: true })
     .gte('performed_at', from)
-    .lte('performed_at', to)
+    .lt('performed_at', exclusiveTo)
 
   const { count, error: countError } = await countQuery
   if (countError) return { error: countError.message }
@@ -324,7 +452,7 @@ export async function deleteActesByPeriod({ from, to, confirmationToken }) {
     .from('realisations')
     .delete()
     .gte('performed_at', from)
-    .lte('performed_at', to)
+    .lt('performed_at', exclusiveTo)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/donnees')

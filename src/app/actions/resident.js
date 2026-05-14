@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getResidentYear } from '@/lib/utils'
 import { sendPushToUser } from '@/lib/push'
 import { getTravailTypeKey, isFinalWorkStatus } from '@/lib/travaux'
+import { getAppSettings } from '@/lib/app-settings'
 import { revalidatePath } from 'next/cache'
 
 async function requireResident() {
@@ -40,18 +41,26 @@ export async function createRealisation(formData) {
   }
   const admin = createAdminClient()
 
+  const validationError = validateRealisationPayload(formData)
+  if (validationError) return { error: validationError }
+
   const residentYear = getResidentYear(profile?.residanat_start_date)
   const [{ data: procedure }, { data: residentProfile }] = await Promise.all([
     supabase.from('procedures').select('name').eq('id', formData.procedure_id).maybeSingle(),
     supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
   ])
 
-  const { data: objective } = await supabase
-    .from('procedure_objectives')
-    .select('id')
-    .eq('procedure_id', formData.procedure_id)
-    .eq('year', residentYear)
-    .maybeSingle()
+  const [{ data: objective }, settingsRes] = await Promise.all([
+    supabase
+      .from('procedure_objectives')
+      .select('id')
+      .eq('procedure_id', formData.procedure_id)
+      .lte('year', residentYear)
+      .limit(1),
+    getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
+  ])
+  const settingsError = validateRealisationSettings(formData, settingsRes.settings, objective?.[0])
+  if (settingsError) return { error: settingsError }
 
   const { data: realisation, error } = await supabase
     .from('realisations')
@@ -67,7 +76,7 @@ export async function createRealisation(formData) {
       compte_rendu: formData.compte_rendu || null,
       commentaire: formData.commentaire || null,
       status: 'pending',
-      is_hors_objectifs: !objective,
+      is_hors_objectifs: !objective?.[0],
     })
     .select('id')
     .single()
@@ -114,18 +123,26 @@ export async function resubmitRealisation(id, formData) {
   }
   const admin = createAdminClient()
 
+  const validationError = validateRealisationPayload(formData)
+  if (validationError) return { error: validationError }
+
   const residentYear = getResidentYear(profile?.residanat_start_date)
   const [{ data: procedure }, { data: residentProfile }] = await Promise.all([
     supabase.from('procedures').select('name').eq('id', formData.procedure_id).maybeSingle(),
     supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
   ])
 
-  const { data: objective } = await supabase
-    .from('procedure_objectives')
-    .select('id')
-    .eq('procedure_id', formData.procedure_id)
-    .eq('year', residentYear)
-    .maybeSingle()
+  const [{ data: objective }, settingsRes] = await Promise.all([
+    supabase
+      .from('procedure_objectives')
+      .select('id')
+      .eq('procedure_id', formData.procedure_id)
+      .lte('year', residentYear)
+      .limit(1),
+    getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
+  ])
+  const settingsError = validateRealisationSettings(formData, settingsRes.settings, objective?.[0])
+  if (settingsError) return { error: settingsError }
 
   const { data: updatedRealisation, error } = await supabase
     .from('realisations')
@@ -140,7 +157,7 @@ export async function resubmitRealisation(id, formData) {
       compte_rendu: formData.compte_rendu || null,
       commentaire: formData.commentaire || null,
       status: 'pending',
-      is_hors_objectifs: !objective,
+      is_hors_objectifs: !objective?.[0],
     })
     .eq('id', id)
     .eq('resident_id', user.id)
@@ -390,6 +407,40 @@ export async function deleteTravail(id) {
   revalidatePath('/enseignant/profil')
   revalidatePath('/enseignant/travaux')
   return { success: true }
+}
+
+function validateRealisationPayload(formData) {
+  if (!formData?.procedure_id) return 'Sélectionnez un geste.'
+  if (!formData?.enseignant_id) return 'Sélectionnez un enseignant.'
+  if (!formData?.activity_type) return "Sélectionnez un type d'activité."
+  if (!['expose', 'supervise', 'autonome'].includes(formData.activity_type)) {
+    return "Type d'activité invalide."
+  }
+  if (!formData?.performed_at) return 'Indiquez la date de réalisation.'
+
+  const performedAt = new Date(`${formData.performed_at}T00:00:00`)
+  const tomorrow = new Date()
+  tomorrow.setHours(24, 0, 0, 0)
+  if (Number.isNaN(performedAt.getTime()) || performedAt >= tomorrow) {
+    return 'La date de réalisation ne peut pas être dans le futur.'
+  }
+
+  const ipp = formData.ipp_patient?.trim()
+  if (ipp && ipp.length > 64) return 'IPP patient trop long.'
+
+  return ''
+}
+
+function validateRealisationSettings(formData, settings, objective) {
+  if (settings?.allow_hors_objectifs === false && !objective) {
+    return 'Les gestes hors objectifs sont desactives par un administrateur.'
+  }
+
+  if (settings?.compte_rendu_required && !formData?.compte_rendu?.trim()) {
+    return 'Le compte rendu operatoire est obligatoire.'
+  }
+
+  return ''
 }
 
 async function buildAuthorsText(admin, orderedAuthors = [], fallback = '') {

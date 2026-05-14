@@ -1,8 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FileDown, Search, Loader2 } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
+import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
 const STATUS_LABELS = { pending: 'En attente', validated: 'Valide', refused: 'Refuse' }
@@ -57,6 +58,11 @@ export default function ActesTab({ residents, procedures, enseignants }) {
     setLoading(false)
     setFetched(true)
   }
+
+  useEffect(() => {
+    fetchData(filters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleSearch(event) {
     event.preventDefault()
@@ -185,23 +191,21 @@ export default function ActesTab({ residents, procedures, enseignants }) {
           {fetched && data.length > 0 && (
             <button type="button" onClick={handleExport} disabled={exporting}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50"
-              style={{ color: '#0D2B4E' }}>
+              style={{ color: 'var(--color-navy)' }}>
               {exporting ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} strokeWidth={1.75} />}
               Exporter PDF
             </button>
           )}
           <button type="submit" disabled={loading}
             className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-60"
-            style={{ backgroundColor: '#0D2B4E' }}>
+            style={{ backgroundColor: 'var(--color-navy)' }}>
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} strokeWidth={1.75} />}
             Rechercher
           </button>
         </div>
       </form>
 
-      {!fetched && (
-        <p className="text-center text-sm text-slate-400 py-10">Appliquez des filtres puis cliquez sur Rechercher</p>
-      )}
+      {!fetched && loading && <SkeletonList count={5} variant="row" />}
 
       {fetched && (
         <>

@@ -8,9 +8,9 @@ import { TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/trav
 import { AlertTriangle, CheckCircle, ChevronRight, Clock, FilePlus2, FlaskConical, Target, TrendingUp, XCircle } from 'lucide-react'
 
 const LEVEL_COLORS = {
-  1: { bg: '#dbeafe', color: '#1e40af', label: 'Exposition' },
-  2: { bg: '#fef9c3', color: '#854d0e', label: 'Supervisé' },
-  3: { bg: '#dcfce7', color: '#166534', label: 'Autonome' },
+  1: { bg: 'var(--color-info-light)', color: 'var(--color-info)', label: 'Exposition' },
+  2: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', label: 'Supervisé' },
+  3: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Autonome' },
 }
 
 export default async function ResidentDashboard() {
@@ -159,8 +159,7 @@ export default async function ResidentDashboard() {
         action={
           <Link
             href="/resident/nouveau"
-            className="hidden items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition active:scale-95 sm:inline-flex"
-            style={{ backgroundColor: '#0D2B4E' }}
+            className="hidden items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition active:scale-95 sm:inline-flex bg-navy"
           >
             <FilePlus2 size={16} strokeWidth={2} />
             Ajouter un acte
@@ -173,21 +172,21 @@ export default async function ResidentDashboard() {
         <Link href="/resident/progression?scope=formation" className="block rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Progression globale</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Progression globale</p>
               <p className="mt-0.5 text-xs text-slate-500">Tous les gestes actifs, selon leur objectif final</p>
             </div>
-            <p className="text-2xl font-bold" style={{ color: global.pct >= 80 ? '#166534' : '#0D2B4E' }}>{global.pct}%</p>
+            <p className="text-2xl font-bold" style={{ color: global.pct >= 80 ? 'var(--color-success)' : 'var(--color-navy)' }}>{global.pct}%</p>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full transition-all" style={{ width: `${global.pct}%`, backgroundColor: global.pct >= 80 ? '#166534' : global.pct >= 50 ? '#0D2B4E' : '#854d0e' }} />
+            <div className="h-full rounded-full transition-all" style={{ width: `${global.pct}%`, backgroundColor: global.pct >= 80 ? 'var(--color-success)' : global.pct >= 50 ? 'var(--color-navy)' : 'var(--color-warning)' }} />
           </div>
-          <p className="mt-2 text-sm font-medium" style={{ color: '#0D2B4E' }}>
+          <p className="mt-2 text-sm font-medium" style={{ color: 'var(--color-navy)' }}>
             {global.done}/{global.total} gestes au niveau attendu
           </p>
           <div className="mt-4 grid grid-cols-5 gap-2">
             {yearRoadmap.map((item) => (
               <div key={item.year} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center">
-                <p className="text-xs font-semibold" style={{ color: item.year === year ? '#0D2B4E' : '#64748b' }}>A{item.year}</p>
+                <p className="text-xs font-semibold" style={{ color: item.year === year ? 'var(--color-navy)' : '#64748b' }}>A{item.year}</p>
                 <p className="mt-1 text-sm font-bold text-slate-800">{item.done}/{item.total}</p>
               </div>
             ))}
@@ -197,8 +196,8 @@ export default async function ResidentDashboard() {
 
       <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Niveaux attendus cette année</p>
-          <Link href="/resident/progression" className="text-xs font-medium" style={{ color: '#0D2B4E' }}>Détail</Link>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Niveaux attendus cette année</p>
+          <Link href="/resident/progression" className="text-xs font-medium" style={{ color: 'var(--color-navy)' }}>Détail</Link>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {levelStats.map((stat) => {
@@ -220,7 +219,7 @@ export default async function ResidentDashboard() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>À faire maintenant</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>À faire maintenant</p>
               <p className="mt-0.5 text-xs text-slate-500">Actions prioritaires pour avancer</p>
             </div>
             <TrendingUp size={18} className="text-slate-400" />
@@ -229,18 +228,30 @@ export default async function ResidentDashboard() {
           <div className="space-y-2">
             {priorityItems.map((item) => <PriorityLink key={item.title} item={item} />)}
             {priorityItems.length === 0 && (
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
-                Tout est à jour. Vous pouvez ajouter un nouvel acte ou consulter votre progression.
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-5 text-center">
+                <CheckCircle size={28} className="text-emerald-500" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800">Tout est à jour !</p>
+                  <p className="mt-0.5 text-xs text-emerald-700">Aucune action urgente. Continuez sur votre lancée.</p>
+                </div>
+                <div className="flex gap-2">
+                  <Link href="/resident/nouveau" className="rounded-lg px-3 py-1.5 text-xs font-medium text-white" style={{ backgroundColor: 'var(--color-navy)' }}>
+                    Ajouter un acte
+                  </Link>
+                  <Link href="/resident/progression" className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-800">
+                    Voir ma progression
+                  </Link>
+                </div>
               </div>
             )}
           </div>
         </div>
 
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-          <ActivityPanel title="Refusés à corriger" href="/resident/historique?status=refused" empty="Aucun acte refusé">
+          <ActivityPanel title="Refusés à corriger" href="/resident/historique?status=refused" empty="Aucun acte refusé – bien joué !">
             {refusedReals.map((realisation) => <RealisationRow key={realisation.id} realisation={realisation} icon={AlertTriangle} tone="danger" />)}
           </ActivityPanel>
-          <ActivityPanel title="En attente de validation" href="/resident/historique?status=pending" empty="Aucun acte en attente">
+          <ActivityPanel title="En attente de validation" href="/resident/historique?status=pending" empty="Pas d'acte en attente pour l'instant">
             {pendingReals.map((realisation) => <RealisationRow key={realisation.id} realisation={realisation} icon={Clock} tone="warning" />)}
           </ActivityPanel>
         </div>
@@ -249,14 +260,14 @@ export default async function ResidentDashboard() {
       <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Travaux scientifiques</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Travaux scientifiques</p>
             <p className="mt-0.5 text-xs text-slate-500">Validations en cours et corrections demandées</p>
           </div>
-          <Link href="/resident/travaux" className="text-xs font-medium" style={{ color: '#0D2B4E' }}>Gérer</Link>
+          <Link href="/resident/travaux" className="text-xs font-medium" style={{ color: 'var(--color-navy)' }}>Gérer</Link>
         </div>
         <div className="mb-4 grid grid-cols-2 gap-3">
-          <MiniStat label="À valider" value={stats.travauxPending} color="#854d0e" bg="#fef9c3" />
-          <MiniStat label="Corrections" value={stats.travauxRefused} color="#991b1b" bg="#fee2e2" />
+          <MiniStat label="À valider" value={stats.travauxPending} color="var(--color-warning)" bg="var(--color-warning-light)" />
+          <MiniStat label="Corrections" value={stats.travauxRefused} color="var(--color-danger)" bg="var(--color-danger-light)" />
         </div>
         <div className="space-y-2">
           {recentTravaux.map((travail) => <TravailRow key={travail.id} travail={travail} href={`/resident/travaux/${travail.id}`} />)}
@@ -267,8 +278,8 @@ export default async function ResidentDashboard() {
       <section className="mb-6 grid gap-5 lg:grid-cols-[1.2fr_1fr]">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Objectifs de l&apos;année les plus proches</p>
-            <Link href="/resident/progression" className="text-xs font-medium" style={{ color: '#0D2B4E' }}>Voir tout</Link>
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Objectifs de l&apos;année les plus proches</p>
+            <Link href="/resident/progression" className="text-xs font-medium" style={{ color: 'var(--color-navy)' }}>Voir tout</Link>
           </div>
           <div className="space-y-2">
             {notMet.map((objective) => <ObjectiveProgress key={`${objective.procedure_id}-${objective.required_level}`} objective={objective} />)}
@@ -281,7 +292,7 @@ export default async function ResidentDashboard() {
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Par catégorie cette année</p>
+          <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Par catégorie cette année</p>
           <div className="space-y-3">
             {catProgress.map((category) => (
               <div key={category.id}>
@@ -300,10 +311,10 @@ export default async function ResidentDashboard() {
       </section>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Validés" value={stats.validated} icon={CheckCircle} color="#166534" bg="#dcfce7" href="/resident/historique?status=validated" />
-        <StatTile label="En attente" value={stats.pending} icon={Clock} color="#854d0e" bg="#fef9c3" href="/resident/historique?status=pending" />
-        <StatTile label="Refusés" value={stats.refused} icon={XCircle} color="#991b1b" bg="#fee2e2" href="/resident/historique?status=refused" />
-        <StatTile label="Total actes" value={stats.total} icon={Target} color="#0D2B4E" bg="#E8F4FC" href="/resident/historique" />
+        <StatTile label="Validés" value={stats.validated} icon={CheckCircle} color="var(--color-success)" bg="var(--color-success-light)" href="/resident/historique?status=validated" />
+        <StatTile label="En attente" value={stats.pending} icon={Clock} color="var(--color-warning)" bg="var(--color-warning-light)" href="/resident/historique?status=pending" />
+        <StatTile label="Refusés" value={stats.refused} icon={XCircle} color="var(--color-danger)" bg="var(--color-danger-light)" href="/resident/historique?status=refused" />
+        <StatTile label="Total actes" value={stats.total} icon={Target} color="var(--color-navy)" bg="var(--color-ice)" href="/resident/historique" />
       </section>
     </div>
   )
@@ -327,12 +338,12 @@ function withProgress(objective, progressIndex) {
 function ProgressCard({ href, title, subtitle, summary }) {
   return (
     <Link href={href} className="block rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>{title}</p>
+      <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{title}</p>
       <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
-      <p className="mt-4 text-4xl font-bold" style={{ color: summary.pct >= 80 ? '#166534' : '#0D2B4E' }}>{summary.pct}%</p>
+      <p className="mt-4 text-4xl font-bold" style={{ color: summary.pct >= 80 ? 'var(--color-success)' : 'var(--color-navy)' }}>{summary.pct}%</p>
       <p className="mt-1 text-sm text-slate-500">{summary.done}/{summary.total} objectifs atteints</p>
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
-        <div className="h-full rounded-full transition-all" style={{ width: `${summary.pct}%`, backgroundColor: summary.pct >= 80 ? '#166534' : summary.pct >= 50 ? '#0D2B4E' : '#854d0e' }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${summary.pct}%`, backgroundColor: summary.pct >= 80 ? 'var(--color-success)' : summary.pct >= 50 ? 'var(--color-navy)' : 'var(--color-warning)' }} />
       </div>
     </Link>
   )
@@ -341,9 +352,9 @@ function ProgressCard({ href, title, subtitle, summary }) {
 function PriorityLink({ item }) {
   const Icon = item.icon
   const styles = {
-    danger: { bg: '#fee2e2', color: '#991b1b' },
-    warning: { bg: '#fef9c3', color: '#854d0e' },
-    primary: { bg: '#E8F4FC', color: '#0D2B4E' },
+    danger: { bg: 'var(--color-danger-light)', color: 'var(--color-danger)' },
+    warning: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },
+    primary: { bg: 'var(--color-ice)', color: 'var(--color-navy)' },
   }[item.tone]
 
   return (
@@ -365,8 +376,8 @@ function ActivityPanel({ title, href, empty, children }) {
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>{title}</p>
-        <Link href={href} className="text-xs font-medium" style={{ color: '#0D2B4E' }}>Tout voir</Link>
+        <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{title}</p>
+        <Link href={href} className="text-xs font-medium" style={{ color: 'var(--color-navy)' }}>Tout voir</Link>
       </div>
       <div className="space-y-2">
         {hasChildren ? children : <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-400">{empty}</p>}
@@ -376,8 +387,8 @@ function ActivityPanel({ title, href, empty, children }) {
 }
 
 function RealisationRow({ realisation, icon: Icon, tone }) {
-  const color = tone === 'danger' ? '#991b1b' : '#854d0e'
-  const bg = tone === 'danger' ? '#fee2e2' : '#fef9c3'
+  const color = tone === 'danger' ? 'var(--color-danger)' : 'var(--color-warning)'
+  const bg = tone === 'danger' ? 'var(--color-danger-light)' : 'var(--color-warning-light)'
   return (
     <Link href={`/resident/historique/${realisation.id}`} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2.5 transition hover:bg-slate-100">
       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: bg, color }}>
@@ -439,7 +450,7 @@ function ObjectiveProgress({ objective }) {
         <span className="flex-shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">{objective.count}/{objective.min_count}</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-white">
-        <div className="h-full rounded-full transition-all" style={{ width: `${objective.pct}%`, backgroundColor: category?.color_hex ?? '#0D2B4E' }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${objective.pct}%`, backgroundColor: category?.color_hex ?? 'var(--color-navy)' }} />
       </div>
     </div>
   )
@@ -451,7 +462,7 @@ function StatTile({ label, value, icon: Icon, color, bg, href }) {
       <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: bg, color }}>
         <Icon size={18} strokeWidth={1.75} />
       </div>
-      <p className="text-2xl font-bold" style={{ color: '#0D2B4E' }}>{value}</p>
+      <p className="text-2xl font-bold" style={{ color: 'var(--color-navy)' }}>{value}</p>
       <p className="mt-0.5 text-xs text-slate-500">{label}</p>
     </Link>
   )

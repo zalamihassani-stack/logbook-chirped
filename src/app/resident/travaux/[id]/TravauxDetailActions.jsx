@@ -146,7 +146,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
         <button
           onClick={() => setModal(true)}
           className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
-          style={{ color: '#0D2B4E' }}
+          style={{ color: 'var(--color-navy)' }}
         >
           <Pencil size={15} strokeWidth={1.75} />
           Modifier
@@ -178,7 +178,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>Modifier</h2>
+              <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>Modifier</h2>
               <button onClick={() => setModal(false)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -197,7 +197,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
               {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
               <button type="submit" disabled={loading}
                 className="w-full rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: '#0D2B4E' }}>
+                style={{ backgroundColor: 'var(--color-navy)' }}>
                 {loading ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </form>
@@ -210,14 +210,14 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>Soumission finale</h2>
+                <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>Soumission finale</h2>
                 <p className="mt-1 text-xs text-slate-500">Le statut passera à : {finalStatusLabel}</p>
               </div>
               <button onClick={() => setFinalModal(false)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleFinalSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Titre confirmé *</label>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Titre confirmé *</label>
                 <input
                   type="text"
                   required
@@ -227,7 +227,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>
                   {typeKey === 'article' ? 'Journal' : 'Congrès'}
                 </label>
                 <input
@@ -247,7 +247,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
                 removeExternalAuthor={removeFinalExternalAuthor}
               />
               <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>
                   {typeKey === 'article' ? 'DOI / URL *' : 'DOI / URL'}
                 </label>
                 <input
@@ -316,9 +316,9 @@ function FinalAuthorsFields({ form, people, setField, toggleAuthor, setExternalA
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-      <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Auteurs confirmés</p>
+      <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Auteurs confirmés</p>
       <div>
-        <p className="mb-2 text-sm font-medium" style={{ color: '#0D2B4E' }}>Première position</p>
+        <p className="mb-2 text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Première position</p>
         <AuthorPositionFields
           profileValue={form.first_author_profile_id}
           externalValue={form.first_external_author}
@@ -329,7 +329,7 @@ function FinalAuthorsFields({ form, people, setField, toggleAuthor, setExternalA
         />
       </div>
       <div>
-        <p className="mb-2 text-sm font-medium" style={{ color: '#0D2B4E' }}>Deuxième position</p>
+        <p className="mb-2 text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Deuxième position</p>
         <AuthorPositionFields
           profileValue={form.second_author_profile_id}
           externalValue={form.second_external_author}
@@ -340,7 +340,7 @@ function FinalAuthorsFields({ form, people, setField, toggleAuthor, setExternalA
         />
       </div>
       <div>
-        <p className="mb-2 text-sm font-medium" style={{ color: '#0D2B4E' }}>Autres auteurs du service</p>
+        <p className="mb-2 text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Autres auteurs du service</p>
         <div className="max-h-32 space-y-1 overflow-y-auto rounded-xl border border-slate-100 bg-white p-2">
           {otherPeople.map((person) => (
             <label key={person.id} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
@@ -357,8 +357,8 @@ function FinalAuthorsFields({ form, people, setField, toggleAuthor, setExternalA
       </div>
       <div>
         <div className="mb-2 flex items-center justify-between gap-3">
-          <p className="text-sm font-medium" style={{ color: '#0D2B4E' }}>Autres auteurs d&apos;autres services</p>
-          <button type="button" onClick={addExternalAuthor} className="text-xs font-medium" style={{ color: '#0D2B4E' }}>Ajouter</button>
+          <p className="text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Autres auteurs d&apos;autres services</p>
+          <button type="button" onClick={addExternalAuthor} className="text-xs font-medium" style={{ color: 'var(--color-navy)' }}>Ajouter</button>
         </div>
         <div className="space-y-2">
           {form.other_external_authors.map((name, index) => (

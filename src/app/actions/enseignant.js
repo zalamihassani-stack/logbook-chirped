@@ -76,6 +76,11 @@ export async function refuseRealisation(id, feedback) {
     return { error: error.message }
   }
   const admin = createAdminClient()
+  const cleanFeedback = feedback?.trim() ?? ''
+
+  if (cleanFeedback.length < 8) {
+    return { error: 'Un refus doit inclure un feedback pédagogique exploitable.' }
+  }
 
   const { data: real, error } = await supabase
     .from('realisations')
@@ -90,7 +95,7 @@ export async function refuseRealisation(id, feedback) {
     realisation_id: id,
     enseignant_id: user.id,
     action: 'refused',
-    feedback,
+    feedback: cleanFeedback,
   })
   if (historyError) return { error: historyError.message }
 

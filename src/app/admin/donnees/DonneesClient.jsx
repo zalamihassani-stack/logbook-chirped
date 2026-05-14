@@ -12,17 +12,23 @@ export default function DonneesClient({ residents }) {
   const [periodFrom, setPeriodFrom] = useState('')
   const [periodTo, setPeriodTo] = useState('')
   const [loading, setLoading] = useState('')
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState(null)
 
   async function exportPDF() {
     if (!pdfResident) return
     setLoading('pdf')
+    setMsg(null)
     const supabase = createClient()
-    const { data: reals } = await supabase
+    const { data: reals, error } = await supabase
       .from('realisations')
       .select('performed_at, activity_type, status, procedures(name), profiles!enseignant_id(full_name)')
       .eq('resident_id', pdfResident)
       .order('performed_at')
+    if (error) {
+      setLoading('')
+      setMsg({ type: 'error', text: error.message })
+      return
+    }
 
     const { jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
@@ -51,24 +57,32 @@ export default function DonneesClient({ residents }) {
 
   async function exportCSV() {
     setLoading('csv')
+    setMsg(null)
     const supabase = createClient()
-    const { data: reals } = await supabase
+    const { data: reals, error } = await supabase
       .from('realisations')
-      .select('performed_at, activity_type, status, resident_year_at_time, is_hors_objectifs, profiles!resident_id(full_name), procedures(name), profiles!enseignant_id(full_name)')
+      .select('performed_at, activity_type, status, resident_year_at_time, is_hors_objectifs, resident:profiles!resident_id(full_name), procedures(name), enseignant:profiles!enseignant_id(full_name)')
       .order('performed_at')
+    if (error) {
+      setLoading('')
+      setMsg({ type: 'error', text: error.message })
+      return
+    }
 
     const header = ['Date', 'Résident', 'Geste', 'Type', 'Enseignant', 'Statut', 'Annee residanat', 'Hors objectifs']
     const rows = (reals ?? []).map((realisation) => [
       new Date(realisation.performed_at).toLocaleDateString('fr-FR'),
-      realisation['profiles!resident_id']?.full_name ?? '-',
+      realisation.resident?.full_name ?? '-',
       realisation.procedures?.name ?? '-',
       ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '-',
-      realisation['profiles!enseignant_id']?.full_name ?? '-',
+      realisation.enseignant?.full_name ?? '-',
       realisation.status,
       realisation.resident_year_at_time,
       realisation.is_hors_objectifs ? 'Oui' : 'Non',
     ])
-    const csv = [header, ...rows].map((row) => row.map((value) => `"${value}"`).join(',')).join('\n')
+    const csv = [header, ...rows]
+      .map((row) => row.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(','))
+      .join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -86,12 +100,12 @@ export default function DonneesClient({ residents }) {
     setLoading('delRes')
     const res = await deleteResidentData({ residentId: deleteResident, confirmationToken })
     setLoading('')
-    setMsg(res.error ?? `${res.deletedCount ?? 0} acte(s) supprimé(s).`)
+    setMsg(res.error ? { type: 'error', text: res.error } : { type: 'success', text: `${res.deletedCount ?? 0} acte(s) supprime(s).` })
   }
 
   async function handleDeletePeriod() {
     if (!periodFrom || !periodTo) {
-      setMsg('Indiquez une date de début et une date de fin.')
+      setMsg({ type: 'error', text: 'Indiquez une date de debut et une date de fin.' })
       return
     }
     const confirmationToken = prompt('Tapez SUPPRIMER pour confirmer la suppression des actes de cette période.')
@@ -99,13 +113,17 @@ export default function DonneesClient({ residents }) {
     setLoading('delPeriod')
     const res = await deleteActesByPeriod({ from: periodFrom, to: periodTo, confirmationToken })
     setLoading('')
-    setMsg(res.error ?? `${res.deletedCount ?? 0} acte(s) supprimé(s).`)
+    setMsg(res.error ? { type: 'error', text: res.error } : { type: 'success', text: `${res.deletedCount ?? 0} acte(s) supprime(s).` })
   }
 
   return (
     <>
       <PageHeader title="Données & Exports" subtitle="Export et suppression des données" />
-      {msg && <div className="mb-4 text-sm text-green-700 bg-green-50 rounded-lg px-4 py-2.5">{msg}</div>}
+      {msg && (
+        <div className={`mb-4 rounded-lg px-4 py-2.5 text-sm ${msg.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+          {msg.text}
+        </div>
+      )}
 
       <div className="space-y-4">
         <Section title="Export PDF - Logbook résident" icon={<Download size={18} />}>
@@ -117,7 +135,7 @@ export default function DonneesClient({ residents }) {
             </select>
             <button onClick={exportPDF} disabled={!pdfResident || loading === 'pdf'}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-60"
-              style={{ backgroundColor: '#0D2B4E' }}>
+              style={{ backgroundColor: 'var(--color-navy)' }}>
               {loading === 'pdf' ? 'Génération...' : 'Exporter PDF'}
             </button>
           </div>
@@ -126,7 +144,7 @@ export default function DonneesClient({ residents }) {
         <Section title="Export CSV - Tous les actes" icon={<Download size={18} />}>
           <button onClick={exportCSV} disabled={loading === 'csv'}
             className="px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-60"
-            style={{ backgroundColor: '#0D2B4E' }}>
+            style={{ backgroundColor: 'var(--color-navy)' }}>
             {loading === 'csv' ? 'Génération...' : 'Télécharger CSV'}
           </button>
         </Section>
@@ -173,7 +191,7 @@ function Section({ title, icon, danger, children }) {
     <div className={`bg-white rounded-2xl p-5 shadow-sm border ${danger ? 'border-red-100' : 'border-slate-100'}`}>
       <div className="flex items-center gap-2 mb-4">
         {danger ? <AlertTriangle size={18} className="text-red-500" /> : icon}
-        <h3 className="font-semibold text-sm" style={{ color: danger ? '#991b1b' : '#0D2B4E' }}>{title}</h3>
+        <h3 className="font-semibold text-sm" style={{ color: danger ? 'var(--color-danger)' : 'var(--color-navy)' }}>{title}</h3>
       </div>
       {children}
     </div>

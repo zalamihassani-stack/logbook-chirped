@@ -1,7 +1,7 @@
 export const FALLBACK_TRAVAIL_TYPES = [
-  { id: 'article', key: 'article', name: 'Article', color_hex: '#0D2B4E' },
-  { id: 'communication_orale', key: 'communication_orale', name: 'Communication orale', color_hex: '#166534' },
-  { id: 'communication_affichee', key: 'communication_affichee', name: 'Communication affichée', color_hex: '#854d0e' },
+  { id: 'article', key: 'article', name: 'Article', color_hex: 'var(--color-navy)' },
+  { id: 'communication_orale', key: 'communication_orale', name: 'Communication orale', color_hex: 'var(--color-success)' },
+  { id: 'communication_affichee', key: 'communication_affichee', name: 'Communication affichée', color_hex: 'var(--color-warning)' },
 ]
 
 export const ARTICLE_STATUS_OPTIONS = [
@@ -26,10 +26,10 @@ export const ALL_TRAVAIL_STATUS_OPTIONS = [
 export const TRAVAIL_STATUS_LABELS = Object.fromEntries(ALL_TRAVAIL_STATUS_OPTIONS.map((item) => [item.value, item.label]))
 
 export const TRAVAIL_STATUS_STYLES = {
-  en_cours: { bg: '#E8F4FC', color: '#0D2B4E' },
-  soumis: { bg: '#fef9c3', color: '#854d0e' },
-  accepte: { bg: '#dbeafe', color: '#1e40af' },
-  publie: { bg: '#dcfce7', color: '#166534' },
+  en_cours: { bg: 'var(--color-ice)', color: 'var(--color-navy)' },
+  soumis: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },
+  accepte: { bg: 'var(--color-info-light)', color: 'var(--color-info)' },
+  publie: { bg: 'var(--color-success-light)', color: 'var(--color-success)' },
   presente: { bg: '#f3e8ff', color: '#6b21a8' },
 }
 
@@ -44,11 +44,11 @@ export const TRAVAIL_VALIDATION_LABELS = {
 }
 
 export const TRAVAIL_VALIDATION_STYLES = {
-  pending_initial: { bg: '#fef9c3', color: '#854d0e' },
-  initial_validated: { bg: '#dbeafe', color: '#1e40af' },
+  pending_initial: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },
+  initial_validated: { bg: 'var(--color-info-light)', color: 'var(--color-info)' },
   pending_final: { bg: '#ffedd5', color: '#9a3412' },
-  final_validated: { bg: '#dcfce7', color: '#166534' },
-  refused: { bg: '#fee2e2', color: '#991b1b' },
+  final_validated: { bg: 'var(--color-success-light)', color: 'var(--color-success)' },
+  refused: { bg: 'var(--color-danger-light)', color: 'var(--color-danger)' },
 }
 
 export function isFinalWorkStatus(status) {

@@ -77,11 +77,11 @@ export default async function ProfilPage() {
     <div className="max-w-2xl space-y-4 p-5 md:p-8">
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full text-xl font-bold" style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}>
+          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full text-xl font-bold" style={{ backgroundColor: 'var(--color-ice)', color: 'var(--color-navy)' }}>
             {getInitials(profile?.full_name)}
           </div>
           <div>
-            <h1 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>{profile?.full_name}</h1>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{profile?.full_name}</h1>
             <p className="text-sm text-slate-500">Resident · Année {year}</p>
             <p className="mt-0.5 text-xs text-slate-400">{user.email}</p>
           </div>
@@ -93,19 +93,19 @@ export default async function ProfilPage() {
           ].map((item) => (
             <div key={item.label} className="rounded-xl bg-slate-50 p-3">
               <p className="mb-0.5 text-xs text-slate-400">{item.label}</p>
-              <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>{item.value}</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{item.value}</p>
             </div>
           ))}
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <p className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Statistiques</p>
+        <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Statistiques</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: 'Validés', value: stats.validated, bg: '#dcfce7', color: '#166534' },
-            { label: 'En attente', value: stats.pending, bg: '#fef9c3', color: '#854d0e' },
-            { label: 'Refusés', value: stats.refused, bg: '#fee2e2', color: '#991b1b' },
+            { label: 'Validés', value: stats.validated, bg: 'var(--color-success-light)', color: 'var(--color-success)' },
+            { label: 'En attente', value: stats.pending, bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },
+            { label: 'Refusés', value: stats.refused, bg: 'var(--color-danger-light)', color: 'var(--color-danger)' },
             { label: 'Travaux', value: stats.travaux, bg: '#f3e8ff', color: '#6b21a8' },
           ].map((stat) => (
             <div key={stat.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: stat.bg }}>
@@ -117,12 +117,12 @@ export default async function ProfilPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <p className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Validation des travaux scientifiques</p>
+        <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Validation des travaux scientifiques</p>
         <div className="grid grid-cols-3 gap-3 text-center">
           {[
-            { label: 'À valider', value: stats.travauxPending, bg: '#fef9c3', color: '#854d0e' },
-            { label: 'Initiale faite', value: stats.travauxInitial, bg: '#dbeafe', color: '#1e40af' },
-            { label: 'Finale faite', value: stats.travauxFinal, bg: '#dcfce7', color: '#166534' },
+            { label: 'À valider', value: stats.travauxPending, bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },
+            { label: 'Initiale faite', value: stats.travauxInitial, bg: 'var(--color-info-light)', color: 'var(--color-info)' },
+            { label: 'Finale faite', value: stats.travauxFinal, bg: 'var(--color-success-light)', color: 'var(--color-success)' },
           ].map((stat) => (
             <div key={stat.label} className="rounded-xl p-3" style={{ backgroundColor: stat.bg }}>
               <p className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
@@ -134,20 +134,20 @@ export default async function ProfilPage() {
 
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Progression globale</p>
-          <span className="rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ backgroundColor: progressPct >= 100 ? '#dcfce7' : '#E8F4FC', color: progressPct >= 100 ? '#166534' : '#0D2B4E' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Progression globale</p>
+          <span className="rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ backgroundColor: progressPct >= 100 ? 'var(--color-success-light)' : 'var(--color-ice)', color: progressPct >= 100 ? 'var(--color-success)' : 'var(--color-navy)' }}>
             {progressPct}%
           </span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: progressPct >= 100 ? '#16a34a' : '#0D2B4E' }} />
+          <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, backgroundColor: progressPct >= 100 ? '#16a34a' : 'var(--color-navy)' }} />
         </div>
         <p className="mt-1.5 text-xs text-slate-400">{totalDone} / {totalRequired} objectifs atteints au niveau requis</p>
       </div>
 
       {catProgress.length > 0 && (
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Par specialite</p>
+          <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Par specialite</p>
           <div className="space-y-4">
             {catProgress.map((category) => (
               <div key={category.id}>

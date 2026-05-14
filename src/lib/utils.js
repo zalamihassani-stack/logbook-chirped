@@ -23,6 +23,14 @@ export function getInitials(fullName) {
   return fullName.split(' ').map((word) => word[0]).slice(0, 2).join('').toUpperCase()
 }
 
+/** Masque un identifiant patient dans les listes tout en gardant le détail accessible */
+export function maskPatientIdentifier(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  if (raw.length <= 4) return '••••'
+  return `${raw.slice(0, 2)}•••${raw.slice(-2)}`
+}
+
 export { ACTIVITY_TYPE_LABELS, OBJECTIF_LEVEL_LABELS, NIVEAU_ATTEINT_LABELS } from '@/lib/logbook'
 
 export function normalizeObjective(objective) {

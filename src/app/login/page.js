@@ -42,7 +42,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#0D2B4E' }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-navy)' }}>
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -95,7 +95,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className="w-full py-2.5 rounded-lg font-medium text-sm transition active:scale-95 disabled:opacity-60"
-              style={{ backgroundColor: '#7BB8E8', color: '#0D2B4E' }}
+              style={{ backgroundColor: 'var(--color-sky)', color: 'var(--color-navy)' }}
             >
               {loading ? 'Connexion…' : 'Se connecter'}
             </button>

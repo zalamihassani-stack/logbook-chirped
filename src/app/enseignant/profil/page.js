@@ -40,12 +40,12 @@ export default async function EnseignantProfilPage() {
         <div className="flex items-center gap-4">
           <div
             className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full text-xl font-bold"
-            style={{ backgroundColor: '#E8F4FC', color: '#0D2B4E' }}
+            style={{ backgroundColor: 'var(--color-ice)', color: 'var(--color-navy)' }}
           >
             {getInitials(profile?.full_name)}
           </div>
           <div>
-            <h1 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>{profile?.full_name}</h1>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{profile?.full_name}</h1>
             <p className="text-sm text-slate-500">Enseignant</p>
             <p className="mt-0.5 text-xs text-slate-400">{user.email}</p>
           </div>
@@ -53,14 +53,14 @@ export default async function EnseignantProfilPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <p className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Validation des travaux encadrés</p>
+        <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Validation des travaux encadrés</p>
         <div className="grid grid-cols-3 gap-3 text-center">
           <ProfileStat
             label="Initiale à faire"
             value={pendingInitialTravaux.count ?? 0}
             href="/enseignant/travaux?validation=pending_initial"
-            bg="#fef9c3"
-            color="#854d0e"
+            bg="var(--color-warning-light)"
+            color="var(--color-warning)"
           />
           <ProfileStat
             label="Finale à faire"
@@ -73,8 +73,8 @@ export default async function EnseignantProfilPage() {
             label="Finale faite"
             value={finalValidatedTravaux.count ?? 0}
             href="/enseignant/travaux?validation=final_validated"
-            bg="#dcfce7"
-            color="#166534"
+            bg="var(--color-success-light)"
+            color="var(--color-success)"
           />
         </div>
       </div>

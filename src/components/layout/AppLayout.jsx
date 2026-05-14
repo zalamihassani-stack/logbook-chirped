@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -46,9 +47,29 @@ const NAV = {
   ],
 }
 
+function useNavScroll(mainRef) {
+  const [hidden, setHidden] = useState(false)
+  useEffect(() => {
+    const el = mainRef.current
+    if (!el) return
+    let last = 0
+    function onScroll() {
+      const current = el.scrollTop
+      if (Math.abs(current - last) < 4) return
+      setHidden(current > last && current > 50)
+      last = current
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [mainRef])
+  return hidden
+}
+
 export default function AppLayout({ profile, children, badges = {} }) {
   const pathname = usePathname()
   const router = useRouter()
+  const mainRef = useRef(null)
+  const navHidden = useNavScroll(mainRef)
   const role = profile?.role ?? 'resident'
   const navItems = NAV[role] ?? []
   const profilePath = role === 'admin' ? '/admin/reglages' : role === 'resident' ? '/resident/profil' : role === 'enseignant' ? '/enseignant/profil' : null
@@ -65,8 +86,8 @@ export default function AppLayout({ profile, children, badges = {} }) {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: '#E8F4FC' }}>
-      <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col md:flex" style={{ backgroundColor: '#0D2B4E' }}>
+    <div className="flex min-h-screen bg-ice">
+      <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col bg-navy md:flex">
         <div className="flex flex-col items-center border-b border-white/10 px-4 pb-5 pt-6">
           <img src="/logo.png" alt="LCP" className="mb-2 h-16 w-16 object-contain" />
           <p className="text-center text-sm font-semibold leading-snug text-white">
@@ -78,12 +99,12 @@ export default function AppLayout({ profile, children, badges = {} }) {
 
         <div className="border-b border-white/10 px-4 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ backgroundColor: '#7BB8E8', color: '#0D2B4E' }}>
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-sky text-xs font-bold text-navy">
               {getInitials(profile?.full_name)}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-white">{profile?.full_name ?? '-'}</p>
-              <p className="text-xs" style={{ color: '#7BB8E8' }}>{ROLE_LABELS[role]}</p>
+              <p className="text-xs text-sky">{ROLE_LABELS[role]}</p>
             </div>
           </div>
         </div>
@@ -95,8 +116,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
             const badgeCount = badges[badgeKey] ?? 0
             return (
               <Link key={path} href={path}
-                className="mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors"
-                style={active ? { backgroundColor: '#7BB8E8', color: '#0D2B4E', fontWeight: 600 } : { color: 'rgba(255,255,255,0.72)' }}>
+                className={`mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${active ? 'bg-sky text-navy font-semibold' : 'text-white/70'}`}>
                 <div className="relative flex-shrink-0">
                   <Icon size={18} strokeWidth={1.75} />
                   {badgeCount > 0 && (
@@ -113,15 +133,14 @@ export default function AppLayout({ profile, children, badges = {} }) {
 
         <div className="px-2 pb-6">
           <button onClick={handleSignOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/10"
-            style={{ color: 'rgba(255,255,255,0.55)' }}>
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/55 transition-colors hover:bg-white/10">
             <LogOut size={18} strokeWidth={1.75} />
             Déconnexion
           </button>
         </div>
       </aside>
 
-      <header className="fixed left-0 right-0 top-0 z-40 flex h-12 items-center justify-between border-b px-4 md:hidden" style={{ backgroundColor: '#0D2B4E', borderColor: 'rgba(255,255,255,0.1)' }}>
+      <header className="fixed left-0 right-0 top-0 z-40 flex h-12 items-center justify-between border-b border-white/10 bg-navy px-4 md:hidden">
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="LCP" className="h-7 w-7 object-contain" />
           <span className="max-w-[160px] truncate text-xs font-medium text-white">{profile?.full_name ?? '-'}</span>
@@ -134,8 +153,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
             </Link>
           )}
           <button onClick={handleSignOut}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-colors"
-            style={{ color: 'rgba(255,255,255,0.65)' }}>
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs text-white/65 transition-colors">
             <LogOut size={14} strokeWidth={1.75} />
             Déconnexion
           </button>
@@ -144,7 +162,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
 
       <PWAInstallBanner />
 
-      <main className="flex-1 overflow-y-auto pb-20 pt-12 md:pb-0 md:pt-0">
+      <main ref={mainRef} className="flex-1 overflow-y-auto pb-20 pt-12 md:pb-0 md:pt-0">
         {profilePath && (
           <div className="sticky top-0 z-30 hidden justify-end gap-3 px-5 pt-4 md:flex md:px-8">
             {role === 'enseignant' && <PushNotifications />}
@@ -157,16 +175,15 @@ export default function AppLayout({ profile, children, badges = {} }) {
         {children}
       </main>
 
-      {role === 'resident' && !pathname.startsWith('/resident/nouveau') && (
+      {role === 'resident' && ['/resident', '/resident/historique', '/resident/progression'].includes(pathname) && (
         <Link href="/resident/nouveau" aria-label="Ajouter un geste"
-          className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105 md:bottom-6 md:right-6 md:h-auto md:w-auto md:gap-2 md:px-4 md:py-2.5"
-          style={{ backgroundColor: '#0D2B4E', color: 'white' }}>
+          className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-navy text-white shadow-lg transition-transform hover:scale-105 md:bottom-6 md:right-6 md:h-auto md:w-auto md:gap-2 md:px-4 md:py-2.5">
           <Plus size={18} strokeWidth={2} />
           <span className="hidden text-sm font-medium md:inline">Nouveau geste</span>
         </Link>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t md:hidden" style={{ backgroundColor: '#0D2B4E', borderColor: 'rgba(255,255,255,0.12)' }}>
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 flex border-t border-white/10 bg-navy md:hidden transition-transform duration-300 ${navHidden ? 'translate-y-full' : 'translate-y-0'}`}>
         {navItems.map(({ label, icon: Icon, path, home }) => {
           const active = isActive(path)
           const badgeKey = path.split('/').pop()
@@ -175,16 +192,16 @@ export default function AppLayout({ profile, children, badges = {} }) {
           if (home) {
             return (
               <Link key={path} href={path} className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5">
-                <div className=" -mt-5 flex h-12 w-12 items-center justify-center rounded-full border-2 shadow-lg" style={{ backgroundColor: active ? '#7BB8E8' : '#2563eb', borderColor: '#0D2B4E' }}>
+                <div className={`-mt-5 flex h-12 w-12 items-center justify-center rounded-full border-2 border-navy shadow-lg ${active ? 'bg-sky' : 'bg-blue-600'}`}>
                   <Icon size={22} strokeWidth={active ? 2.25 : 1.75} color="white" />
                 </div>
-                <span className="text-[10px] leading-none" style={{ color: active ? '#7BB8E8' : 'rgba(255,255,255,0.7)' }}>{label}</span>
+                <span className={`text-[10px] leading-none ${active ? 'text-sky' : 'text-white/70'}`}>{label}</span>
               </Link>
             )
           }
 
           return (
-            <Link key={path} href={path} className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2" style={{ color: active ? '#7BB8E8' : 'rgba(255,255,255,0.5)' }}>
+            <Link key={path} href={path} className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 ${active ? 'text-sky' : 'text-white/50'}`}>
               <div className="relative">
                 <Icon size={20} strokeWidth={active ? 2 : 1.75} />
                 {badgeCount > 0 && (

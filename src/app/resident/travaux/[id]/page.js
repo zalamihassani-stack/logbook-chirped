@@ -64,7 +64,7 @@ export default async function TravauxDetailPage({ params }) {
           <div className="flex gap-3">
             <span className="w-36 flex-shrink-0 pt-0.5 text-xs font-medium text-slate-500">DOI / URL</span>
             <a href={travail.doi_or_url} target="_blank" rel="noopener noreferrer"
-              className="break-all text-sm" style={{ color: '#0D2B4E' }}>
+              className="break-all text-sm" style={{ color: 'var(--color-navy)' }}>
               {travail.doi_or_url}
             </a>
           </div>

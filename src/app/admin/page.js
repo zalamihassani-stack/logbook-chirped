@@ -6,7 +6,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import { Users, Scissors, ClipboardCheck, GraduationCap, ChevronRight, Database, Settings } from 'lucide-react'
 
 const QUICK_NAV = [
-  { label: 'Utilisateurs', desc: 'Gérer les comptes résidents et enseignants', icon: Users, path: '/admin/utilisateurs', color: '#7BB8E8' },
+  { label: 'Utilisateurs', desc: 'Gérer les comptes résidents et enseignants', icon: Users, path: '/admin/utilisateurs', color: 'var(--color-sky)' },
   { label: 'Gestes & Objectifs', desc: 'Référentiel des procédures et objectifs par année', icon: Scissors, path: '/admin/gestes', color: '#34a85a' },
   { label: 'Données & Exports', desc: 'Statistiques, exports PDF et CSV', icon: Database, path: '/admin/donnees', color: '#f59e0b' },
   { label: 'Réglages', desc: "Configuration générale de l'application", icon: Settings, path: '/admin/reglages', color: '#8b5cf6' },
@@ -24,9 +24,9 @@ export default async function AdminDashboard() {
   ])
 
   const metrics = [
-    { label: 'Utilisateurs', value: usersRes.count, icon: Users, iconBg: '#E8F4FC', iconColor: '#0D2B4E' },
-    { label: 'Gestes référentiel', value: proceduresRes.count, icon: Scissors, iconBg: '#dcfce7', iconColor: '#166534' },
-    { label: 'Actes enregistrés', value: realisationsRes.count, icon: ClipboardCheck, iconBg: '#fef9c3', iconColor: '#854d0e' },
+    { label: 'Utilisateurs', value: usersRes.count, icon: Users, iconBg: 'var(--color-ice)', iconColor: 'var(--color-navy)' },
+    { label: 'Gestes référentiel', value: proceduresRes.count, icon: Scissors, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)' },
+    { label: 'Actes enregistrés', value: realisationsRes.count, icon: ClipboardCheck, iconBg: 'var(--color-warning-light)', iconColor: 'var(--color-warning)' },
     { label: 'Années de formation', value: 5, icon: GraduationCap, iconBg: '#ede9fe', iconColor: '#5b21b6' },
   ]
 
@@ -38,7 +38,7 @@ export default async function AdminDashboard() {
         {metrics.map(m => <MetricCard key={m.label} {...m} />)}
       </div>
 
-      <h2 className="text-base font-semibold mb-3" style={{ color: '#0D2B4E' }}>Navigation rapide</h2>
+      <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-navy)' }}>Navigation rapide</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {QUICK_NAV.map(({ label, desc, icon: Icon, path, color }) => (
           <Link key={path} href={path}
@@ -49,7 +49,7 @@ export default async function AdminDashboard() {
               <Icon size={22} style={{ color }} strokeWidth={1.75} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>{label}</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{label}</p>
               <p className="text-xs text-slate-500 mt-0.5 truncate">{desc}</p>
             </div>
             <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />

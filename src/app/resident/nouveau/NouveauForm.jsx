@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import { createRealisation } from '@/app/actions/resident'
 import { createClient } from '@/lib/supabase/client'
-import { ACTIVITY_TYPES, getAutonomeSubmissionGuard } from '@/lib/logbook'
+import { ACTIVITY_TYPES, OBJECTIF_LEVEL_LABELS, getAutonomeSubmissionGuard, getCountForRequiredLevel } from '@/lib/logbook'
 import { AlertTriangle, CheckCircle, Search } from 'lucide-react'
 
 const ACTIVITY_HELP = {
@@ -14,13 +14,14 @@ const ACTIVITY_HELP = {
   autonome: 'Réalisation autonome après seuil de supervision.',
 }
 
-export default function NouveauForm({ procedures, enseignants, residents, residentYear }) {
+export default function NouveauForm({ procedures, enseignants, residents, residentYear, progressByProcedure = {}, settings = {} }) {
   const router = useRouter()
+  const today = new Date().toISOString().slice(0, 10)
   const [form, setForm] = useState({
     procedure_id: '',
     enseignant_id: '',
     superviseur_resident_id: '',
-    performed_at: new Date().toISOString().slice(0, 10),
+    performed_at: today,
     activity_type: '',
     ipp_patient: '',
     compte_rendu: '',
@@ -31,32 +32,34 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [autonomyWarning, setAutonomyWarning] = useState('')
+  const allowHorsObjectifs = settings.allow_hors_objectifs !== false
+  const compteRenduRequired = Boolean(settings.compte_rendu_required)
 
   const selectedProc = procedures.find((procedure) => procedure.id === form.procedure_id)
   const isHorsObjectifs = selectedProc && !selectedProc.isObjectif
+  const selectedProgress = selectedProc?.objective
+    ? getCountForRequiredLevel(progressByProcedure[selectedProc.id], selectedProc.objective.required_level)
+    : 0
+  const selectedMissing = selectedProc?.objective
+    ? Math.max(0, selectedProc.objective.min_count - selectedProgress)
+    : 0
 
   const filteredProcedures = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    if (!needle) return procedures
+    const availableProcedures = allowHorsObjectifs
+      ? procedures
+      : procedures.filter((procedure) => procedure.isObjectif)
+    if (!needle) return availableProcedures
 
-    return procedures.filter((procedure) => {
+    return availableProcedures.filter((procedure) => {
       const haystack = [procedure.name, procedure.pathologie, procedure.categories?.name]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
       return haystack.includes(needle)
     })
-  }, [procedures, query])
+  }, [allowHorsObjectifs, procedures, query])
 
-  const groupedProcedures = useMemo(() => {
-    const groups = new Map()
-    for (const procedure of filteredProcedures) {
-      const categoryName = procedure.categories?.name ?? 'Sans catégorie'
-      if (!groups.has(categoryName)) groups.set(categoryName, [])
-      groups.get(categoryName).push(procedure)
-    }
-    return Array.from(groups.entries())
-  }, [filteredProcedures])
 
   useEffect(() => {
     let ignore = false
@@ -102,6 +105,16 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
       return
     }
 
+    if (!allowHorsObjectifs && isHorsObjectifs) {
+      setError('Les gestes hors objectifs sont desactives par un administrateur.')
+      return
+    }
+
+    if (compteRenduRequired && !form.compte_rendu.trim()) {
+      setError('Le compte rendu operatoire est obligatoire.')
+      return
+    }
+
     setLoading(true)
     setError('')
     setSuccess('')
@@ -114,8 +127,12 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
       return
     }
 
-    setSuccess("Geste envoyé pour validation. L'enseignant concerné est notifié.")
-    setTimeout(() => router.push('/resident/historique'), 900)
+    const selectedEnseignant = enseignants.find((e) => e.id === form.enseignant_id)
+    const enseignantName = selectedEnseignant?.full_name
+    setSuccess(enseignantName
+      ? `Geste envoyé. ${enseignantName} sera notifié(e) pour validation.`
+      : "Geste envoyé pour validation. L'enseignant concerné est notifié.")
+    setTimeout(() => router.push('/resident/historique'), 2500)
   }
 
   function setField(key, value) {
@@ -135,7 +152,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold" style={{ color: '#0D2B4E' }}>Geste chirurgical</h2>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Geste chirurgical</h2>
               <p className="mt-0.5 text-xs text-slate-500">Recherche par nom, pathologie ou catégorie</p>
             </div>
             <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
@@ -143,57 +160,70 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
             </span>
           </div>
 
-          <label className="relative block">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Rechercher un geste..."
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-sky-400"
-            />
-          </label>
-
-          <div className="mt-3 max-h-72 space-y-3 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50 p-2">
-            {groupedProcedures.map(([categoryName, items]) => (
-              <div key={categoryName}>
-                <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{categoryName}</p>
-                <div className="space-y-1">
-                  {items.map((procedure) => {
-                    const selected = procedure.id === form.procedure_id
-                    return (
-                      <button
-                        key={procedure.id}
-                        type="button"
-                        onClick={() => selectProcedure(procedure.id)}
-                        className="flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-2 text-left transition"
-                        style={selected ? { borderColor: '#0D2B4E', backgroundColor: '#E8F4FC' } : { borderColor: 'transparent', backgroundColor: 'white' }}
-                      >
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium text-slate-800">{procedure.name}</span>
-                          {procedure.pathologie && <span className="mt-0.5 block text-xs text-slate-500">{procedure.pathologie}</span>}
-                        </span>
-                        <span
-                          className="flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                          style={procedure.isObjectif ? { backgroundColor: '#dcfce7', color: '#166534' } : { backgroundColor: '#ffedd5', color: '#9a3412' }}
-                        >
-                          {procedure.isObjectif ? 'Objectif' : 'Hors objectif'}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
+          {form.procedure_id && selectedProc ? (
+            <div className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5"
+              style={{ borderColor: 'var(--color-navy)', backgroundColor: 'var(--color-ice)' }}>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{selectedProc.name}</p>
+                {selectedProc.pathologie && <p className="mt-0.5 text-xs text-slate-500">{selectedProc.pathologie}</p>}
               </div>
-            ))}
-            {filteredProcedures.length === 0 && (
-              <p className="py-5 text-center text-sm text-slate-400">Aucun geste trouvé</p>
-            )}
-          </div>
+              <button type="button" onClick={() => { setField('procedure_id', ''); setQuery('') }}
+                className="flex-shrink-0 text-xs font-medium text-slate-400 hover:text-slate-600">
+                Changer
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <label className="relative block">
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Rechercher un geste..." autoComplete="off"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-sky-400" />
+              </label>
+              {query.trim().length > 0 && (
+                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                  {filteredProcedures.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-slate-400">Aucun geste trouvé</p>
+                  ) : filteredProcedures.map((procedure) => (
+                    <button key={procedure.id} type="button"
+                      onClick={() => { selectProcedure(procedure.id); setQuery('') }}
+                      className="flex w-full items-start justify-between gap-3 border-b border-slate-50 px-3 py-2.5 text-left transition hover:bg-slate-50 last:border-0">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-slate-800">{procedure.name}</span>
+                        {procedure.pathologie && <span className="mt-0.5 block text-xs text-slate-500">{procedure.pathologie}</span>}
+                      </span>
+                      <span className="flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        style={procedure.isObjectif
+                          ? { backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' }
+                          : { backgroundColor: '#ffedd5', color: '#9a3412' }}>
+                        {procedure.isObjectif ? 'Objectif' : 'Hors objectif'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {query.trim().length === 0 && (
+                <p className="mt-2 text-xs text-slate-400">Tapez pour rechercher parmi {procedures.length} geste{procedures.length > 1 ? 's' : ''}</p>
+              )}
+            </div>
+          )}
 
-          {isHorsObjectifs && (
+          {isHorsObjectifs && allowHorsObjectifs && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm text-orange-700">
               <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
               Ce geste est hors de vos objectifs pour l&apos;année {residentYear}. Il sera tout de même envoyé comme hors objectifs.
+            </div>
+          )}
+          {!allowHorsObjectifs && (
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
+              <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+              Les gestes hors objectifs sont masques par les reglages administrateur.
+            </div>
+          )}
+          {selectedProc?.objective && (
+            <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-900">
+              Objectif A{residentYear} : {selectedProgress}/{selectedProc.objective.min_count} validé(s) au niveau {OBJECTIF_LEVEL_LABELS[selectedProc.objective.required_level]}.
+              {selectedMissing > 0 ? ` Encore ${selectedMissing} à compléter.` : ' Objectif déjà atteint.'}
             </div>
           )}
           {autonomyWarning && (
@@ -205,7 +235,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         </section>
 
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Contexte de réalisation</h2>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Contexte de réalisation</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="IPP patient">
               <input
@@ -221,6 +251,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                 type="date"
                 value={form.performed_at}
                 onChange={(event) => setField('performed_at', event.target.value)}
+                max={today}
                 required
                 className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
               />
@@ -228,7 +259,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           </div>
 
           <div className="mt-4">
-            <p className="mb-2 block text-sm font-medium" style={{ color: '#0D2B4E' }}>
+            <p className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>
               Type d&apos;activité *
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -240,7 +271,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                     type="button"
                     onClick={() => setField('activity_type', activityType.value)}
                     className="rounded-xl border-2 px-3 py-3 text-left transition"
-                    style={selected ? { borderColor: '#0D2B4E', backgroundColor: '#0D2B4E', color: 'white' } : { borderColor: '#e2e8f0', color: '#374151', backgroundColor: 'white' }}
+                    style={selected ? { borderColor: 'var(--color-navy)', backgroundColor: 'var(--color-navy)', color: 'white' } : { borderColor: '#e2e8f0', color: '#374151', backgroundColor: 'white' }}
                   >
                     <span className="flex items-center gap-2 text-sm font-semibold">
                       {selected && <CheckCircle size={15} strokeWidth={2} />}
@@ -257,7 +288,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         </section>
 
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Encadrement</h2>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Encadrement</h2>
           <div className="space-y-4">
             <Field label="Enseignant superviseur *">
               <select
@@ -289,13 +320,14 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         </section>
 
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-4 text-sm font-semibold" style={{ color: '#0D2B4E' }}>Notes</h2>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Notes</h2>
           <div className="space-y-4">
-            <Field label="Compte rendu opératoire">
+            <Field label={`Compte rendu opératoire${compteRenduRequired ? ' *' : ''}`}>
               <textarea
                 value={form.compte_rendu}
                 onChange={(event) => setField('compte_rendu', event.target.value)}
                 rows={4}
+                required={compteRenduRequired}
                 placeholder="Description de l'acte réalisé..."
                 className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
               />
@@ -320,7 +352,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
             type="submit"
             disabled={loading}
             className="w-full rounded-xl py-3 text-sm font-semibold text-white transition active:scale-95 disabled:opacity-60"
-            style={{ backgroundColor: '#0D2B4E' }}
+            style={{ backgroundColor: 'var(--color-navy)' }}
           >
             {loading ? 'Envoi en cours...' : 'Soumettre pour validation'}
           </button>
@@ -333,7 +365,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
 function Field({ label, children }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>{label}</span>
+      <span className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>{label}</span>
       {children}
     </label>
   )

@@ -1,12 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import { createProcedure, updateProcedure, deleteProcedure, createCategory, updateCategory, deleteCategory } from '@/app/actions/admin'
 import { Plus, Pencil, Trash2, X } from 'lucide-react'
 
 const YEARS = [1, 2, 3, 4, 5]
+const DEFAULT_CATEGORY_COLOR = '#0D2B4E'
 const LEVELS = { 0: 'Non requis', 1: 'Exposition', 2: 'Sous supervision', 3: 'Autonomie' }
-const AUTONOMY_OBJECTIVE_LEVELS = { 0: 'Non affichÃ©', 3: 'Objectif autonomie' }
+const OBJECTIVE_LEVELS = { 0: 'Non requis', 2: 'Sous supervision', 3: 'Autonomie' }
 
 function emptyObjectives() {
   return YEARS.map((year) => ({ year, required_level: 0, min_count: 1 }))
@@ -27,6 +29,7 @@ function emptyProcedureForm(categoryId = '') {
 }
 
 export default function GestesManagement({ initialProcedures, initialCategories }) {
+  const router = useRouter()
   const [procedures, setProcedures] = useState(initialProcedures)
   const [categories, setCategories] = useState(initialCategories)
   const [tab, setTab] = useState('gestes')
@@ -34,10 +37,18 @@ export default function GestesManagement({ initialProcedures, initialCategories 
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState(emptyProcedureForm(initialCategories[0]?.id ?? ''))
   const [catModal, setCatModal] = useState(null)
-  const [catForm, setCatForm] = useState({ name: '', color_hex: '#0D2B4E', display_order: 0 })
+  const [catForm, setCatForm] = useState({ name: '', color_hex: DEFAULT_CATEGORY_COLOR, display_order: 0 })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+
+  useEffect(() => {
+    setProcedures(initialProcedures)
+  }, [initialProcedures])
+
+  useEffect(() => {
+    setCategories(initialCategories)
+  }, [initialCategories])
 
   function openCreate() {
     setForm(emptyProcedureForm(categories[0]?.id ?? ''))
@@ -96,28 +107,54 @@ export default function GestesManagement({ initialProcedures, initialCategories 
       return
     }
 
-    window.location.reload()
+    setModal(null)
+    router.refresh()
   }
 
   async function handleDelete(id) {
     setLoading(true)
-    await deleteProcedure(id)
+    setError('')
+    const res = await deleteProcedure(id)
     setLoading(false)
+    if (res.error) {
+      setError(res.error)
+      setConfirmDelete(null)
+      return
+    }
     setConfirmDelete(null)
     setProcedures((current) => current.filter((procedure) => procedure.id !== id))
+    router.refresh()
   }
 
   async function handleCatSubmit(event) {
     event.preventDefault()
     setLoading(true)
     setError('')
-    const res = catModal === 'create' ? await createCategory(catForm) : await updateCategory(catModal.id, catForm)
+    const payload = { ...catForm, display_order: Number.parseInt(catForm.display_order, 10) || 0 }
+    const res = catModal === 'create' ? await createCategory(payload) : await updateCategory(catModal.id, payload)
     setLoading(false)
     if (res.error) {
       setError(res.error)
       return
     }
-    window.location.reload()
+    setCatModal(null)
+    router.refresh()
+  }
+
+  function applyDefaultPath() {
+    const finalLevel = Number.parseInt(form.objectif_final, 10)
+    const defaultMinCount = finalLevel === 2
+        ? Number.parseInt(form.seuil_supervision_min, 10) || 1
+        : Number.parseInt(form.seuil_autonomie_min, 10) || 1
+
+    setForm((current) => ({
+      ...current,
+      objectives: current.objectives.map((objective) => ({
+        ...objective,
+        required_level: finalLevel === 1 ? 0 : objective.required_level,
+        min_count: defaultMinCount,
+      })),
+    }))
   }
 
   const filtered = filterCat ? procedures.filter((procedure) => procedure.category_id === filterCat) : procedures
@@ -129,14 +166,17 @@ export default function GestesManagement({ initialProcedures, initialCategories 
         subtitle="Referentiel des procedures"
         action={
           <button
-            onClick={tab === 'gestes' ? openCreate : () => { setCatForm({ name: '', color_hex: '#0D2B4E', display_order: 0 }); setCatModal('create') }}
+            onClick={tab === 'gestes' ? openCreate : () => { setCatForm({ name: '', color_hex: DEFAULT_CATEGORY_COLOR, display_order: 0 }); setCatModal('create') }}
             className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white"
-            style={{ backgroundColor: '#0D2B4E' }}
+            style={{ backgroundColor: 'var(--color-navy)' }}
           >
             <Plus size={16} /> {tab === 'gestes' ? 'Nouveau geste' : 'Nouvelle categorie'}
           </button>
         }
       />
+      {error && !modal && !catModal && (
+        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
+      )}
 
       <div className="mb-4 flex gap-2">
         {['gestes', 'categories'].map((item) => (
@@ -144,7 +184,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
             key={item}
             onClick={() => setTab(item)}
             className="rounded-full px-4 py-1.5 text-sm font-medium capitalize transition"
-            style={tab === item ? { backgroundColor: '#0D2B4E', color: 'white' } : { backgroundColor: 'white', color: '#0D2B4E', border: '1px solid #e2e8f0' }}
+            style={tab === item ? { backgroundColor: 'var(--color-navy)', color: 'white' } : { backgroundColor: 'white', color: 'var(--color-navy)', border: '1px solid #e2e8f0' }}
           >
             {item === 'gestes' ? 'Gestes' : 'Categories'}
           </button>
@@ -166,7 +206,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
           <div className="space-y-2">
             {filtered.map((procedure) => {
               const category = categories.find((item) => item.id === procedure.category_id)
-              const hasObjectives = procedure.procedure_objectives?.filter((objective) => objective.required_level === 3)
+              const hasObjectives = procedure.procedure_objectives?.filter((objective) => objective.required_level > 1)
               return (
                 <div key={procedure.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
@@ -184,7 +224,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                       </div>
                       {procedure.pathologie && <p className="mt-0.5 text-xs text-slate-500">{procedure.pathologie}</p>}
                       <p className="mt-2 text-xs text-slate-500">
-                        Objectif final: {LEVELS[procedure.objectif_final] ?? '-'} Â· Exposition {procedure.seuil_exposition_min ?? 0} Â· Supervision {procedure.seuil_supervision_min ?? 0} Â· Autonomie {procedure.seuil_autonomie_min ?? 0} Â· DÃ©blocage auto {procedure.seuil_deblocage_autonomie ?? 0}
+                        Objectif final: {LEVELS[procedure.objectif_final] ?? '-'} · Exposition {procedure.seuil_exposition_min ?? 0} · Supervision {procedure.seuil_supervision_min ?? 0} · Autonomie {procedure.seuil_autonomie_min ?? 0} · Déblocage auto {procedure.seuil_deblocage_autonomie ?? 0}
                       </p>
                       {hasObjectives?.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
@@ -227,7 +267,17 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                   <Pencil size={15} className="text-slate-500" />
                 </button>
                 <button
-                  onClick={async () => { if (confirm('Supprimer cette categorie ?')) { await deleteCategory(category.id); setCategories((current) => current.filter((item) => item.id !== category.id)) } }}
+                  onClick={async () => {
+                    if (!confirm('Supprimer cette categorie ?')) return
+                    setError('')
+                    const res = await deleteCategory(category.id)
+                    if (res.error) {
+                      setError(res.error)
+                      return
+                    }
+                    setCategories((current) => current.filter((item) => item.id !== category.id))
+                    router.refresh()
+                  }}
                   className="rounded-lg p-2 hover:bg-red-50"
                 >
                   <Trash2 size={15} className="text-red-500" />
@@ -242,14 +292,14 @@ export default function GestesManagement({ initialProcedures, initialCategories 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>{modal === 'create' ? 'Nouveau geste' : 'Modifier'}</h2>
+              <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{modal === 'create' ? 'Nouveau geste' : 'Modifier'}</h2>
               <button onClick={() => setModal(null)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <Field label="Code procedure" type="number" value={form.procedure_code} onChange={(value) => setForm((current) => ({ ...current, procedure_code: value }))} />
               <Field label="Nom du geste" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} required />
               <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Categorie</label>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Categorie</label>
                 <select
                   value={form.category_id}
                   onChange={(event) => setForm((current) => ({ ...current, category_id: event.target.value }))}
@@ -262,7 +312,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
               </div>
               <Field label="Pathologie" value={form.pathologie} onChange={(value) => setForm((current) => ({ ...current, pathologie: value }))} />
               <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Objectif final</label>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Objectif final</label>
                 <select
                   value={form.objectif_final}
                   onChange={(event) => setForm((current) => ({ ...current, objectif_final: event.target.value }))}
@@ -278,7 +328,19 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                 <Field label="Deblocage autonome" type="number" value={form.seuil_deblocage_autonomie} onChange={(value) => setForm((current) => ({ ...current, seuil_deblocage_autonomie: value }))} />
               </div>
               <div>
-                <p className="mb-2 text-sm font-medium" style={{ color: '#0D2B4E' }}>Objectifs d&apos;autonomie par annÃ©e</p>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Objectifs par année</p>
+                    <p className="text-xs text-slate-500">L&apos;exposition est transversale dès A1; planifiez seulement supervision ou autonomie.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={applyDefaultPath}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Parcours par defaut
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {form.objectives.map((objective, index) => (
                     <div key={objective.year} className="flex items-center gap-2 text-sm">
@@ -294,7 +356,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                         }
                         className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm outline-none"
                       >
-                        {Object.entries(AUTONOMY_OBJECTIVE_LEVELS).map(([key, label]) => (
+                        {Object.entries(OBJECTIVE_LEVELS).map(([key, label]) => (
                           <option key={key} value={key}>{label}</option>
                         ))}
                       </select>
@@ -320,7 +382,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                 type="submit"
                 disabled={loading}
                 className="w-full rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: '#0D2B4E' }}
+                style={{ backgroundColor: 'var(--color-navy)' }}
               >
                 {loading ? 'Enregistrement...' : 'Enregistrer'}
               </button>
@@ -333,13 +395,13 @@ export default function GestesManagement({ initialProcedures, initialCategories 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>{catModal === 'create' ? 'Nouvelle categorie' : 'Modifier'}</h2>
+              <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{catModal === 'create' ? 'Nouvelle categorie' : 'Modifier'}</h2>
               <button onClick={() => setCatModal(null)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleCatSubmit} className="space-y-4">
               <Field label="Nom" value={catForm.name} onChange={(value) => setCatForm((current) => ({ ...current, name: value }))} required />
               <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Couleur</label>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Couleur</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -356,7 +418,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                 type="submit"
                 disabled={loading}
                 className="w-full rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: '#0D2B4E' }}
+                style={{ backgroundColor: 'var(--color-navy)' }}
               >
                 {loading ? '...' : 'Enregistrer'}
               </button>
@@ -389,7 +451,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
 function Field({ label, type = 'text', value, onChange, required }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>{label}</label>
+      <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>{label}</label>
       <input
         type={type}
         value={value}

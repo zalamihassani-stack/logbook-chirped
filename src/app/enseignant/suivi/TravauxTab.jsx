@@ -216,7 +216,7 @@ export default function TravauxTab({ residents, enseignants = [], travailTypes, 
               type="button"
               onClick={() => applyPreset('pending_final')}
               className="rounded-full px-3 py-1.5 text-xs font-medium"
-              style={{ backgroundColor: '#dcfce7', color: '#166534' }}
+              style={{ backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' }}
             >
               Validations finales
             </button>
@@ -282,14 +282,14 @@ export default function TravauxTab({ residents, enseignants = [], travailTypes, 
           {fetched && data.length > 0 && (
             <button type="button" onClick={handleExport} disabled={exporting}
               className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
-              style={{ color: '#0D2B4E' }}>
+              style={{ color: 'var(--color-navy)' }}>
               {exporting ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} strokeWidth={1.75} />}
               Exporter PDF
             </button>
           )}
           <button type="submit" disabled={loading}
             className="flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
-            style={{ backgroundColor: '#0D2B4E' }}>
+            style={{ backgroundColor: 'var(--color-navy)' }}>
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} strokeWidth={1.75} />}
             Rechercher
           </button>
@@ -387,7 +387,7 @@ function ReviewModal({ travail, feedback, setFeedback, error, actionLoading, onC
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold" style={{ color: '#0D2B4E' }}>Revue du travail scientifique</h2>
+            <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>Revue du travail scientifique</h2>
             <p className="mt-1 text-sm text-slate-500">{travail.resident?.full_name ?? 'Résident non renseigné'} · {travail.year}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-50">
@@ -421,7 +421,7 @@ function ReviewModal({ travail, feedback, setFeedback, error, actionLoading, onC
         </div>
 
         <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium" style={{ color: '#0D2B4E' }}>Commentaire / justification</label>
+          <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Commentaire / justification</label>
           <textarea
             value={feedback}
             onChange={(event) => setFeedback(event.target.value)}

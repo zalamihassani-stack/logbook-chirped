@@ -32,7 +32,7 @@ export default function PasswordChange() {
       <button
         onClick={() => { setOpen(!open); setStatus(null) }}
         className="flex items-center gap-2 text-sm font-medium w-full text-left"
-        style={{ color: '#0D2B4E' }}
+        style={{ color: 'var(--color-navy)' }}
       >
         <KeyRound size={16} strokeWidth={1.75} />
         Changer le mot de passe
@@ -66,7 +66,7 @@ export default function PasswordChange() {
             type="submit"
             disabled={loading}
             className="w-full py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60"
-            style={{ backgroundColor: '#0D2B4E' }}
+            style={{ backgroundColor: 'var(--color-navy)' }}
           >
             {loading ? 'Enregistrement…' : 'Enregistrer'}
           </button>

@@ -18,9 +18,19 @@ export default function PasswordChange() {
       setMsg('Les mots de passe ne correspondent pas.')
       return
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       setStatus('error')
-      setMsg('Minimum 6 caracteres.')
+      setMsg('Le mot de passe doit contenir au moins 8 caractères.')
+      return
+    }
+    if (!/[A-Z]/.test(password)) {
+      setStatus('error')
+      setMsg('Le mot de passe doit contenir au moins une majuscule.')
+      return
+    }
+    if (!/[0-9]/.test(password)) {
+      setStatus('error')
+      setMsg('Le mot de passe doit contenir au moins un chiffre.')
       return
     }
 
@@ -36,7 +46,7 @@ export default function PasswordChange() {
     }
 
     setStatus('success')
-    setMsg('Mot de passe modifie.')
+    setMsg('Mot de passe modifié.')
     setPassword('')
     setConfirm('')
     setTimeout(() => setOpen(false), 1500)
@@ -47,11 +57,11 @@ export default function PasswordChange() {
       <button
         onClick={() => { setOpen(!open); setStatus(null) }}
         className="flex w-full items-center gap-2 text-left text-sm font-medium"
-        style={{ color: '#0D2B4E' }}
+        style={{ color: 'var(--color-navy)' }}
       >
         <KeyRound size={16} strokeWidth={1.75} />
         Changer le mot de passe
-        <span className="ml-auto text-xs text-slate-400">{open ? '▲' : '▼'}</span>
+        <span className="ml-auto text-xs text-slate-400" aria-hidden="true">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
@@ -81,7 +91,7 @@ export default function PasswordChange() {
             type="submit"
             disabled={loading}
             className="w-full rounded-lg py-2 text-sm font-medium text-white disabled:opacity-60"
-            style={{ backgroundColor: '#0D2B4E' }}
+            style={{ backgroundColor: 'var(--color-navy)' }}
           >
             {loading ? 'Enregistrement...' : 'Enregistrer'}
           </button>

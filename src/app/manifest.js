@@ -8,8 +8,8 @@ export default function manifest() {
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#0D2B4E',
-    theme_color: '#0D2B4E',
+    background_color: 'var(--color-navy)',
+    theme_color: 'var(--color-navy)',
     categories: ['medical', 'education'],
     icons: [
       {
