@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -36,7 +37,7 @@ const NAV = {
     { label: 'Suivi', icon: Activity, path: '/enseignant/suivi' },
     { label: 'Accueil', icon: LayoutDashboard, path: '/enseignant', home: true },
     { label: 'Travaux', icon: FlaskConical, path: '/enseignant/travaux' },
-    { label: 'Objectifs', icon: Target, path: '/enseignant/objectifs' },
+    { label: 'Référentiel', icon: Target, path: '/enseignant/objectifs' },
   ],
   resident: [
     { label: 'Progression', icon: BookOpen, path: '/resident/progression' },
@@ -72,7 +73,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
   const navHidden = useNavScroll(mainRef)
   const role = profile?.role ?? 'resident'
   const navItems = NAV[role] ?? []
-  const profilePath = role === 'admin' ? '/admin/reglages' : role === 'resident' ? '/resident/profil' : role === 'enseignant' ? '/enseignant/profil' : null
+  const profilePath = role === 'admin' ? '/admin/profil' : role === 'resident' ? '/resident/profil' : role === 'enseignant' ? '/enseignant/profil' : null
 
   function isActive(path) {
     if (path === '/admin' || path === '/enseignant' || path === '/resident') return pathname === path
@@ -89,7 +90,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
     <div className="flex min-h-screen bg-ice">
       <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col bg-navy md:flex">
         <div className="flex flex-col items-center border-b border-white/10 px-4 pb-5 pt-6">
-          <img src="/logo.png" alt="LCP" className="mb-2 h-16 w-16 object-contain" />
+          <Image src="/logo.png" alt="LCP" width={64} height={64} className="mb-2 object-contain" priority />
           <p className="text-center text-sm font-semibold leading-snug text-white">
             Logbook Chirurgie
             <br />
@@ -142,7 +143,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
 
       <header className="fixed left-0 right-0 top-0 z-40 flex h-12 items-center justify-between border-b border-white/10 bg-navy px-4 md:hidden">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="LCP" className="h-7 w-7 object-contain" />
+          <Image src="/logo.png" alt="LCP" width={28} height={28} className="object-contain" priority />
           <span className="max-w-[160px] truncate text-xs font-medium text-white">{profile?.full_name ?? '-'}</span>
         </div>
         <div className="flex items-center gap-2">

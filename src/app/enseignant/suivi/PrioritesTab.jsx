@@ -182,7 +182,7 @@ export default function PrioritesTab({ residents }) {
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">A{item.year}</span>
                   <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'var(--color-danger-light)', color: 'var(--color-danger)' }}>
                     <AlertTriangle size={12} />
-                    {item.lateCount}
+                    {item.lateCount} en retard
                   </span>
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
@@ -208,7 +208,7 @@ export default function PrioritesTab({ residents }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-slate-800">{item.objective.procedures?.name ?? 'Geste'}</p>
+                    <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.objective.procedures?.name ?? 'Geste'}</p>
                     <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: style.bg, color: style.color }}>
                       {OBJECTIF_LEVEL_LABELS[item.objective.required_level]}
                     </span>
@@ -235,7 +235,7 @@ export default function PrioritesTab({ residents }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-slate-800">{item.procedure.name}</p>
+                      <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.procedure.name}</p>
                       {category && (
                         <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `${category.color_hex}25`, color: category.color_hex }}>
                           {category.name}

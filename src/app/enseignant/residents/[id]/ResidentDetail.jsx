@@ -69,12 +69,16 @@ export default function ResidentDetail({
         Retour au suivi
       </Link>
 
-      <div className="mb-4 flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold" style={{ color: 'var(--color-navy)' }}>{resident.full_name}</h1>
-          <p className="text-sm text-slate-500">Année {year} · Promo {resident.promotion ?? '-'}</p>
+      <div className="mb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold" style={{ color: 'var(--color-navy)' }}>{resident.full_name}</h1>
+            <p className="text-sm text-slate-500">Année {year} · Promo {resident.promotion ?? '-'}</p>
+          </div>
+          <div className="flex-shrink-0">
+            <ExportFicheButton resident={resident} realisations={realisations} year={year} />
+          </div>
         </div>
-        <ExportFicheButton resident={resident} realisations={realisations} year={year} />
       </div>
 
       <div className="hidden">
@@ -121,6 +125,7 @@ export default function ResidentDetail({
           doneTotal={doneTotal}
           objectiveTotal={objectiveTotal}
           objectivePct={objectivePct}
+          year={year}
         />
       )}
       {tab === 'historique' && <HistoriqueTab realisations={realisations} />}
@@ -128,30 +133,55 @@ export default function ResidentDetail({
   )
 }
 
-function ProgressionTab({ objectives, summary, doneTotal, objectiveTotal, objectivePct }) {
+function ProgressionTab({ objectives, summary, doneTotal, objectiveTotal, objectivePct, year }) {
   const [selectedLevel, setSelectedLevel] = useState('3')
   const selectedSummary = summary.find((item) => item.key === selectedLevel) ?? summary[0]
   const rows = objectives
     .filter((objective) => String(objective.required_level) === selectedLevel)
     .sort(sortObjectives)
 
+  // Progression annuelle = objectifs introduits cette année de résidanat
+  const annualObjectives = objectives.filter((obj) => obj.year === year)
+  const annualDone = annualObjectives.filter((obj) => obj.done).length
+  const annualTotal = annualObjectives.length
+  const annualPct = annualTotal > 0 ? Math.round((annualDone / annualTotal) * 100) : 0
+  const annualColor = annualPct >= 80 ? 'var(--color-success)' : annualPct >= 50 ? 'var(--color-navy)' : 'var(--color-warning)'
+  const globalColor = objectivePct >= 80 ? 'var(--color-success)' : objectivePct >= 50 ? 'var(--color-navy)' : 'var(--color-warning)'
+
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>
-              Progression globale
+        {/* Progression annuelle */}
+        <div className="mb-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-sm font-semibold" style={{ color: annualColor }}>
+              Cette année (A{year})
             </p>
+            <span className="text-base font-bold" style={{ color: annualColor }}>{annualPct}%</span>
           </div>
-          <span className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{objectivePct}%</span>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full transition-all" style={{ width: `${annualPct}%`, backgroundColor: annualColor }} />
+          </div>
+          <p className="mt-1 text-xs text-slate-500">{annualDone}/{annualTotal} objectifs de l&apos;année atteints</p>
         </div>
 
-        <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full" style={{ width: `${objectivePct}%`, backgroundColor: 'var(--color-navy)' }} />
+        {/* Séparateur */}
+        <div className="mb-4 border-t border-slate-100" />
+
+        {/* Progression globale */}
+        <div className="mb-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-500">Global (toutes années)</p>
+            <span className="text-base font-bold" style={{ color: globalColor }}>{objectivePct}%</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full" style={{ width: `${objectivePct}%`, backgroundColor: globalColor }} />
+          </div>
+          <p className="mt-1 text-xs text-slate-400">{doneTotal}/{objectiveTotal} objectifs atteints</p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        {/* Par niveau */}
+        <div className="grid grid-cols-3 gap-3">
           {summary.map((item) => (
             <button
               key={item.key}
@@ -173,10 +203,6 @@ function ProgressionTab({ objectives, summary, doneTotal, objectiveTotal, object
             </button>
           ))}
         </div>
-
-        <p className="mt-3 text-xs text-slate-500">
-          {doneTotal}/{objectiveTotal} objectifs atteints
-        </p>
       </section>
 
       <section>

@@ -4,13 +4,27 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
+import StatusTabs from '@/components/ui/StatusTabs'
+import FilterPanel from '@/components/ui/FilterPanel'
+import PaginationControls from '@/components/ui/PaginationControls'
+import ListRowCard from '@/components/ui/ListRowCard'
 import { formatDate, maskPatientIdentifier } from '@/lib/utils'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
-import { ChevronRight } from 'lucide-react'
+import ActesTab from '../suivi/ActesTab'
 
 const PAGE_SIZE = 25
-const STATUS_LABELS = { pending: 'En attente', validated: 'Valides', refused: 'Refuses' }
+const STATUS_LABELS = { pending: 'En attente', validated: 'Validées', refused: 'Refusées' }
 const STATUS_ORDER = { pending: 0, validated: 1, refused: 2 }
+const STATUS_TABS = [
+  { value: '', label: 'Toutes' },
+  { value: 'pending', label: 'En attente' },
+  { value: 'validated', label: 'Validées' },
+  { value: 'refused', label: 'Refusées' },
+]
+const MODE_TABS = [
+  { value: '', label: 'Mes demandes' },
+  { value: 'journal', label: 'Tous les actes' },
+]
 
 export default async function DemandesPage({ searchParams }) {
   const supabase = await createClient()
@@ -21,6 +35,24 @@ export default async function DemandesPage({ searchParams }) {
   if (!user) redirect('/login')
 
   const params = await searchParams
+  const mode = params?.mode ?? ''
+
+  if (mode === 'journal') {
+    const [{ data: residents }, { data: procedures }, { data: enseignants }] = await Promise.all([
+      admin.from('profiles').select('id, full_name').eq('role', 'resident').eq('is_active', true).order('full_name'),
+      supabase.from('procedures').select('id, name').eq('is_active', true).order('name'),
+      admin.from('profiles').select('id, full_name').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
+    ])
+
+    return (
+      <div className="max-w-3xl p-5 md:p-8">
+        <PageHeader title="Demandes" subtitle="Journal de tous les actes" />
+        <StatusTabs tabs={MODE_TABS} activeValue={mode} hrefFor={(value) => value ? `/enseignant/demandes?mode=${value}` : '/enseignant/demandes'} columns={2} className="mb-5" />
+        <ActesTab residents={residents ?? []} procedures={procedures ?? []} enseignants={enseignants ?? []} />
+      </div>
+    )
+  }
+
   const filterStatus = params?.status ?? ''
   const filterResident = params?.resident ?? ''
   const filterProcedure = params?.procedure ?? ''
@@ -66,109 +98,70 @@ export default async function DemandesPage({ searchParams }) {
     : [...(realisations ?? [])].sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
 
   const counts = {
+    '': (pendingCount.count ?? 0) + (validatedCount.count ?? 0) + (refusedCount.count ?? 0),
     pending: pendingCount.count ?? 0,
     validated: validatedCount.count ?? 0,
     refused: refusedCount.count ?? 0,
   }
+  const hasFilters = Boolean(filterResident || filterProcedure)
 
   return (
-    <div className="p-5 md:p-8 max-w-3xl">
+    <div className="max-w-3xl p-5 md:p-8">
       <PageHeader
         title="Demandes"
-        subtitle={`${sorted.length} demande(s)${filterStatus ? ` · ${STATUS_LABELS[filterStatus]}` : ''}`}
+        subtitle={`${counts[filterStatus] ?? sorted.length} demande(s)${filterStatus ? ` · ${STATUS_LABELS[filterStatus]}` : ''}`}
       />
 
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {[
-          { value: '', label: 'Toutes' },
-          { value: 'pending', label: `En attente (${counts.pending})` },
-          { value: 'validated', label: `Validees (${counts.validated})` },
-          { value: 'refused', label: `Refusees (${counts.refused})` },
-        ].map((tab) => {
-          const isActive = filterStatus === tab.value
-          const nextParams = new URLSearchParams({ ...(filterResident && { resident: filterResident }), ...(filterProcedure && { procedure: filterProcedure }), ...(tab.value && { status: tab.value }) })
-          return (
-            <Link
-              key={tab.value}
-              href={`/enseignant/demandes${nextParams.toString() ? `?${nextParams.toString()}` : ''}`}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-              style={isActive
-                ? { backgroundColor: 'var(--color-navy)', color: 'white' }
-                : { backgroundColor: 'white', color: '#475569', border: '1px solid #e2e8f0' }}
-            >
-              {tab.label}
-            </Link>
-          )
-        })}
-      </div>
+      <StatusTabs tabs={MODE_TABS} activeValue={mode} hrefFor={(value) => value ? `/enseignant/demandes?mode=${value}` : '/enseignant/demandes'} columns={2} className="mb-5" />
+      <StatusTabs tabs={STATUS_TABS} activeValue={filterStatus} counts={counts} hrefFor={(status) => statusHref(status, { filterResident, filterProcedure })} columns={4} className="mb-5" />
 
-      <form className="flex gap-3 mb-5 flex-col sm:flex-row">
-        {filterStatus && <input type="hidden" name="status" value={filterStatus} />}
-        <select name="resident" defaultValue={filterResident}
-          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-          <option value="">Tous les residents</option>
-          {residents?.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name}</option>)}
-        </select>
-        <select name="procedure" defaultValue={filterProcedure}
-          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-          <option value="">Tous les gestes</option>
-          {procedures?.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
-        </select>
-        <button type="submit"
-          className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: 'var(--color-navy)' }}>
-          Filtrer
-        </button>
-      </form>
+      <FilterPanel active={hasFilters} className="mb-5">
+        <form className="grid gap-3 sm:grid-cols-2">
+          {filterStatus && <input type="hidden" name="status" value={filterStatus} />}
+          <select name="resident" defaultValue={filterResident} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+            <option value="">Tous les résidents</option>
+            {residents?.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name}</option>)}
+          </select>
+          <select name="procedure" defaultValue={filterProcedure} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+            <option value="">Tous les gestes</option>
+            {procedures?.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
+          </select>
+          <button type="submit" className="rounded-lg px-4 py-2 text-sm font-medium text-white sm:col-span-2" style={{ backgroundColor: 'var(--color-navy)' }}>
+            Appliquer les filtres
+          </button>
+          {hasFilters && (
+            <Link href={statusHref(filterStatus, {})} className="rounded-lg border border-slate-200 px-4 py-2 text-center text-sm font-medium text-slate-500 hover:text-slate-700 sm:col-span-2">
+              Réinitialiser les filtres
+            </Link>
+          )}
+        </form>
+      </FilterPanel>
 
       <div className="space-y-2">
         {sorted.slice(0, PAGE_SIZE).map((realisation) => (
-          <Link key={realisation.id} href={`/enseignant/demandes/${realisation.id}`}
-            className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">{realisation.procedures?.name ?? '—'}</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {realisation.resident?.full_name} · {formatDate(realisation.performed_at)} · {ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '—'}
-              </p>
-              {realisation.ipp_patient && <p className="text-xs text-slate-400 mt-0.5">IPP : {maskPatientIdentifier(realisation.ipp_patient)}</p>}
-            </div>
-            <Badge status={realisation.status} />
-            <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
-          </Link>
+          <ListRowCard
+            key={realisation.id}
+            href={`/enseignant/demandes/${realisation.id}`}
+            title={realisation.procedures?.name ?? '-'}
+            subtitle={`${realisation.resident?.full_name ?? '-'} · ${formatDate(realisation.performed_at)} · ${ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '-'}`}
+            meta={realisation.ipp_patient ? `IPP : ${maskPatientIdentifier(realisation.ipp_patient)}` : ''}
+            badge={!filterStatus && <Badge status={realisation.status} />}
+          />
         ))}
-        {sorted.length === 0 && (
-          <p className="text-center text-sm text-slate-400 py-8">Aucune demande</p>
-        )}
+        {sorted.length === 0 && <p className="rounded-2xl bg-white py-8 text-center text-sm text-slate-400">Aucune demande</p>}
       </div>
 
-      <PaginationControls
-        page={page}
-        hasNext={sorted.length > PAGE_SIZE}
-        params={params}
-      />
+      <PaginationControls page={page} hasNext={sorted.length > PAGE_SIZE} params={params} basePath="/enseignant/demandes" />
     </div>
   )
 }
 
-function PaginationControls({ page, hasNext, params }) {
-  if (page === 1 && !hasNext) return null
-
-  const previousParams = new URLSearchParams(params)
-  const nextParams = new URLSearchParams(params)
-  previousParams.set('page', String(Math.max(1, page - 1)))
-  nextParams.set('page', String(page + 1))
-
-  return (
-    <div className="mt-5 flex items-center justify-between gap-3">
-      {page > 1 ? (
-        <Link href={`/enseignant/demandes?${previousParams.toString()}`} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
-          Page précédente
-        </Link>
-      ) : <span />}
-      {hasNext && (
-        <Link href={`/enseignant/demandes?${nextParams.toString()}`} className="rounded-xl px-4 py-2 text-sm font-medium text-white" style={{ backgroundColor: 'var(--color-navy)' }}>
-          Page suivante
-        </Link>
-      )}
-    </div>
-  )
+function statusHref(status, filters = {}) {
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  if (filters.filterResident) params.set('resident', filters.filterResident)
+  if (filters.filterProcedure) params.set('procedure', filters.filterProcedure)
+  const qs = params.toString()
+  return `/enseignant/demandes${qs ? `?${qs}` : ''}`
 }
+

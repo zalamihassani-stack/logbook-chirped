@@ -199,7 +199,7 @@ export default function ExportFicheButton({ resident, realisations, year }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
           {/* Panel header */}
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Filtres d&apos;export</p>

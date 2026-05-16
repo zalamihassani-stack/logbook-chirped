@@ -104,7 +104,7 @@ export default async function HistoriquePage({ searchParams }) {
             className="rounded-xl px-1.5 py-2 text-center text-xs font-semibold transition sm:px-3 sm:text-sm"
             style={filterStatus === tab.value ? { backgroundColor: 'var(--color-navy)', color: 'white' } : { color: '#64748b' }}
           >
-            <span className="block truncate">{tab.label}</span>
+            <span className="block">{tab.label}</span>
             <span className="text-xs opacity-75">{counts[tab.value]}</span>
           </Link>
         ))}

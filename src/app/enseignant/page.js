@@ -4,6 +4,8 @@ import Link from 'next/link'
 import MetricCard from '@/components/ui/MetricCard'
 import PageHeader from '@/components/ui/PageHeader'
 import Badge from '@/components/ui/Badge'
+import AppCard from '@/components/ui/AppCard'
+import EmptyState from '@/components/ui/EmptyState'
 import { formatDate } from '@/lib/utils'
 import { TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
 import { ClipboardList, UserCheck, CheckCircle, XCircle, ChevronRight, FlaskConical } from 'lucide-react'
@@ -28,27 +30,27 @@ export default async function EnseignantDashboard() {
     recentFinalTravauxRes,
     recentTravauxRes,
   ] = await Promise.all([
-    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'pending'),
-    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'validated').gte('updated_at', startOfMonth),
-    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'refused').gte('updated_at', startOfMonth),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'resident').eq('is_active', true),
+    supabase.from('realisations').select('id', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'pending'),
+    supabase.from('realisations').select('id', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'validated').gte('updated_at', startOfMonth),
+    supabase.from('realisations').select('id', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'refused').gte('updated_at', startOfMonth),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'resident').eq('is_active', true),
     supabase.from('realisations')
       .select('id, performed_at, procedures(name), profiles!resident_id(full_name)')
       .eq('enseignant_id', user.id).eq('status', 'pending')
       .order('created_at', { ascending: false }).limit(5),
     supabase
       .from('travaux_scientifiques')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('encadrant_id', user.id)
       .in('validation_status', ['pending_initial', 'pending_final']),
     supabase
       .from('travaux_scientifiques')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('encadrant_id', user.id)
       .eq('validation_status', 'pending_initial'),
     supabase
       .from('travaux_scientifiques')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('encadrant_id', user.id)
       .eq('validation_status', 'pending_final'),
     supabase
@@ -79,10 +81,10 @@ export default async function EnseignantDashboard() {
   return (
     <div className="p-5 md:p-8 max-w-6xl">
       <PageHeader title="Tableau de bord" subtitle="Vos demandes et résidents" />
-      <div className="grid grid-cols-2 gap-3 mb-8 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
         {metrics.map((metric) => (
           <Link key={metric.label} href={metric.href} className="block hover:scale-[1.02] transition-transform active:scale-[0.98]">
-            <MetricCard {...metric} />
+            <MetricCard {...metric} compact />
           </Link>
         ))}
       </div>
@@ -90,17 +92,21 @@ export default async function EnseignantDashboard() {
       <div className="grid gap-5 lg:grid-cols-2">
         <DashboardPanel title="Dernières demandes en attente" href="/enseignant/demandes?status=pending">
           {(recentRes.data ?? []).map((realisation) => (
-            <Link key={realisation.id} href={`/enseignant/demandes/${realisation.id}`}
-              className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+            <AppCard
+              as={Link}
+              key={realisation.id}
+              href={`/enseignant/demandes/${realisation.id}`}
+              className="flex items-center gap-3 p-4 transition-shadow hover:shadow-md"
+            >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-800 truncate">{realisation.procedures?.name ?? '—'}</p>
                 <p className="text-xs text-slate-500 mt-0.5">{realisation.profiles?.full_name} · {formatDate(realisation.performed_at)}</p>
               </div>
               <Badge status="pending" />
               <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
-            </Link>
+            </AppCard>
           ))}
-          {(recentRes.data ?? []).length === 0 && <p className="text-center text-sm text-slate-400 py-6">Aucune demande en attente</p>}
+          {(recentRes.data ?? []).length === 0 && <EmptyState title="Aucune demande en attente" className="py-6" />}
         </DashboardPanel>
 
         <DashboardPanel
@@ -119,7 +125,7 @@ export default async function EnseignantDashboard() {
             </div>
           )}
           {(recentTravauxRes.data ?? []).map((travail) => <TravailRow key={travail.id} travail={travail} />)}
-          {(recentTravauxRes.data ?? []).length === 0 && <p className="text-center text-sm text-slate-400 py-6">Aucun travail en attente</p>}
+          {(recentTravauxRes.data ?? []).length === 0 && <EmptyState title="Aucun travail en attente" className="py-6" />}
         </DashboardPanel>
       </div>
     </div>
@@ -141,8 +147,11 @@ function DashboardPanel({ title, href, children }) {
 function TravailRow({ travail }) {
   const style = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
   return (
-    <Link href={`/enseignant/travaux?validation=${travail.validation_status}`}
-      className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+    <AppCard
+      as={Link}
+      href={`/enseignant/travaux/${travail.id}?from=travaux`}
+      className="flex items-center gap-3 p-4 transition-shadow hover:shadow-md"
+    >
       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: style.bg, color: style.color }}>
         <FlaskConical size={17} strokeWidth={1.8} />
       </div>
@@ -154,6 +163,6 @@ function TravailRow({ travail }) {
         {TRAVAIL_VALIDATION_LABELS[travail.validation_status] ?? travail.validation_status}
       </span>
       <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
-    </Link>
+    </AppCard>
   )
 }

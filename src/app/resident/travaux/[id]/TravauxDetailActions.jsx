@@ -2,14 +2,16 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle, Pencil, Trash2, X } from 'lucide-react'
+import { CheckCircle, Pencil, Trash2 } from 'lucide-react'
 import { deleteTravail, submitTravailFinalValidation } from '@/app/actions/resident'
 import { getTravailTypeKey } from '@/lib/travaux'
+import AppCard from '@/components/ui/AppCard'
 
 export default function TravauxDetailActions({ travail, types, enseignants, residents, canManage = true }) {
   const router = useRouter()
-  const [finalModal, setFinalModal] = useState(false)
+  const [showFinalForm, setShowFinalForm] = useState(false)
   const [finalForm, setFinalForm] = useState(() => initFinalForm(travail))
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const people = useMemo(() => [...enseignants, ...residents], [enseignants, residents])
@@ -59,7 +61,6 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
   }
 
   async function handleDelete() {
-    if (!confirm('Supprimer ce travail ?')) return
     setLoading(true)
     await deleteTravail(travail.id)
     router.push('/resident/travaux')
@@ -75,7 +76,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
       setError(res.error)
       return
     }
-    setFinalModal(false)
+    setShowFinalForm(false)
     router.refresh()
   }
 
@@ -91,7 +92,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
           Modifier
         </Link>
         <button
-          onClick={handleDelete}
+          onClick={() => setDeleteConfirm(true)}
           disabled={loading}
           className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
         >
@@ -103,25 +104,38 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
             onClick={() => {
               setFinalForm(initFinalForm(travail))
               setError('')
-              setFinalModal(true)
+              setShowFinalForm((current) => !current)
             }}
             className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
           >
             <CheckCircle size={15} strokeWidth={1.75} />
-            Soumettre pour validation finale
+            {showFinalForm ? 'Masquer la soumission finale' : 'Soumettre pour validation finale'}
           </button>
         )}
       </div>
 
-      {finalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+      {deleteConfirm && (
+        <AppCard className="mt-4 border-red-100 bg-red-50 p-4">
+          <p className="text-sm font-semibold text-red-700">Supprimer ce travail ?</p>
+          <p className="mt-1 text-xs text-red-600">Cette action supprimera le travail scientifique et ses auteurs associes.</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => setDeleteConfirm(false)} className="flex-1 rounded-xl border border-red-200 bg-white py-2 text-sm font-medium text-red-600">
+              Annuler
+            </button>
+            <button type="button" onClick={handleDelete} disabled={loading} className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-medium text-white disabled:opacity-60">
+              {loading ? 'Suppression...' : 'Supprimer'}
+            </button>
+          </div>
+        </AppCard>
+      )}
+
+      {showFinalForm && (
+        <AppCard className="mt-4 p-5">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>Soumission finale</h2>
                 <p className="mt-1 text-xs text-slate-500">Le statut passera à : {finalStatusLabel}</p>
               </div>
-              <button onClick={() => setFinalModal(false)}><X size={20} className="text-slate-400" /></button>
             </div>
             <form onSubmit={handleFinalSubmit} className="space-y-4">
               <div>
@@ -175,8 +189,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
                 {loading ? 'Soumission...' : 'Soumettre à l’encadrant'}
               </button>
             </form>
-          </div>
-        </div>
+        </AppCard>
       )}
     </>
   )

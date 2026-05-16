@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FileDown, Search, Loader2 } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
+import AppCard from '@/components/ui/AppCard'
+import FilterPanel from '@/components/ui/FilterPanel'
 import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
@@ -130,64 +132,71 @@ export default function ActesTab({ residents, procedures, enseignants }) {
     setExporting(false)
   }
 
+  const activeFiltersCount = [
+    filters.resident, filters.enseignant, filters.procedure,
+    filters.status, filters.year,
+  ].filter(Boolean).length
+
   return (
     <div>
-      <form onSubmit={handleSearch} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mb-5">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Resident</label>
-            <select value={filters.resident} onChange={(event) => set('resident', event.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
-              <option value="">Tous</option>
-              {residents.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name}</option>)}
-            </select>
+      <form onSubmit={handleSearch} className="mb-5">
+        <FilterPanel active={activeFiltersCount > 0}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Resident</label>
+              <select value={filters.resident} onChange={(event) => set('resident', event.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
+                <option value="">Tous</option>
+                {residents.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Enseignant</label>
+              <select value={filters.enseignant} onChange={(event) => set('enseignant', event.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
+                <option value="">Tous</option>
+                {enseignants.map((enseignant) => <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Geste</label>
+              <select value={filters.procedure} onChange={(event) => set('procedure', event.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
+                <option value="">Tous</option>
+                {procedures.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Statut</label>
+              <select value={filters.status} onChange={(event) => set('status', event.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
+                <option value="">Tous</option>
+                <option value="pending">En attente</option>
+                <option value="validated">Valides</option>
+                <option value="refused">Refuses</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Annee residanat</label>
+              <select value={filters.year} onChange={(event) => set('year', event.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
+                <option value="">Toutes</option>
+                {[1, 2, 3, 4, 5].map((year) => <option key={year} value={year}>Annee {year}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Du</label>
+              <input type="date" value={filters.from} onChange={(event) => set('from', event.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Au</label>
+              <input type="date" value={filters.to} onChange={(event) => set('to', event.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Enseignant</label>
-            <select value={filters.enseignant} onChange={(event) => set('enseignant', event.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
-              <option value="">Tous</option>
-              {enseignants.map((enseignant) => <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Geste</label>
-            <select value={filters.procedure} onChange={(event) => set('procedure', event.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
-              <option value="">Tous</option>
-              {procedures.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Statut</label>
-            <select value={filters.status} onChange={(event) => set('status', event.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
-              <option value="">Tous</option>
-              <option value="pending">En attente</option>
-              <option value="validated">Valides</option>
-              <option value="refused">Refuses</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Annee residanat</label>
-            <select value={filters.year} onChange={(event) => set('year', event.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
-              <option value="">Toutes</option>
-              {[1, 2, 3, 4, 5].map((year) => <option key={year} value={year}>Annee {year}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Du</label>
-            <input type="date" value={filters.from} onChange={(event) => set('from', event.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Au</label>
-            <input type="date" value={filters.to} onChange={(event) => set('to', event.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
-          </div>
-        </div>
-        <div className="flex gap-3 justify-end">
+
+        <div className="mt-4 flex gap-3 justify-end border-t border-slate-100 pt-3">
           {fetched && data.length > 0 && (
             <button type="button" onClick={handleExport} disabled={exporting}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50"
@@ -203,6 +212,7 @@ export default function ActesTab({ residents, procedures, enseignants }) {
             Rechercher
           </button>
         </div>
+        </FilterPanel>
       </form>
 
       {!fetched && loading && <SkeletonList count={5} variant="row" />}
@@ -212,17 +222,25 @@ export default function ActesTab({ residents, procedures, enseignants }) {
           <p className="text-xs text-slate-500 mb-3">{data.length} resultat(s)</p>
           <div className="space-y-2">
             {data.map((realisation) => (
-              <div key={realisation.id} className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-slate-100 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{realisation.procedures?.name ?? '—'}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {realisation.resident?.full_name ?? '—'} · {fmtDate(realisation.performed_at)} · {ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '—'}
-                    {realisation.resident_year_at_time ? ` · Annee ${realisation.resident_year_at_time}` : ''}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">{realisation.enseignant?.full_name ?? '—'}</p>
+              <AppCard key={realisation.id} className="px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{realisation.procedures?.name ?? '—'}</p>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <p className="truncate text-xs font-medium text-slate-600">{realisation.resident?.full_name ?? '—'}</p>
+                      <p className="flex-shrink-0 text-xs text-slate-400">{fmtDate(realisation.performed_at)}</p>
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <p className="text-xs text-slate-400">{ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '—'}</p>
+                      {realisation.resident_year_at_time && <p className="text-xs text-slate-400">· A{realisation.resident_year_at_time}</p>}
+                      {realisation.enseignant?.full_name && <p className="text-xs text-slate-400">· {realisation.enseignant.full_name}</p>}
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 pt-0.5">
+                    <Badge status={realisation.status} />
+                  </div>
                 </div>
-                <Badge status={realisation.status} />
-              </div>
+              </AppCard>
             ))}
             {data.length === 0 && (
               <p className="text-center text-sm text-slate-400 py-10">Aucun acte trouve pour ces filtres</p>

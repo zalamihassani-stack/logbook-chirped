@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -46,7 +47,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <img src="/logo.png" alt="LCP" className="w-24 h-24 object-contain mb-4" />
+          <Image src="/logo.png" alt="LCP" width={96} height={96} className="mb-4 object-contain" priority />
           <h1 className="text-xl font-bold text-center text-white">
             Logbook Chirurgie Pédiatrique
           </h1>

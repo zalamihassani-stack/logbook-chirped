@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import MetricCard from '@/components/ui/MetricCard'
 import PageHeader from '@/components/ui/PageHeader'
+import AppCard from '@/components/ui/AppCard'
 import { Users, Scissors, ClipboardCheck, GraduationCap, ChevronRight, Database, Settings } from 'lucide-react'
 
 const QUICK_NAV = [
@@ -18,9 +19,9 @@ export default async function AdminDashboard() {
   if (!user) redirect('/login')
 
   const [usersRes, proceduresRes, realisationsRes] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('procedures').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('realisations').select('*', { count: 'exact', head: true }),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }),
+    supabase.from('procedures').select('id', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('realisations').select('id', { count: 'exact', head: true }),
   ])
 
   const metrics = [
@@ -34,15 +35,18 @@ export default async function AdminDashboard() {
     <div className="p-5 md:p-8 max-w-4xl">
       <PageHeader title="Tableau de bord" subtitle="Vue d'ensemble de l'application" />
 
-      <div className="grid grid-cols-2 gap-3 mb-8 md:grid-cols-4">
-        {metrics.map(m => <MetricCard key={m.label} {...m} />)}
+      <div className="mb-6 grid grid-cols-2 gap-2.5 md:grid-cols-4">
+        {metrics.map(m => <MetricCard key={m.label} {...m} compact />)}
       </div>
 
       <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-navy)' }}>Navigation rapide</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {QUICK_NAV.map(({ label, desc, icon: Icon, path, color }) => (
-          <Link key={path} href={path}
-            className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow"
+          <AppCard
+            as={Link}
+            key={path}
+            href={path}
+            className="flex items-center gap-4 p-4 transition-shadow hover:shadow-md"
           >
             <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: color + '20' }}>
@@ -53,7 +57,7 @@ export default async function AdminDashboard() {
               <p className="text-xs text-slate-500 mt-0.5 truncate">{desc}</p>
             </div>
             <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
-          </Link>
+          </AppCard>
         ))}
       </div>
     </div>

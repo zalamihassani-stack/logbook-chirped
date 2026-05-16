@@ -102,7 +102,7 @@ export default async function ResidentDashboard() {
         }
       />
 
-      <DashboardSection title="Mes actes" columns="grid-cols-2 lg:grid-cols-4">
+      <DashboardSection title="Mes actes" columns="grid-cols-2 sm:grid-cols-4">
         <StatCard href="/resident/historique" icon={ListChecks} label="Total saisis" value={totalRes.count ?? 0} tone="primary" />
         <StatCard href="/resident/historique?status=validated" icon={CheckCircle} label="Validés" value={validatedRes.count ?? 0} tone="success" />
         <StatCard href="/resident/historique?status=pending" icon={Clock} label="En attente" value={pendingRes.count ?? 0} tone="warning" />
@@ -159,7 +159,7 @@ function summarizeObjectives(objectives, progressIndex) {
   return { done, total, pct: total ? Math.min(100, Math.round((done / total) * 100)) : 0 }
 }
 
-function DashboardSection({ title, children, columns = 'grid-cols-2 lg:grid-cols-4' }) {
+function DashboardSection({ title, children, columns = 'grid-cols-2 sm:grid-cols-4' }) {
   return (
     <section className="mb-6">
       <h2 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{title}</h2>

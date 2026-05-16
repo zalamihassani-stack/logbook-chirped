@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { redirect, notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
+import TravailDetailView from '@/components/travaux/TravailDetailView'
 import TravauxDetailActions from './TravauxDetailActions'
-import { formatTravailAuthors, getTravailValidationHelp, normalizeTravailTypes, TRAVAIL_STATUS_LABELS, TRAVAIL_STATUS_STYLES, TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
+import { normalizeTravailTypes } from '@/lib/travaux'
 
 export default async function TravauxDetailPage({ params }) {
   const { id } = await params
@@ -14,22 +15,24 @@ export default async function TravauxDetailPage({ params }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: travail }, { data: types }, { data: enseignants }, { data: residents }] = await Promise.all([
+  const [{ data: travail }, { data: types }, { data: enseignants }, { data: residents }, { data: history }] = await Promise.all([
     admin.from('travaux_scientifiques')
-      .select('id, resident_id, title, journal_or_event, year, authors, doi_or_url, status, validation_status, validation_feedback, initial_validated_by, initial_validated_at, final_validated_at, type_id, encadrant_id, travail_types(name, color_hex), encadrant:profiles!encadrant_id(id, full_name), travail_auteurs(id, profile_id, external_name, author_order, profiles(id, full_name, role))')
-      .eq('id', id).single(),
+      .select('id, resident_id, title, journal_or_event, year, authors, doi_or_url, status, validation_status, validation_feedback, initial_validated_by, initial_validated_at, final_validated_at, type_id, encadrant_id, travail_types(name, color_hex), resident:profiles!resident_id(id, full_name, promotion), encadrant:profiles!encadrant_id(id, full_name), travail_auteurs(id, profile_id, external_name, author_order, profiles(id, full_name, role))')
+      .eq('id', id)
+      .single(),
     supabase.from('travail_types').select('id, name, color_hex').eq('is_active', true).order('display_order'),
     admin.from('profiles').select('id, full_name, role').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
     admin.from('profiles').select('id, full_name, role').eq('role', 'resident').eq('is_active', true).order('full_name'),
+    admin.from('travail_validation_history')
+      .select('id, action, feedback, created_at, enseignant:profiles!enseignant_id(full_name)')
+      .eq('travail_id', id)
+      .order('created_at', { ascending: true }),
   ])
 
   const authorEntry = travail?.travail_auteurs?.find((author) => author.profile_id === user.id)
   const canAccess = travail?.resident_id === user.id || Boolean(authorEntry)
   const canManage = travail?.resident_id === user.id
   if (!travail || !canAccess) notFound()
-  const statusStyle = TRAVAIL_STATUS_STYLES[travail.status] ?? { bg: '#f1f5f9', color: '#64748b' }
-  const validationStyle = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
-  const validationHelp = getTravailValidationHelp(travail.validation_status)
 
   return (
     <div className="max-w-2xl p-5 md:p-8">
@@ -40,38 +43,8 @@ export default async function TravauxDetailPage({ params }) {
 
       <PageHeader title={travail.title} subtitle={`${travail.year}`} />
 
-      <div className="mb-4 space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          {travail.travail_types && (
-            <span className="rounded-full px-2.5 py-0.5 text-xs font-medium"
-              style={{ backgroundColor: `${travail.travail_types.color_hex}25`, color: travail.travail_types.color_hex }}>
-              {travail.travail_types.name}
-            </span>
-          )}
-          <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}>
-            Statut : {TRAVAIL_STATUS_LABELS[travail.status] ?? travail.status}
-          </span>
-          <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: validationStyle.bg, color: validationStyle.color }}>
-            Validation : {TRAVAIL_VALIDATION_LABELS[travail.validation_status] ?? travail.validation_status}
-          </span>
-        </div>
-        {validationHelp && <p className="text-xs text-slate-500">{validationHelp}</p>}
-
-        {travail.journal_or_event && <Row label="Journal / Congrès" value={travail.journal_or_event} />}
-        {travail.encadrant?.full_name && <Row label="Encadrant" value={travail.encadrant.full_name} />}
-        {travail.initial_validated_at && <Row label="Validation initiale" value={new Date(travail.initial_validated_at).toLocaleDateString('fr-FR')} />}
-        {travail.final_validated_at && <Row label="Validation définitive" value={new Date(travail.final_validated_at).toLocaleDateString('fr-FR')} />}
-        {travail.validation_feedback && <Row label="Feedback" value={travail.validation_feedback} />}
-        {formatTravailAuthors(travail) && <Row label="Auteurs" value={formatTravailAuthors(travail)} />}
-        {travail.doi_or_url && (
-          <div className="flex gap-3">
-            <span className="w-36 flex-shrink-0 pt-0.5 text-xs font-medium text-slate-500">DOI / URL</span>
-            <a href={travail.doi_or_url} target="_blank" rel="noopener noreferrer"
-              className="break-all text-sm" style={{ color: 'var(--color-navy)' }}>
-              {travail.doi_or_url}
-            </a>
-          </div>
-        )}
+      <div className="mb-4">
+        <TravailDetailView travail={travail} history={history ?? []} showResident={false} />
       </div>
 
       <TravauxDetailActions
@@ -81,15 +54,6 @@ export default async function TravauxDetailPage({ params }) {
         residents={residents ?? []}
         canManage={canManage}
       />
-    </div>
-  )
-}
-
-function Row({ label, value }) {
-  return (
-    <div className="flex gap-3">
-      <span className="w-36 flex-shrink-0 pt-0.5 text-xs font-medium text-slate-500">{label}</span>
-      <span className="text-sm text-slate-800">{value}</span>
     </div>
   )
 }

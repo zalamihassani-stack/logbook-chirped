@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { FileDown, X, Loader2 } from 'lucide-react'
+import { FileDown, Loader2 } from 'lucide-react'
+import AppModal from '@/components/ui/AppModal'
+import FormField, { SelectInput, TextInput } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 
 const STATUS_LABELS = { soumis: 'Soumis', accepte: 'Accepté', publie: 'Publié', presente: 'Présenté' }
@@ -119,35 +121,25 @@ export default function ExportTravauxButton({ residentName }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-base" style={{ color: '#0D2B4E' }}>Exporter les travaux</h2>
-              <button onClick={() => setOpen(false)}><X size={18} className="text-slate-400" /></button>
-            </div>
+        <AppModal title="Exporter les travaux" onClose={() => setOpen(false)} maxWidth="max-w-sm">
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">De</label>
+              <FormField label="De">
                 <div className="grid grid-cols-2 gap-2">
-                  <select value={fromMonth} onChange={e => setFromMonth(parseInt(e.target.value))}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
+                  <SelectInput value={fromMonth} onChange={e => setFromMonth(parseInt(e.target.value))}>
                     {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-                  </select>
-                  <input type="number" value={fromYear} onChange={e => setFromYear(parseInt(e.target.value))}
-                    min="2000" max="2100"
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
+                  </SelectInput>
+                  <TextInput type="number" value={fromYear} onChange={e => setFromYear(parseInt(e.target.value))}
+                    min="2000" max="2100" />
                 </div>
-              </div>
+              </FormField>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">À</label>
                 <div className="grid grid-cols-2 gap-2">
-                  <select value={toMonth} onChange={e => setToMonth(parseInt(e.target.value))}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
+                  <SelectInput value={toMonth} onChange={e => setToMonth(parseInt(e.target.value))}>
                     {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-                  </select>
-                  <input type="number" value={toYear} onChange={e => setToYear(parseInt(e.target.value))}
-                    min="2000" max="2100"
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-sky-400" />
+                  </SelectInput>
+                  <TextInput type="number" value={toYear} onChange={e => setToYear(parseInt(e.target.value))}
+                    min="2000" max="2100" />
                 </div>
               </div>
               {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
@@ -160,8 +152,7 @@ export default function ExportTravauxButton({ residentName }) {
                 {loading ? <><Loader2 size={15} className="animate-spin" /> Génération…</> : <><FileDown size={15} /> Télécharger</>}
               </button>
             </div>
-          </div>
-        </div>
+        </AppModal>
       )}
     </>
   )

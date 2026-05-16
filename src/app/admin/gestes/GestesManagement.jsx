@@ -2,13 +2,22 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import AppCard from '@/components/ui/AppCard'
+import AppModal from '@/components/ui/AppModal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import StatusTabs from '@/components/ui/StatusTabs'
+import FormField, { TextInput } from '@/components/ui/FormField'
 import { createProcedure, updateProcedure, deleteProcedure, createCategory, updateCategory, deleteCategory } from '@/app/actions/admin'
-import { Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 
 const YEARS = [1, 2, 3, 4, 5]
 const DEFAULT_CATEGORY_COLOR = '#0D2B4E'
 const LEVELS = { 0: 'Non requis', 1: 'Exposition', 2: 'Sous supervision', 3: 'Autonomie' }
 const OBJECTIVE_LEVELS = { 0: 'Non requis', 2: 'Sous supervision', 3: 'Autonomie' }
+const TABS = [
+  { value: 'gestes', label: 'Gestes' },
+  { value: 'categories', label: 'Catégories' },
+]
 
 function emptyObjectives() {
   return YEARS.map((year) => ({ year, required_level: 0, min_count: 1 }))
@@ -44,6 +53,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [confirmCategoryDelete, setConfirmCategoryDelete] = useState(null)
 
   useEffect(() => {
     setProcedures(initialProcedures)
@@ -135,6 +145,21 @@ export default function GestesManagement({ initialProcedures, initialCategories 
     router.refresh()
   }
 
+  async function handleCategoryDelete(id) {
+    setLoading(true)
+    setError('')
+    const res = await deleteCategory(id)
+    setLoading(false)
+    if (res.error) {
+      setError(res.error)
+      setConfirmCategoryDelete(null)
+      return
+    }
+    setConfirmCategoryDelete(null)
+    setCategories((current) => current.filter((item) => item.id !== id))
+    router.refresh()
+  }
+
   async function handleCatSubmit(event) {
     event.preventDefault()
     setLoading(true)
@@ -187,18 +212,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
         <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="mb-4 flex gap-2">
-        {['gestes', 'categories'].map((item) => (
-          <button
-            key={item}
-            onClick={() => setTab(item)}
-            className="rounded-full px-4 py-1.5 text-sm font-medium capitalize transition"
-            style={tab === item ? { backgroundColor: 'var(--color-navy)', color: 'white' } : { backgroundColor: 'white', color: 'var(--color-navy)', border: '1px solid #e2e8f0' }}
-          >
-            {item === 'gestes' ? 'Gestes' : 'Categories'}
-          </button>
-        ))}
-      </div>
+      <StatusTabs tabs={TABS} activeValue={tab} onChange={setTab} columns={2} className="mb-5 max-w-md" />
 
       {tab === 'gestes' && (
         <>
@@ -217,7 +231,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
               const category = categories.find((item) => item.id === procedure.category_id)
               const hasObjectives = procedure.procedure_objectives?.filter((objective) => objective.required_level > 1)
               return (
-                <div key={procedure.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <AppCard key={procedure.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -257,7 +271,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                       </button>
                     </div>
                   </div>
-                </div>
+                </AppCard>
               )
             })}
             {filtered.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Aucun geste</p>}
@@ -268,7 +282,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
       {tab === 'categories' && (
         <div className="space-y-2">
           {categories.map((category) => (
-            <div key={category.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <AppCard key={category.id} className="flex items-center gap-3 p-4">
               <div className="h-8 w-8 flex-shrink-0 rounded-lg" style={{ backgroundColor: category.color_hex }} />
               <span className="flex-1 text-sm font-medium text-slate-800">{category.name}</span>
               <div className="flex gap-2">
@@ -279,34 +293,19 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                   <Pencil size={15} className="text-slate-500" />
                 </button>
                 <button
-                  onClick={async () => {
-                    if (!confirm('Supprimer cette categorie ?')) return
-                    setError('')
-                    const res = await deleteCategory(category.id)
-                    if (res.error) {
-                      setError(res.error)
-                      return
-                    }
-                    setCategories((current) => current.filter((item) => item.id !== category.id))
-                    router.refresh()
-                  }}
+                  onClick={() => setConfirmCategoryDelete(category)}
                   className="rounded-lg p-2 hover:bg-red-50"
                 >
                   <Trash2 size={15} className="text-red-500" />
                 </button>
               </div>
-            </div>
+            </AppCard>
           ))}
         </div>
       )}
 
       {modal !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{modal === 'create' ? 'Nouveau geste' : 'Modifier'}</h2>
-              <button onClick={() => setModal(null)}><X size={20} className="text-slate-400" /></button>
-            </div>
+        <AppModal title={modal === 'create' ? 'Nouveau geste' : 'Modifier'} onClose={() => setModal(null)} maxWidth="max-w-lg">
             <form onSubmit={handleSubmit} className="space-y-4">
               <Field label="Code procedure" type="number" value={form.procedure_code} onChange={(value) => setForm((current) => ({ ...current, procedure_code: value }))} />
               <Field label="Nom du geste" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} required />
@@ -403,17 +402,11 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                 {loading ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </form>
-          </div>
-        </div>
+        </AppModal>
       )}
 
       {catModal !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{catModal === 'create' ? 'Nouvelle categorie' : 'Modifier'}</h2>
-              <button onClick={() => setCatModal(null)}><X size={20} className="text-slate-400" /></button>
-            </div>
+        <AppModal title={catModal === 'create' ? 'Nouvelle catégorie' : 'Modifier'} onClose={() => setCatModal(null)} maxWidth="max-w-sm">
             <form onSubmit={handleCatSubmit} className="space-y-4">
               <Field label="Nom" value={catForm.name} onChange={(value) => setCatForm((current) => ({ ...current, name: value }))} required />
               <div>
@@ -439,15 +432,11 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                 {loading ? '...' : 'Enregistrer'}
               </button>
             </form>
-          </div>
-        </div>
+        </AppModal>
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
-            <p className="mb-2 font-semibold text-slate-800">Desactiver &quot;{confirmDelete.name}&quot; ?</p>
-            <p className="mb-5 text-sm text-slate-500">Le geste sera masque du referentiel.</p>
+        <AppModal title={`Désactiver "${confirmDelete.name}" ?`} subtitle="Le geste sera masqué du référentiel." onClose={() => setConfirmDelete(null)} maxWidth="max-w-sm">
             <div className="flex gap-3">
               <button onClick={() => setConfirmDelete(null)} className="flex-1 rounded-xl border border-slate-200 py-2 text-sm">Annuler</button>
               <button
@@ -458,23 +447,31 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                 {loading ? '...' : 'Desactiver'}
               </button>
             </div>
-          </div>
-        </div>
+        </AppModal>
+      )}
+
+      {confirmCategoryDelete && (
+        <ConfirmDialog
+          title={`Supprimer "${confirmCategoryDelete.name}" ?`}
+          description="La categorie sera supprimee si aucun geste ne l'utilise."
+          confirmLabel="Supprimer"
+          loading={loading}
+          onCancel={() => setConfirmCategoryDelete(null)}
+          onConfirm={() => handleCategoryDelete(confirmCategoryDelete.id)}
+        />
       )}
     </>
   )
 }
 function Field({ label, type = 'text', value, onChange, required }) {
   return (
-    <div>
-      <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>{label}</label>
-      <input
+    <FormField label={label}>
+      <TextInput
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required={required}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-sky-400"
       />
-    </div>
+    </FormField>
   )
 }

@@ -11,8 +11,7 @@ export default async function EnseignantTravauxPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: residents }, { data: enseignants }, { data: travailTypes }] = await Promise.all([
-    admin.from('profiles').select('id, full_name, role').eq('role', 'resident').eq('is_active', true).order('full_name'),
+  const [{ data: enseignants }, { data: travailTypes }] = await Promise.all([
     admin.from('profiles').select('id, full_name, role').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
     supabase.from('travail_types').select('id, name, color_hex').eq('is_active', true).order('display_order'),
   ])
@@ -21,10 +20,9 @@ export default async function EnseignantTravauxPage() {
     <div className="max-w-6xl p-5 md:p-8">
       <PageHeader
         title="Travaux scientifiques"
-        subtitle="Recherche par auteur, année, type, statut et encadrant"
+        subtitle="Validation des travaux encadrés et consultation des travaux où votre nom est cité"
       />
       <TravauxTab
-        residents={residents ?? []}
         enseignants={enseignants ?? []}
         travailTypes={normalizeTravailTypes(travailTypes ?? [])}
         currentEnseignantId={user.id}

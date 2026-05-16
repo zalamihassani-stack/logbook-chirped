@@ -223,6 +223,12 @@ export async function createTravail(data) {
   const authorsError = await replaceTravailAuthors(admin, travail.id, authorInput.orderedAuthors)
   if (authorsError) return { error: formatTravailSchemaError(authorsError) }
 
+  await addTravailHistory(admin, {
+    travailId: travail.id,
+    action: 'submitted',
+    feedback: 'Soumission initiale',
+  })
+
   await notifyEncadrantForTravail(admin, {
     travailId: travail.id,
     encadrantId: travailData.encadrant_id,
@@ -280,6 +286,12 @@ export async function updateTravail(id, data) {
 
   const authorsError = await replaceTravailAuthors(admin, id, authorInput.orderedAuthors)
   if (authorsError) return { error: formatTravailSchemaError(authorsError) }
+
+  await addTravailHistory(admin, {
+    travailId: id,
+    action: validationStatus === 'pending_final' ? 'pending_final' : 'resubmitted',
+    feedback: currentTravail?.validation_status === 'refused' ? 'Modification apres corrections demandees' : null,
+  })
 
   if (shouldNotifyEncadrant) {
     await notifyEncadrantForTravail(admin, {
@@ -358,6 +370,12 @@ export async function submitTravailFinalValidation(id, data) {
 
   const authorsError = await replaceTravailAuthors(admin, id, authorInput.orderedAuthors)
   if (authorsError) return { error: formatTravailSchemaError(authorsError) }
+
+  await addTravailHistory(admin, {
+    travailId: id,
+    action: 'pending_final',
+    feedback: 'Soumission finale',
+  })
 
   await notifyEncadrantForTravail(admin, {
     travailId: id,
@@ -536,6 +554,15 @@ async function replaceTravailAuthors(admin, travailId, orderedAuthors = []) {
 
   const { error } = await admin.from('travail_auteurs').insert(rows)
   return error
+}
+
+async function addTravailHistory(admin, { travailId, action, feedback }) {
+  if (!travailId || !action) return
+  await admin.from('travail_validation_history').insert({
+    travail_id: travailId,
+    action,
+    feedback: feedback || null,
+  })
 }
 
 function formatTravailSchemaError(error) {

@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { FileDown, X, Loader2 } from 'lucide-react'
+import { FileDown, Loader2 } from 'lucide-react'
+import AppModal from '@/components/ui/AppModal'
+import FormField, { TextInput } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
@@ -113,23 +115,14 @@ export default function ExportGestesButton({ residentName }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-base font-bold" style={{ color: '#0D2B4E' }}>Exporter les gestes</h2>
-              <button onClick={() => setOpen(false)}><X size={18} className="text-slate-400" /></button>
-            </div>
+        <AppModal title="Exporter les gestes" onClose={() => setOpen(false)} maxWidth="max-w-sm">
             <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Du</label>
-                <input type="date" value={from} onChange={(event) => setFrom(event.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Au</label>
-                <input type="date" value={to} onChange={(event) => setTo(event.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
-              </div>
+              <FormField label="Du">
+                <TextInput type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+              </FormField>
+              <FormField label="Au">
+                <TextInput type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+              </FormField>
               {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
               <button
                 onClick={handleExport}
@@ -140,8 +133,7 @@ export default function ExportGestesButton({ residentName }) {
                 {loading ? <><Loader2 size={15} className="animate-spin" /> Génération...</> : <><FileDown size={15} /> Télécharger</>}
               </button>
             </div>
-          </div>
-        </div>
+        </AppModal>
       )}
     </>
   )

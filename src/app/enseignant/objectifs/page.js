@@ -1,15 +1,60 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
-import ObjectifsFilters from './ObjectifsFilters'
+import ReferentielFilters from '@/app/resident/referentiel/ReferentielFilters'
+import { OBJECTIF_LEVEL_LABELS, procedureToGlobalObjective } from '@/lib/logbook'
 
-const SECTIONS = [
-  { level: 3, label: 'Maitrise', dot: '#16a34a', style: { bg: 'var(--color-success-light)', color: 'var(--color-success)' } },
-  { level: 2, label: 'Competence supervisee', dot: '#f59e0b', style: { bg: '#fef3c7', color: '#92400e' } },
-  { level: 1, label: 'Exposition', dot: '#3b82f6', style: { bg: 'var(--color-info-light)', color: 'var(--color-info)' } },
-]
+const LEVEL_STYLE = {
+  1: { bg: 'var(--color-info-light)', color: 'var(--color-info)' },
+  2: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },
+  3: { bg: 'var(--color-success-light)', color: 'var(--color-success)' },
+}
 
-export default async function ObjectifsPage({ searchParams }) {
+function normalizeText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function RequirementLine({ children }) {
+  return (
+    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+      {children}
+    </span>
+  )
+}
+
+function GestCard({ objective, showLevel = true }) {
+  const procedure = objective.procedures
+  const category = procedure?.categories
+  const levelStyle = LEVEL_STYLE[objective.required_level]
+
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold leading-snug text-slate-800">{procedure?.name ?? '-'}</p>
+        {procedure?.pathologie && <p className="mt-0.5 text-xs text-slate-500">{procedure.pathologie}</p>}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {showLevel && levelStyle && (
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: levelStyle.bg, color: levelStyle.color }}>
+              {OBJECTIF_LEVEL_LABELS[objective.required_level]}
+            </span>
+          )}
+          <RequirementLine>{objective.min_count} acte{objective.min_count > 1 ? 's' : ''}</RequirementLine>
+          <RequirementLine>A{objective.year}</RequirementLine>
+          {category && (
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: `${category.color_hex}20`, color: category.color_hex }}>
+              {category.name}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default async function ReferentielEnseignantPage({ searchParams }) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -17,97 +62,57 @@ export default async function ObjectifsPage({ searchParams }) {
   if (!user) redirect('/login')
 
   const params = await searchParams
-  const year = params?.year ? parseInt(params.year, 10) : 1
+  const query = typeof params?.q === 'string' ? params.q.trim() : ''
   const filterCat = params?.cat ?? ''
   const filterLevel = params?.level ?? ''
+  const filterYear = params?.year ?? ''
+  const normalizedQuery = normalizeText(query)
 
-  const [{ data: allObjectives }, { data: categories }] = await Promise.all([
-    supabase
-      .from('procedure_objectives')
-      .select('year, required_level, min_count, procedures(id, name, pathologie, category_id, categories(name, color_hex))')
-      .eq('is_active', true),
+  const [categoriesRes, proceduresRes] = await Promise.all([
     supabase.from('categories').select('id, name, color_hex').order('display_order'),
+    supabase
+      .from('procedures')
+      .select('id, name, pathologie, category_id, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, categories(name, color_hex)')
+      .eq('is_active', true)
+      .order('name'),
   ])
 
-  const all = allObjectives ?? []
-  const firstYearAtLevel = new Map()
-  for (const objective of all) {
-    const procedureId = objective.procedures?.id
-    if (!procedureId) continue
-    const key = `${procedureId}_${objective.required_level}`
-    const current = firstYearAtLevel.get(key)
-    if (current === undefined || objective.year < current) firstYearAtLevel.set(key, objective.year)
-  }
-
-  const yearObjectives = all.filter((objective) => {
-    if (objective.year !== year) return false
-    const procedureId = objective.procedures?.id
-    if (!procedureId) return false
-    if (firstYearAtLevel.get(`${procedureId}_${objective.required_level}`) !== year) return false
-    if (filterCat && objective.procedures?.category_id !== filterCat) return false
-    if (filterLevel && String(objective.required_level) !== filterLevel) return false
-    return true
-  })
+  const categories = categoriesRes.data ?? []
+  const objectives = (proceduresRes.data ?? [])
+    .map(procedureToGlobalObjective)
+    .filter((objective) => {
+      if (!objective.required_level) return false
+      const procedure = objective.procedures
+      const category = procedure?.categories
+      if (filterCat && procedure?.category_id !== filterCat) return false
+      if (filterLevel && String(objective.required_level) !== filterLevel) return false
+      if (filterYear && String(objective.year) !== filterYear) return false
+      if (normalizedQuery) {
+        const haystack = normalizeText(`${procedure?.name ?? ''} ${procedure?.pathologie ?? ''} ${category?.name ?? ''}`)
+        if (!haystack.includes(normalizedQuery)) return false
+      }
+      return true
+    })
 
   return (
-    <div className="p-5 md:p-8 max-w-3xl">
-      <PageHeader
-        title="Objectifs de formation"
-        subtitle={`${yearObjectives.length} geste(s) introduits en annee ${year}`}
-      />
+    <div className="max-w-3xl p-5 md:p-8">
+      <PageHeader title="Référentiel" subtitle={`${objectives.length} geste(s)`} />
 
-      <ObjectifsFilters
-        year={year}
+      <ReferentielFilters
+        query={query}
         filterCat={filterCat}
         filterLevel={filterLevel}
-        categories={categories ?? []}
+        filterYear={filterYear}
+        categories={categories}
+        basePath="/enseignant/objectifs"
       />
 
-      {SECTIONS.map(({ level, label, dot, style }) => {
-        const items = yearObjectives.filter((objective) => objective.required_level === level)
-        if (items.length === 0) return null
-        return (
-          <section key={level} className="mb-7">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dot }} />
-              <h2 className="text-sm font-semibold" style={{ color: style.color }}>
-                {label}
-                <span className="ml-2 text-xs font-normal text-slate-400">({items.length})</span>
-              </h2>
-            </div>
-            <div className="space-y-2">
-              {items.map((objective, index) => {
-                const procedure = objective.procedures
-                const category = procedure?.categories
-                return (
-                  <div key={index} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800">{procedure?.name ?? '—'}</p>
-                        {procedure?.pathologie && <p className="text-xs text-slate-500 mt-0.5">{procedure.pathologie}</p>}
-                        {category && (
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block"
-                            style={{ backgroundColor: `${category.color_hex}25`, color: category.color_hex }}>
-                            {category.name}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs px-2.5 py-0.5 rounded-full font-medium flex-shrink-0"
-                        style={{ backgroundColor: style.bg, color: style.color }}>
-                        min. {objective.min_count}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
-
-      {yearObjectives.length === 0 && (
-        <p className="text-center text-sm text-slate-400 py-8">Aucun objectif pour ces criteres</p>
-      )}
+      <div className="space-y-2">
+        {objectives.map((objective) => (
+          <GestCard key={objective.procedure_id} objective={objective} showLevel={!filterLevel} />
+        ))}
+        {objectives.length === 0 && <p className="rounded-2xl bg-white py-8 text-center text-sm text-slate-400">Aucun geste</p>}
+      </div>
     </div>
   )
 }

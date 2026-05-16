@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import AppCard from '@/components/ui/AppCard'
 import GestesFilters from './GestesFilters'
 
 export default async function EnseignantGestesPage({ searchParams }) {
@@ -83,7 +84,7 @@ export default async function EnseignantGestesPage({ searchParams }) {
 
       <div className="space-y-3">
         {sorted.map((procedure) => (
-          <div key={procedure.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <AppCard key={procedure.id} className="p-4">
             <div className="flex items-start justify-between gap-3 mb-2">
               <div>
                 <p className="text-sm font-semibold text-slate-800">{procedure.name}</p>
@@ -115,7 +116,7 @@ export default async function EnseignantGestesPage({ searchParams }) {
               </div>
             )}
             {procedure.residentStats.length === 0 && <p className="text-xs text-slate-400 mt-1">Aucune realisation validee</p>}
-          </div>
+          </AppCard>
         ))}
         {sorted.length === 0 && (
           <p className="text-center text-sm text-slate-400 py-8">Aucun geste pour cette specialite</p>

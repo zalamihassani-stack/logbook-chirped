@@ -18,6 +18,7 @@ export async function GET() {
           backgroundColor: 'white',
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={base64} width={512} height={512} alt="" style={{ objectFit: 'contain' }} />
       </div>
     ),

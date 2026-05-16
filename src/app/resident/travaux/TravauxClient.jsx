@@ -1,8 +1,10 @@
 'use client'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, Plus, SlidersHorizontal } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
+import StatusTabs from '@/components/ui/StatusTabs'
+import FilterPanel from '@/components/ui/FilterPanel'
 import ExportTravauxButton from './ExportTravauxButton'
 import { formatTravailAuthors, getStatusOptionsForType, TRAVAIL_STATUS_LABELS, TRAVAIL_STATUS_STYLES, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
 
@@ -49,31 +51,17 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
         </div>
       } />
 
-      <div className="mb-5 grid grid-cols-4 gap-1 rounded-2xl bg-slate-100 p-1">
-        {WORKFLOW_FILTERS.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            onClick={() => setWorkflowFilter(filter.id)}
-            className="rounded-xl px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-3 sm:text-sm"
-            style={workflowFilter === filter.id ? { backgroundColor: 'var(--color-navy)', color: 'white' } : { color: '#64748b' }}
-          >
-            <span className="block truncate">{filter.label}</span>
-            <span className="text-xs opacity-75">{counts[filter.id] ?? 0}</span>
-          </button>
-        ))}
-      </div>
+      <StatusTabs
+        tabs={WORKFLOW_FILTERS.map((filter) => ({ value: filter.id, label: filter.label }))}
+        activeValue={workflowFilter}
+        counts={counts}
+        onChange={setWorkflowFilter}
+        columns={4}
+        className="mb-5"
+      />
 
-      <details className="mb-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm" open={hasSecondaryFilters}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>
-          <span className="inline-flex items-center gap-2">
-            <SlidersHorizontal size={16} strokeWidth={1.8} />
-            Filtres
-          </span>
-          {hasSecondaryFilters && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">actifs</span>}
-        </summary>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <FilterPanel active={hasSecondaryFilters} className="mb-5">
+        <div className="grid gap-3 sm:grid-cols-2">
           <select value={authorFilter} onChange={(event) => setAuthorFilter(event.target.value)}
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
             <option value="all">Tous mes travaux</option>
@@ -116,7 +104,7 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
             </button>
           )}
         </div>
-      </details>
+      </FilterPanel>
 
       <div className="space-y-2">
         {filtered.map((travail) => (

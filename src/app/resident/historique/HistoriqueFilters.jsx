@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { SlidersHorizontal, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
+import FilterPanel from '@/components/ui/FilterPanel'
 
 export default function HistoriqueFilters({ filterStatus, filterActivity, filterEnseignant, dateFrom, dateTo, query, enseignants, hasFilters }) {
   const router = useRouter()
@@ -42,16 +43,8 @@ export default function HistoriqueFilters({ filterStatus, filterActivity, filter
         </div>
       </form>
 
-      <details className="mb-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm" open={hasFilters}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>
-          <span className="inline-flex items-center gap-2">
-            <SlidersHorizontal size={16} strokeWidth={1.8} />
-            Filtres
-          </span>
-          {hasFilters && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">actifs</span>}
-        </summary>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <FilterPanel active={hasFilters} className="mb-5">
+        <div className="grid gap-3 sm:grid-cols-2">
         <select
           value={filterActivity}
           onChange={(e) => navigate({ activity: e.target.value })}
@@ -110,7 +103,7 @@ export default function HistoriqueFilters({ filterStatus, filterActivity, filter
             </Link>
           )}
         </div>
-      </details>
+      </FilterPanel>
     </>
   )
 }

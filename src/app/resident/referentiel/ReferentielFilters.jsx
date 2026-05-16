@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
+import FilterPanel from '@/components/ui/FilterPanel'
 
 export default function ReferentielFilters({
   query,
@@ -63,16 +64,8 @@ export default function ReferentielFilters({
         </button>
       </form>
 
-      <details className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm" open={hasFilters}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>
-          <span className="inline-flex items-center gap-2">
-            <SlidersHorizontal size={16} strokeWidth={1.8} />
-            Filtres
-          </span>
-          {hasFilters && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">actifs</span>}
-        </summary>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <FilterPanel active={hasFilters}>
+        <div className="grid gap-3 sm:grid-cols-3">
           <select
             value={filterLevel}
             onChange={(event) => navigate({ level: event.target.value })}
@@ -114,7 +107,7 @@ export default function ReferentielFilters({
             </button>
           )}
         </div>
-      </details>
+      </FilterPanel>
     </div>
   )
 }

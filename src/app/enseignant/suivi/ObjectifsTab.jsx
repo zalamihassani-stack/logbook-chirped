@@ -13,6 +13,14 @@ const LEVEL_STYLES = {
   3: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Autonomie' },
 }
 
+const RESIDENT_FILTERS = [
+  { id: 'all', label: 'Tous' },
+  { id: 'reached', label: 'Atteint' },
+  { id: 'progress', label: 'En cours' },
+  { id: 'none', label: 'Non commencé' },
+  { id: 'not_expected', label: 'Non concerné' },
+]
+
 function totalActs(progressRow) {
   if (!progressRow) return 0
   return (progressRow.count_expose ?? 0) + (progressRow.count_supervise ?? 0) + (progressRow.count_autonome ?? 0)
@@ -48,6 +56,8 @@ export default function ObjectifsTab({ residents }) {
   const [objectives, setObjectives] = useState([])
   const [progressIndex, setProgressIndex] = useState({})
   const [selectedProcedureId, setSelectedProcedureId] = useState('')
+  const [residentFilter, setResidentFilter] = useState('all')
+
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -151,6 +161,16 @@ export default function ObjectifsTab({ residents }) {
       })
   }, [progressIndex, procedureObjectives, residents, selectedProcedure])
 
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      if (residentFilter === 'reached') return row.reached
+      if (residentFilter === 'progress') return row.objective && !row.reached && row.acts > 0
+      if (residentFilter === 'none') return row.objective && row.acts === 0
+      if (residentFilter === 'not_expected') return !row.objective
+      return true
+    })
+  }, [residentFilter, rows])
+
   if (loading) return <SkeletonList count={5} variant="row" />
 
   if (!selectedProcedure) {
@@ -169,14 +189,14 @@ export default function ObjectifsTab({ residents }) {
   return (
     <div>
       <div className="mb-4">
-        <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Suivi par geste</p>
-      </div>
-
-      <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-xs font-medium text-slate-500">Geste chirurgical</label>
         <select
           value={selectedProcedure.id}
-          onChange={(event) => setSelectedProcedureId(event.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-sky-400"
+          onChange={(event) => {
+            setSelectedProcedureId(event.target.value)
+            setResidentFilter('all')
+          }}
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm shadow-sm outline-none focus:border-sky-400"
         >
           {procedures.map((procedure) => (
             <option key={procedure.id} value={procedure.id}>
@@ -205,9 +225,9 @@ export default function ObjectifsTab({ residents }) {
           <span className="text-lg font-bold" style={{ color: finalStyle.color }}>{reachedPct}%</span>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <Metric icon={Target} label="Realisations validees" value={totalValidatedActs} />
-          <Metric icon={Users} label="Residents ayant realise" value={`${realizedRows.length}/${rows.length}`} />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric icon={Target} label="Réalisations validées" value={totalValidatedActs} />
+          <Metric icon={Users} label="Résidents ayant réalisé" value={`${realizedRows.length}/${rows.length}`} />
           <Metric icon={CheckCircle2} label="Objectif atteint" value={`${reachedRows.length}/${eligibleRows.length}`} />
         </div>
 
@@ -216,33 +236,28 @@ export default function ObjectifsTab({ residents }) {
         </div>
       </section>
 
-      <section className="mb-4 grid gap-3 md:grid-cols-3">
-        {[1, 2, 3].map((level) => {
-          const style = LEVEL_STYLES[level]
-          const target = procedureObjectives.find((objective) => objective.required_level === level)
-          const minCount = target?.min_count ?? (finalLevel === level ? getMinimumForRequiredLevel(selectedProcedure, level) : null)
-          return (
-            <div key={level} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold" style={{ color: style.color }}>{style.label}</p>
-              <p className="mt-1 text-lg font-bold" style={{ color: style.color }}>
-                {minCount ? `${minCount} acte${minCount > 1 ? 's' : ''}` : '-'}
-              </p>
-              <p className="text-xs text-slate-500">
-                {target ? (level === 1 ? 'Transversal' : `A partir de A${target.year}`) : 'Non retenu comme objectif'}
-              </p>
-            </div>
-          )
-        })}
-      </section>
-
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Residents</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Résidents</p>
           <p className="text-xs text-slate-500">{realizedRows.length} avec realisation · {reachedRows.length}/{eligibleRows.length} objectif atteint</p>
         </div>
 
+        <div className="mb-3 grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-5">
+          {RESIDENT_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setResidentFilter(filter.id)}
+              className="rounded-xl px-1.5 py-2 text-center text-[10px] font-semibold transition sm:text-xs"
+              style={residentFilter === filter.id ? { backgroundColor: 'var(--color-navy)', color: 'white' } : { color: '#64748b' }}
+            >
+              <span className="block">{filter.label}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-2">
-          {rows.map((row) => {
+          {filteredRows.map((row) => {
             const objective = row.objective
             const style = LEVEL_STYLES[objective?.required_level] ?? finalStyle
             return (
@@ -277,10 +292,10 @@ export default function ObjectifsTab({ residents }) {
                       )}
                     </div>
 
-                    <div className="grid gap-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <SmallCount label="Total" value={row.acts} />
-                      <SmallCount label="Expose" value={row.progress?.count_expose ?? 0} />
-                      <SmallCount label="Supervise" value={row.progress?.count_supervise ?? 0} />
+                      <SmallCount label="Exposé" value={row.progress?.count_expose ?? 0} />
+                      <SmallCount label="Supervisé" value={row.progress?.count_supervise ?? 0} />
                       <SmallCount label="Autonome" value={row.progress?.count_autonome ?? 0} />
                     </div>
 
@@ -299,6 +314,9 @@ export default function ObjectifsTab({ residents }) {
               </Link>
             )
           })}
+          {filteredRows.length === 0 && (
+            <p className="rounded-2xl bg-white py-8 text-center text-sm text-slate-400">Aucun résident pour ce filtre</p>
+          )}
         </div>
       </section>
     </div>
