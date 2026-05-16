@@ -10,6 +10,9 @@ export interface Procedure {
   name: string
   pathologie: string | null
   objectif_final: ObjectifLevel
+  target_level: ObjectifLevel | null
+  target_count: number | null
+  target_year: number | null
   seuil_exposition_min: number
   seuil_supervision_min: number
   seuil_autonomie_min: number
@@ -42,6 +45,9 @@ export interface ResidentProgress {
   category_name: string
   category_color: string
   objectif_final: ObjectifLevel
+  target_level: ObjectifLevel | null
+  target_count: number | null
+  target_year: number | null
   seuil_exposition_min: number
   seuil_supervision_min: number
   seuil_autonomie_min: number

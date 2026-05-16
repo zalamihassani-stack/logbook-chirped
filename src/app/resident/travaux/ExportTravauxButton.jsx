@@ -111,7 +111,7 @@ export default function ExportTravauxButton({ residentName }) {
     <>
       <button
         onClick={() => { setOpen(true); setError('') }}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50"
+        className="flex items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 sm:px-4"
         style={{ color: '#0D2B4E' }}
       >
         <FileDown size={15} strokeWidth={1.75} />

@@ -20,6 +20,9 @@ function emptyProcedureForm(categoryId = '') {
     category_id: categoryId,
     pathologie: '',
     objectif_final: 3,
+    target_level: 3,
+    target_count: 3,
+    target_year: 2,
     seuil_exposition_min: 0,
     seuil_supervision_min: 0,
     seuil_autonomie_min: 0,
@@ -69,6 +72,9 @@ export default function GestesManagement({ initialProcedures, initialCategories 
       category_id: procedure.category_id,
       pathologie: procedure.pathologie ?? '',
       objectif_final: procedure.objectif_final ?? 1,
+      target_level: procedure.target_level ?? procedure.objectif_final ?? 1,
+      target_count: procedure.target_count ?? 1,
+      target_year: procedure.target_year ?? 1,
       seuil_exposition_min: procedure.seuil_exposition_min ?? 0,
       seuil_supervision_min: procedure.seuil_supervision_min ?? 0,
       seuil_autonomie_min: procedure.seuil_autonomie_min ?? 0,
@@ -87,10 +93,13 @@ export default function GestesManagement({ initialProcedures, initialCategories 
     const payload = {
       ...form,
       procedure_code: form.procedure_code ? Number.parseInt(form.procedure_code, 10) : null,
-      objectif_final: Number.parseInt(form.objectif_final, 10),
-      seuil_exposition_min: Number.parseInt(form.seuil_exposition_min, 10) || 0,
-      seuil_supervision_min: Number.parseInt(form.seuil_supervision_min, 10) || 0,
-      seuil_autonomie_min: Number.parseInt(form.seuil_autonomie_min, 10) || 0,
+      target_level: Number.parseInt(form.target_level, 10),
+      target_count: Number.parseInt(form.target_count, 10) || 1,
+      target_year: Number.parseInt(form.target_year, 10) || 1,
+      objectif_final: Number.parseInt(form.target_level, 10),
+      seuil_exposition_min: Number.parseInt(form.target_level, 10) === 1 ? Number.parseInt(form.target_count, 10) || 1 : 0,
+      seuil_supervision_min: Number.parseInt(form.target_level, 10) === 2 ? Number.parseInt(form.target_count, 10) || 1 : 0,
+      seuil_autonomie_min: Number.parseInt(form.target_level, 10) === 3 ? Number.parseInt(form.target_count, 10) || 1 : 0,
       seuil_deblocage_autonomie: Number.parseInt(form.seuil_deblocage_autonomie, 10) || 0,
       objectives: form.objectives.map((objective) => ({
         ...objective,
@@ -224,6 +233,9 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                       </div>
                       {procedure.pathologie && <p className="mt-0.5 text-xs text-slate-500">{procedure.pathologie}</p>}
                       <p className="mt-2 text-xs text-slate-500">
+                        Objectif: {LEVELS[procedure.target_level ?? procedure.objectif_final] ?? '-'} · {procedure.target_count ?? 1} acte{(procedure.target_count ?? 1) > 1 ? 's' : ''} · A{procedure.target_year ?? 1}
+                      </p>
+                      <p className="hidden">
                         Objectif final: {LEVELS[procedure.objectif_final] ?? '-'} · Exposition {procedure.seuil_exposition_min ?? 0} · Supervision {procedure.seuil_supervision_min ?? 0} · Autonomie {procedure.seuil_autonomie_min ?? 0} · Déblocage auto {procedure.seuil_deblocage_autonomie ?? 0}
                       </p>
                       {hasObjectives?.length > 0 && (
@@ -312,22 +324,26 @@ export default function GestesManagement({ initialProcedures, initialCategories 
               </div>
               <Field label="Pathologie" value={form.pathologie} onChange={(value) => setForm((current) => ({ ...current, pathologie: value }))} />
               <div>
-                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Objectif final</label>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Niveau objectif</label>
                 <select
-                  value={form.objectif_final}
-                  onChange={(event) => setForm((current) => ({ ...current, objectif_final: event.target.value }))}
+                  value={form.target_level}
+                  onChange={(event) => setForm((current) => ({ ...current, target_level: event.target.value }))}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
                 >
                   {[1, 2, 3].map((level) => <option key={level} value={level}>{LEVELS[level]}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
+                <Field label="Nombre requis" type="number" value={form.target_count} onChange={(value) => setForm((current) => ({ ...current, target_count: value }))} />
+                <Field label="Année cible" type="number" value={form.target_year} onChange={(value) => setForm((current) => ({ ...current, target_year: value }))} />
+              </div>
+              <div className="hidden">
                 <Field label="Seuil exposition" type="number" value={form.seuil_exposition_min} onChange={(value) => setForm((current) => ({ ...current, seuil_exposition_min: value }))} />
                 <Field label="Seuil supervision" type="number" value={form.seuil_supervision_min} onChange={(value) => setForm((current) => ({ ...current, seuil_supervision_min: value }))} />
                 <Field label="Seuil autonomie" type="number" value={form.seuil_autonomie_min} onChange={(value) => setForm((current) => ({ ...current, seuil_autonomie_min: value }))} />
                 <Field label="Deblocage autonome" type="number" value={form.seuil_deblocage_autonomie} onChange={(value) => setForm((current) => ({ ...current, seuil_deblocage_autonomie: value }))} />
               </div>
-              <div>
+              <div className="hidden">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Objectifs par année</p>

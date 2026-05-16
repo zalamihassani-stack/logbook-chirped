@@ -47,7 +47,7 @@ export default function ProgressionTab({ residents }) {
       const supabase = createClient()
       const ids = residents.map((resident) => resident.id)
 
-      const [progressRes, travauxRes, objectivesRes, proceduresRes, pendingRes] = await Promise.all([
+      const [progressRes, travauxRes, objectivesRes, proceduresRes] = await Promise.all([
         supabase.from('v_resident_niveau').select('resident_id, procedure_id, count_expose, count_supervise, count_autonome').in('resident_id', ids),
         supabase.from('travaux_scientifiques').select('resident_id').in('resident_id', ids),
         supabase
@@ -56,20 +56,14 @@ export default function ProgressionTab({ residents }) {
           .eq('is_active', true),
         supabase
           .from('procedures')
-          .select('id, name, objectif_final, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie')
+          .select('id, name, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie')
           .eq('is_active', true),
-        supabase.from('realisations').select('resident_id, status').in('resident_id', ids).eq('status', 'pending'),
       ])
 
       const progressByResident = {}
       for (const row of progressRes.data ?? []) {
         if (!progressByResident[row.resident_id]) progressByResident[row.resident_id] = {}
         progressByResident[row.resident_id][row.procedure_id] = row
-      }
-
-      const pendingByResident = {}
-      for (const row of pendingRes.data ?? []) {
-        pendingByResident[row.resident_id] = (pendingByResident[row.resident_id] ?? 0) + 1
       }
 
       const travauxByResident = {}
@@ -123,7 +117,6 @@ export default function ProgressionTab({ residents }) {
           pct: percent(done, globalObjectives.length),
           late,
           levels: levelSummary,
-          pending: pendingByResident[resident.id] ?? 0,
           travaux: travauxByResident[resident.id] ?? 0,
         }
       }
@@ -145,21 +138,17 @@ export default function ProgressionTab({ residents }) {
     return [...residents]
       .filter((resident) => {
         if (filter === 'late') return (data[resident.id]?.late.length ?? 0) > 0
-        if (filter === 'pending') return (data[resident.id]?.pending ?? 0) > 0
         return true
       })
       .sort((a, b) => {
-        const statsA = data[a.id] ?? { pct: 0, late: [], pending: 0 }
-        const statsB = data[b.id] ?? { pct: 0, late: [], pending: 0 }
+        const statsA = data[a.id] ?? { pct: 0, late: [] }
+        const statsB = data[b.id] ?? { pct: 0, late: [] }
         if (statsB.late.length !== statsA.late.length) return statsB.late.length - statsA.late.length
-        if (statsB.pending !== statsA.pending) return statsB.pending - statsA.pending
         return statsA.pct - statsB.pct
       })
   }, [data, filter, residents])
 
   if (loading) return <SkeletonList count={4} />
-
-  const totalLate = residents.reduce((sum, resident) => sum + (data[resident.id]?.late.length ?? 0), 0)
 
   return (
     <div>
@@ -170,8 +159,7 @@ export default function ProgressionTab({ residents }) {
         <div className="flex gap-2">
           {[
             ['all', 'Tous'],
-            ['late', `En retard (${totalLate})`],
-            ['pending', 'Actes en attente'],
+            ['late', 'En retard'],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -190,7 +178,7 @@ export default function ProgressionTab({ residents }) {
 
       <div className="space-y-3">
         {sorted.map((resident) => {
-          const stats = data[resident.id] ?? { done: 0, total: 0, pct: 0, late: [], levels: emptyLevelSummary(), pending: 0, travaux: 0, year: 1 }
+          const stats = data[resident.id] ?? { done: 0, total: 0, pct: 0, late: [], levels: emptyLevelSummary(), travaux: 0, year: 1 }
           const color = stats.pct >= 80 ? 'var(--color-success)' : stats.pct >= 50 ? 'var(--color-navy)' : 'var(--color-warning)'
 
           return (
@@ -214,11 +202,6 @@ export default function ProgressionTab({ residents }) {
                       <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'var(--color-danger-light)', color: 'var(--color-danger)' }}>
                         <AlertTriangle size={12} />
                         {stats.late.length} retard
-                      </span>
-                    )}
-                    {stats.pending > 0 && (
-                      <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'var(--color-warning-light)', color: 'var(--color-warning)' }}>
-                        {stats.pending} en attente
                       </span>
                     )}
                   </div>

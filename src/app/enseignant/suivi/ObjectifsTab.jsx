@@ -32,7 +32,7 @@ function getObjectiveForResident(procedure, objectives, residentYear) {
 
   if (eligible[0]) return eligible[0]
 
-  if (normalizeObjectifLevel(procedure?.objectif_final) !== 1) return null
+  if ((normalizeObjectifLevel(procedure?.target_level) || normalizeObjectifLevel(procedure?.objectif_final)) !== 1) return null
 
   return {
     procedure_id: procedure.id,
@@ -65,7 +65,7 @@ export default function ObjectifsTab({ residents }) {
           .order('year'),
         supabase
           .from('procedures')
-          .select('id, name, pathologie, objectif_final, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, categories(name, color_hex)')
+          .select('id, name, pathologie, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, categories(name, color_hex)')
           .eq('is_active', true)
           .order('name'),
         ids.length
@@ -158,7 +158,7 @@ export default function ObjectifsTab({ residents }) {
   }
 
   const category = selectedProcedure.categories
-  const finalLevel = normalizeObjectifLevel(selectedProcedure.objectif_final)
+  const finalLevel = normalizeObjectifLevel(selectedProcedure.target_level) || normalizeObjectifLevel(selectedProcedure.objectif_final)
   const finalStyle = LEVEL_STYLES[finalLevel] ?? LEVEL_STYLES[1]
   const realizedRows = rows.filter((row) => row.acts > 0)
   const reachedRows = rows.filter((row) => row.reached)

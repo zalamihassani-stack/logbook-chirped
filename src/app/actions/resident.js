@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getResidentYear } from '@/lib/utils'
+import { normalizeObjectifLevel } from '@/lib/logbook'
 import { sendPushToUser } from '@/lib/push'
 import { getTravailTypeKey, isFinalWorkStatus } from '@/lib/travaux'
 import { getAppSettings } from '@/lib/app-settings'
@@ -46,20 +47,15 @@ export async function createRealisation(formData) {
 
   const residentYear = getResidentYear(profile?.residanat_start_date)
   const [{ data: procedure }, { data: residentProfile }] = await Promise.all([
-    supabase.from('procedures').select('name').eq('id', formData.procedure_id).maybeSingle(),
+    supabase.from('procedures').select('name, target_level, target_year').eq('id', formData.procedure_id).maybeSingle(),
     supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
   ])
 
-  const [{ data: objective }, settingsRes] = await Promise.all([
-    supabase
-      .from('procedure_objectives')
-      .select('id')
-      .eq('procedure_id', formData.procedure_id)
-      .lte('year', residentYear)
-      .limit(1),
+  const [settingsRes] = await Promise.all([
     getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
   ])
-  const settingsError = validateRealisationSettings(formData, settingsRes.settings, objective?.[0])
+  const isObjective = isProcedureObjectiveForYear(procedure, residentYear)
+  const settingsError = validateRealisationSettings(formData, settingsRes.settings, isObjective)
   if (settingsError) return { error: settingsError }
 
   const { data: realisation, error } = await supabase
@@ -76,7 +72,7 @@ export async function createRealisation(formData) {
       compte_rendu: formData.compte_rendu || null,
       commentaire: formData.commentaire || null,
       status: 'pending',
-      is_hors_objectifs: !objective?.[0],
+      is_hors_objectifs: !isObjective,
     })
     .select('id')
     .single()
@@ -128,20 +124,15 @@ export async function resubmitRealisation(id, formData) {
 
   const residentYear = getResidentYear(profile?.residanat_start_date)
   const [{ data: procedure }, { data: residentProfile }] = await Promise.all([
-    supabase.from('procedures').select('name').eq('id', formData.procedure_id).maybeSingle(),
+    supabase.from('procedures').select('name, target_level, target_year').eq('id', formData.procedure_id).maybeSingle(),
     supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
   ])
 
-  const [{ data: objective }, settingsRes] = await Promise.all([
-    supabase
-      .from('procedure_objectives')
-      .select('id')
-      .eq('procedure_id', formData.procedure_id)
-      .lte('year', residentYear)
-      .limit(1),
+  const [settingsRes] = await Promise.all([
     getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
   ])
-  const settingsError = validateRealisationSettings(formData, settingsRes.settings, objective?.[0])
+  const isObjective = isProcedureObjectiveForYear(procedure, residentYear)
+  const settingsError = validateRealisationSettings(formData, settingsRes.settings, isObjective)
   if (settingsError) return { error: settingsError }
 
   const { data: updatedRealisation, error } = await supabase
@@ -157,7 +148,7 @@ export async function resubmitRealisation(id, formData) {
       compte_rendu: formData.compte_rendu || null,
       commentaire: formData.commentaire || null,
       status: 'pending',
-      is_hors_objectifs: !objective?.[0],
+      is_hors_objectifs: !isObjective,
     })
     .eq('id', id)
     .eq('resident_id', user.id)
@@ -441,6 +432,15 @@ function validateRealisationSettings(formData, settings, objective) {
   }
 
   return ''
+}
+
+function isProcedureObjectiveForYear(procedure, residentYear) {
+  if (!procedure) return false
+  const targetLevel = normalizeObjectifLevel(procedure.target_level)
+  const targetYear = Number.parseInt(procedure.target_year, 10)
+  if (targetLevel === 1) return true
+  if (!targetYear) return false
+  return residentYear >= targetYear
 }
 
 async function buildAuthorsText(admin, orderedAuthors = [], fallback = '') {

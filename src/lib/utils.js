@@ -31,26 +31,7 @@ export function maskPatientIdentifier(value) {
   return `${raw.slice(0, 2)}•••${raw.slice(-2)}`
 }
 
-export { ACTIVITY_TYPE_LABELS, OBJECTIF_LEVEL_LABELS, NIVEAU_ATTEINT_LABELS } from '@/lib/logbook'
-
-export function normalizeObjective(objective) {
-  if (!objective) return objective
-  if (!objective.required_level) {
-    return {
-      ...objective,
-      min_count: 1,
-    }
-  }
-
-  return {
-    ...objective,
-    min_count: 1,
-  }
-}
-
-export function normalizeObjectives(objectives) {
-  return (objectives ?? []).map(normalizeObjective)
-}
+export { ACTIVITY_TYPE_LABELS, OBJECTIF_LEVEL_LABELS } from '@/lib/logbook'
 
 /** Libelles des roles */
 export const ROLE_LABELS = {

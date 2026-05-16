@@ -1,16 +1,14 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { CheckCircle, Pencil, Trash2, X } from 'lucide-react'
-import { updateTravail, deleteTravail, submitTravailFinalValidation } from '@/app/actions/resident'
-import { getStatusOptionsForType, getTravailTypeKey } from '@/lib/travaux'
-import { TravailFields } from '../TravauxClient'
+import { deleteTravail, submitTravailFinalValidation } from '@/app/actions/resident'
+import { getTravailTypeKey } from '@/lib/travaux'
 
-export default function TravauxDetailActions({ travail, types, enseignants, residents }) {
+export default function TravauxDetailActions({ travail, types, enseignants, residents, canManage = true }) {
   const router = useRouter()
-  const [modal, setModal] = useState(false)
   const [finalModal, setFinalModal] = useState(false)
-  const [form, setForm] = useState(() => initForm(travail, types))
   const [finalForm, setFinalForm] = useState(() => initFinalForm(travail))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -21,15 +19,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
     || (travail.validation_status === 'refused' && hasInitialValidation)
   const finalStatusLabel = typeKey === 'article' ? 'Publié' : 'Présenté'
 
-  function setField(key, value) {
-    setForm((current) => {
-      const next = { ...current, [key]: value }
-      if ((key === 'first_author_profile_id' || key === 'second_author_profile_id') && value) {
-        next.other_profile_author_ids = current.other_profile_author_ids.filter((profileId) => profileId !== value)
-      }
-      return next
-    })
-  }
+  if (!canManage) return null
 
   function setFinalField(key, value) {
     setFinalForm((current) => {
@@ -39,43 +29,6 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
       }
       return next
     })
-  }
-
-  function setType(typeId) {
-    const type = types.find((item) => item.id === typeId)
-    const options = getStatusOptionsForType(type)
-    setForm((current) => ({
-      ...current,
-      type_id: typeId,
-      status: options.some((option) => option.value === current.status) ? current.status : options[0]?.value ?? '',
-    }))
-  }
-
-  function toggleAuthor(profileId) {
-    setForm((current) => {
-      const selected = new Set(current.other_profile_author_ids)
-      if (selected.has(profileId)) selected.delete(profileId)
-      else selected.add(profileId)
-      return { ...current, other_profile_author_ids: Array.from(selected) }
-    })
-  }
-
-  function setExternalAuthor(index, value) {
-    setForm((current) => ({
-      ...current,
-      other_external_authors: current.other_external_authors.map((name, itemIndex) => itemIndex === index ? value : name),
-    }))
-  }
-
-  function addExternalAuthor() {
-    setForm((current) => ({ ...current, other_external_authors: [...current.other_external_authors, ''] }))
-  }
-
-  function removeExternalAuthor(index) {
-    setForm((current) => ({
-      ...current,
-      other_external_authors: current.other_external_authors.filter((_, itemIndex) => itemIndex !== index),
-    }))
   }
 
   function toggleFinalAuthor(profileId) {
@@ -105,20 +58,6 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
     }))
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault()
-    setLoading(true)
-    setError('')
-    const res = await updateTravail(travail.id, form)
-    setLoading(false)
-    if (res.error) {
-      setError(res.error)
-      return
-    }
-    setModal(false)
-    router.refresh()
-  }
-
   async function handleDelete() {
     if (!confirm('Supprimer ce travail ?')) return
     setLoading(true)
@@ -143,14 +82,14 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
   return (
     <>
       <div className="flex flex-wrap gap-3">
-        <button
-          onClick={() => setModal(true)}
+        <Link
+          href={`/resident/travaux/${travail.id}/modifier`}
           className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
           style={{ color: 'var(--color-navy)' }}
         >
           <Pencil size={15} strokeWidth={1.75} />
           Modifier
-        </button>
+        </Link>
         <button
           onClick={handleDelete}
           disabled={loading}
@@ -173,37 +112,6 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
           </button>
         )}
       </div>
-
-      {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>Modifier</h2>
-              <button onClick={() => setModal(false)}><X size={20} className="text-slate-400" /></button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <TravailFields
-                form={form}
-                setField={setField}
-                setType={setType}
-                types={types}
-                enseignants={enseignants}
-                people={people}
-                toggleAuthor={toggleAuthor}
-                setExternalAuthor={setExternalAuthor}
-                addExternalAuthor={addExternalAuthor}
-                removeExternalAuthor={removeExternalAuthor}
-              />
-              {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-              <button type="submit" disabled={loading}
-                className="w-full rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: 'var(--color-navy)' }}>
-                {loading ? 'Enregistrement...' : 'Enregistrer'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {finalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -274,20 +182,20 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
   )
 }
 
-function initForm(travail, types) {
-  const selectedType = types.find((type) => type.id === travail.type_id) ?? types[0]
-  const options = getStatusOptionsForType(selectedType)
-  const structuredAuthors = travail.travail_auteurs ?? []
+function initFinalForm(travail) {
+  const structuredAuthors = (travail.travail_auteurs ?? [])
     .slice()
     .sort((a, b) => (a.author_order ?? 0) - (b.author_order ?? 0))
   const firstAuthor = structuredAuthors[0]
   const secondAuthor = structuredAuthors[1]
   const otherAuthors = structuredAuthors.slice(2)
-  const otherExternalAuthors = otherAuthors.filter((author) => !author.profile_id && author.external_name).map((author) => author.external_name)
+  const otherExternalAuthors = otherAuthors
+    .filter((a) => !a.profile_id && a.external_name)
+    .map((a) => a.external_name)
 
   return {
     title: travail.title,
-    type_id: travail.type_id ?? selectedType?.id ?? '',
+    type_id: travail.type_id ?? '',
     journal_or_event: travail.journal_or_event ?? '',
     year: travail.year,
     encadrant_id: travail.encadrant_id ?? '',
@@ -295,18 +203,10 @@ function initForm(travail, types) {
     first_external_author: firstAuthor?.profile_id ? '' : firstAuthor?.external_name ?? '',
     second_author_profile_id: secondAuthor?.profile_id ?? '',
     second_external_author: secondAuthor?.profile_id ? '' : secondAuthor?.external_name ?? '',
-    other_profile_author_ids: otherAuthors.filter((author) => author.profile_id).map((author) => author.profile_id),
+    other_profile_author_ids: otherAuthors.filter((a) => a.profile_id).map((a) => a.profile_id),
     other_external_authors: otherExternalAuthors.length > 0 ? otherExternalAuthors : [''],
     doi_or_url: travail.doi_or_url ?? '',
-    status: options.some((option) => option.value === travail.status) ? travail.status : options[0]?.value ?? '',
-  }
-}
-
-function initFinalForm(travail) {
-  return {
-    ...initForm(travail, [{ id: travail.type_id, ...(travail.travail_types ?? {}) }]),
-    journal_or_event: travail.journal_or_event ?? '',
-    doi_or_url: travail.doi_or_url ?? '',
+    status: travail.status ?? '',
   }
 }
 

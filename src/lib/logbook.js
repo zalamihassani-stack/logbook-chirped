@@ -16,13 +16,6 @@ export const OBJECTIF_LEVEL_LABELS = {
   3: 'Autonomie',
 }
 
-export const NIVEAU_ATTEINT_LABELS = {
-  0: 'Non débuté',
-  1: 'Exposition atteinte',
-  2: 'Compétence supervisée atteinte',
-  3: 'Maîtrise atteinte',
-}
-
 export function normalizeObjectifLevel(value) {
   const parsed = Number.parseInt(value, 10)
   return parsed >= 1 && parsed <= 3 ? parsed : 0
@@ -67,6 +60,7 @@ export function getCountForRequiredLevel(progressRow, requiredLevel) {
 export function getMinimumForRequiredLevel(procedure, requiredLevel) {
   if (!procedure) return 1
 
+  if (procedure.target_count) return Math.max(1, procedure.target_count)
   if (requiredLevel === 1) return Math.max(1, procedure.seuil_exposition_min ?? 1)
   if (requiredLevel === 2) return Math.max(1, procedure.seuil_supervision_min ?? 1)
   if (requiredLevel === 3) return Math.max(1, procedure.seuil_autonomie_min ?? procedure.seuil_deblocage_autonomie ?? 1)
@@ -92,7 +86,48 @@ function buildObjective({ procedure, year, requiredLevel, minCount, source = 'de
   }
 }
 
+export function procedureToTargetObjective(procedure) {
+  const targetLevel = normalizeObjectifLevel(procedure?.target_level) || normalizeObjectifLevel(procedure?.objectif_final)
+  if (!procedure?.id || !targetLevel) return null
+
+  const fallbackYear = targetLevel === 1 ? 1 : undefined
+  const parsedYear = Number.parseInt(procedure.target_year, 10)
+  const year = parsedYear >= 1 && parsedYear <= 5 ? parsedYear : fallbackYear
+  const minCount = Number.parseInt(procedure.target_count, 10) || getMinimumForRequiredLevel(procedure, targetLevel)
+
+  if (!year) return null
+
+  return buildObjective({
+    procedure,
+    year,
+    requiredLevel: targetLevel,
+    minCount,
+    source: procedure.target_level ? 'target' : 'legacy',
+  })
+}
+
+function hasSimplifiedTargets(procedures = []) {
+  return procedures.some((procedure) => procedure?.target_level || procedure?.target_count || procedure?.target_year)
+}
+
 export function buildCurriculumObjectives({ procedures = [], objectiveRows = [] }) {
+  if (hasSimplifiedTargets(procedures)) {
+    const all = (procedures ?? [])
+      .map(procedureToTargetObjective)
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year
+        if (a.required_level !== b.required_level) return b.required_level - a.required_level
+        return (a.procedures?.name ?? '').localeCompare(b.procedures?.name ?? '')
+      })
+
+    return {
+      exposure: all.filter((objective) => objective.required_level === 1),
+      yearly: all.filter((objective) => objective.required_level !== 1),
+      all,
+    }
+  }
+
   const procedureById = new Map((procedures ?? []).filter(Boolean).map((procedure) => [procedure.id, procedure]))
   const yearly = []
   const exposureByProcedure = new Map()
@@ -151,6 +186,9 @@ export function enrichObjectiveProgress(objectives = [], progressIndex = {}) {
 }
 
 export function procedureToGlobalObjective(procedure) {
+  const targetObjective = procedureToTargetObjective(procedure)
+  if (targetObjective) return { ...targetObjective, is_global_objective: true }
+
   const requiredLevel = normalizeObjectifLevel(procedure?.objectif_final)
 
   return {
@@ -169,39 +207,4 @@ export async function getResidentProgressRows(supabase, residentId) {
 
   if (error) throw error
   return data ?? []
-}
-
-export async function getAutonomeSubmissionGuard(supabase, residentId, procedureId) {
-  const [{ data: allowed, error: rpcError }, { data: progressRow, error: progressError }, { data: procedure, error: procedureError }] = await Promise.all([
-    supabase.rpc('can_submit_autonome', {
-      p_resident_id: residentId,
-      p_procedure_id: procedureId,
-    }),
-    supabase
-      .from('v_resident_niveau')
-      .select('count_supervise')
-      .eq('resident_id', residentId)
-      .eq('procedure_id', procedureId)
-      .maybeSingle(),
-    supabase
-      .from('procedures')
-      .select('seuil_deblocage_autonomie')
-      .eq('id', procedureId)
-      .single(),
-  ])
-
-  if (rpcError) throw rpcError
-  if (progressError) throw progressError
-  if (procedureError) throw procedureError
-
-  const countSupervise = progressRow?.count_supervise ?? 0
-  const threshold = procedure?.seuil_deblocage_autonomie ?? 0
-  const missingSuperviseCount = Math.max(0, threshold - countSupervise)
-
-  return {
-    allowed: Boolean(allowed),
-    missingSuperviseCount,
-    countSupervise,
-    threshold,
-  }
 }

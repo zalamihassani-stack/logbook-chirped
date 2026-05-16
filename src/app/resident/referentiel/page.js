@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import ReferentielFilters from './ReferentielFilters'
-import { OBJECTIF_LEVEL_LABELS, getResidentProgressRows, indexProgressByProcedure, getCountForRequiredLevel, procedureToGlobalObjective } from '@/lib/logbook'
+import { OBJECTIF_LEVEL_LABELS, procedureToGlobalObjective } from '@/lib/logbook'
 
 const LEVEL_STYLE = {
   1: { bg: 'var(--color-info-light)', color: 'var(--color-info)' },
@@ -10,54 +10,45 @@ const LEVEL_STYLE = {
   3: { bg: 'var(--color-success-light)', color: 'var(--color-success)' },
 }
 
-function progressBadge(done, required) {
-  if (done >= required) return { bg: 'var(--color-success-light)', color: 'var(--color-success)', text: `OK ${done}/${required}` }
-  if (done > 0) return { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', text: `${done}/${required}` }
-  return { bg: '#f1f5f9', color: '#64748b', text: `0/${required}` }
+function normalizeText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
 }
 
-function RequirementLine({ label, value }) {
+function RequirementLine({ children }) {
   return (
-    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-      {label}: {value}
+    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+      {children}
     </span>
   )
 }
 
-function GestCard({ objective, progressIndex }) {
+function GestCard({ objective, showLevel = true }) {
   const procedure = objective.procedures
   const category = procedure?.categories
-  const done = getCountForRequiredLevel(progressIndex[objective.procedure_id], objective.required_level)
-  const progress = progressBadge(done, objective.min_count)
   const levelStyle = LEVEL_STYLE[objective.required_level]
 
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-800">{procedure?.name ?? '-'}</p>
-          {procedure?.pathologie && <p className="mt-0.5 text-xs text-slate-500">{procedure.pathologie}</p>}
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            {category && (
-              <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: `${category.color_hex}25`, color: category.color_hex }}>
-                {category.name}
-              </span>
-            )}
-            {levelStyle && (
-              <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: levelStyle.bg, color: levelStyle.color }}>
-                {OBJECTIF_LEVEL_LABELS[objective.required_level]}
-              </span>
-            )}
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <RequirementLine label="Exposition" value={procedure?.seuil_exposition_min ?? 0} />
-            <RequirementLine label="Supervision" value={procedure?.seuil_supervision_min ?? 0} />
-            <RequirementLine label="Autonomie" value={procedure?.seuil_autonomie_min ?? 0} />
-          </div>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold leading-snug text-slate-800">{procedure?.name ?? '-'}</p>
+        {procedure?.pathologie && <p className="mt-0.5 text-xs text-slate-500">{procedure.pathologie}</p>}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {showLevel && levelStyle && (
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: levelStyle.bg, color: levelStyle.color }}>
+              {OBJECTIF_LEVEL_LABELS[objective.required_level]}
+            </span>
+          )}
+          <RequirementLine>{objective.min_count} acte{objective.min_count > 1 ? 's' : ''}</RequirementLine>
+          <RequirementLine>A{objective.year}</RequirementLine>
+          {category && (
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: `${category.color_hex}20`, color: category.color_hex }}>
+              {category.name}
+            </span>
+          )}
         </div>
-        <span className="flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ backgroundColor: progress.bg, color: progress.color }}>
-          {progress.text}
-        </span>
       </div>
     </div>
   )
@@ -71,45 +62,55 @@ export default async function ReferentielPage({ searchParams }) {
   if (!user) redirect('/login')
 
   const params = await searchParams
+  const query = typeof params?.q === 'string' ? params.q.trim() : ''
   const filterCat = params?.cat ?? ''
   const filterLevel = params?.level ?? ''
+  const filterYear = params?.year ?? ''
+  const normalizedQuery = normalizeText(query)
 
-  const [progressRows, categoriesRes, proceduresRes] = await Promise.all([
-    getResidentProgressRows(supabase, user.id),
+  const [categoriesRes, proceduresRes] = await Promise.all([
     supabase.from('categories').select('id, name, color_hex').order('display_order'),
     supabase
       .from('procedures')
-      .select('id, name, pathologie, category_id, objectif_final, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, categories(name, color_hex)')
+      .select('id, name, pathologie, category_id, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, categories(name, color_hex)')
       .eq('is_active', true)
       .order('name'),
   ])
 
-  const progressIndex = indexProgressByProcedure(progressRows)
   const categories = categoriesRes.data ?? []
   const objectives = (proceduresRes.data ?? [])
     .map(procedureToGlobalObjective)
     .filter((objective) => {
       if (!objective.required_level) return false
-      if (filterCat && objective.procedures?.category_id !== filterCat) return false
+      const procedure = objective.procedures
+      const category = procedure?.categories
+      if (filterCat && procedure?.category_id !== filterCat) return false
       if (filterLevel && String(objective.required_level) !== filterLevel) return false
+      if (filterYear && String(objective.year) !== filterYear) return false
+      if (normalizedQuery) {
+        const haystack = normalizeText(`${procedure?.name ?? ''} ${procedure?.pathologie ?? ''} ${category?.name ?? ''}`)
+        if (!haystack.includes(normalizedQuery)) return false
+      }
       return true
     })
 
   return (
     <div className="max-w-3xl p-5 md:p-8">
-      <PageHeader title="Référentiel" subtitle={`${objectives.length} geste(s) actifs`} />
+      <PageHeader title="Referentiel" subtitle={`${objectives.length} geste(s)`} />
 
-      <div className="mb-5 rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600 shadow-sm">
-        Les exigences minimales sont affichées sur chaque geste. La progression personnelle détaillée se trouve dans l&apos;onglet Progression.
-      </div>
-
-      <ReferentielFilters filterCat={filterCat} filterLevel={filterLevel} categories={categories} showAllLevels />
+      <ReferentielFilters
+        query={query}
+        filterCat={filterCat}
+        filterLevel={filterLevel}
+        filterYear={filterYear}
+        categories={categories}
+      />
 
       <div className="space-y-2">
         {objectives.map((objective) => (
-          <GestCard key={objective.procedure_id} objective={objective} progressIndex={progressIndex} />
+          <GestCard key={objective.procedure_id} objective={objective} showLevel={!filterLevel} />
         ))}
-        {objectives.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Aucun geste pour ces critères</p>}
+        {objectives.length === 0 && <p className="rounded-2xl bg-white py-8 text-center text-sm text-slate-400">Aucun geste</p>}
       </div>
     </div>
   )

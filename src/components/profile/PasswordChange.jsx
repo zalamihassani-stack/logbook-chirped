@@ -1,10 +1,9 @@
 'use client'
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound } from 'lucide-react'
 
 export default function PasswordChange() {
-  const [open, setOpen] = useState(false)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [status, setStatus] = useState(null)
@@ -49,54 +48,45 @@ export default function PasswordChange() {
     setMsg('Mot de passe modifié.')
     setPassword('')
     setConfirm('')
-    setTimeout(() => setOpen(false), 1500)
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <button
-        onClick={() => { setOpen(!open); setStatus(null) }}
-        className="flex w-full items-center gap-2 text-left text-sm font-medium"
-        style={{ color: 'var(--color-navy)' }}
-      >
-        <KeyRound size={16} strokeWidth={1.75} />
+    <details className="group">
+      <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-slate-500">
         Changer le mot de passe
-        <span className="ml-auto text-xs text-slate-400" aria-hidden="true">{open ? '▲' : '▼'}</span>
-      </button>
-
-      {open && (
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Nouveau mot de passe"
-            required
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
-          />
-          <input
-            type="password"
-            value={confirm}
-            onChange={(event) => setConfirm(event.target.value)}
-            placeholder="Confirmer le mot de passe"
-            required
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
-          />
-          {status && (
-            <p className={`rounded-lg px-3 py-2 text-xs ${status === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-              {msg}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg py-2 text-sm font-medium text-white disabled:opacity-60"
-            style={{ backgroundColor: 'var(--color-navy)' }}
-          >
-            {loading ? 'Enregistrement...' : 'Enregistrer'}
-          </button>
-        </form>
-      )}
-    </div>
+        <ChevronDown size={14} className="transition-transform duration-200 group-open:rotate-180 text-slate-400" />
+      </summary>
+      <form onSubmit={handleSubmit} className="mt-3 space-y-3">
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Nouveau mot de passe"
+          required
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+        />
+        <input
+          type="password"
+          value={confirm}
+          onChange={(event) => setConfirm(event.target.value)}
+          placeholder="Confirmer le mot de passe"
+          required
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
+        />
+        {status && (
+          <p className={`rounded-lg px-3 py-2 text-xs ${status === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {msg}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg py-2 text-sm font-medium text-white disabled:opacity-60"
+          style={{ backgroundColor: 'var(--color-navy)' }}
+        >
+          {loading ? 'Enregistrement...' : 'Enregistrer'}
+        </button>
+      </form>
+    </details>
   )
 }

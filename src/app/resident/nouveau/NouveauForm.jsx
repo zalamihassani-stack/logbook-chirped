@@ -1,24 +1,18 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import { createRealisation } from '@/app/actions/resident'
-import { createClient } from '@/lib/supabase/client'
-import { ACTIVITY_TYPES, OBJECTIF_LEVEL_LABELS, getAutonomeSubmissionGuard, getCountForRequiredLevel } from '@/lib/logbook'
-import { AlertTriangle, CheckCircle, Search } from 'lucide-react'
+import { ACTIVITY_TYPES, OBJECTIF_LEVEL_LABELS, getCountForRequiredLevel } from '@/lib/logbook'
+import { AlertTriangle, ArrowLeft, CheckCircle, ChevronDown, Search } from 'lucide-react'
 
-const ACTIVITY_HELP = {
-  expose: 'Observation ou exposition au geste.',
-  supervise: 'Réalisation avec encadrement direct.',
-  autonome: 'Réalisation autonome après seuil de supervision.',
-}
-
-export default function NouveauForm({ procedures, enseignants, residents, residentYear, progressByProcedure = {}, settings = {} }) {
+export default function NouveauForm({ procedures, enseignants, residents, residentYear, progressByProcedure = {}, settings = {}, initialProcedureId = '' }) {
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const [form, setForm] = useState({
-    procedure_id: '',
+    procedure_id: procedures.some((procedure) => procedure.id === initialProcedureId) ? initialProcedureId : '',
     enseignant_id: '',
     superviseur_resident_id: '',
     performed_at: today,
@@ -30,8 +24,6 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [autonomyWarning, setAutonomyWarning] = useState('')
   const allowHorsObjectifs = settings.allow_hors_objectifs !== false
   const compteRenduRequired = Boolean(settings.compte_rendu_required)
 
@@ -60,38 +52,6 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
     })
   }, [allowHorsObjectifs, procedures, query])
 
-
-  useEffect(() => {
-    let ignore = false
-
-    async function checkAutonomyPrerequisite() {
-      setAutonomyWarning('')
-      if (form.activity_type !== 'autonome' || !form.procedure_id) return
-
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      try {
-        const guard = await getAutonomeSubmissionGuard(supabase, user.id, form.procedure_id)
-        if (!ignore && !guard.allowed) {
-          setAutonomyWarning(
-            guard.missingSuperviseCount > 0
-              ? `Pré-requis autonomie non atteint : il manque ${guard.missingSuperviseCount} acte(s) supervisé(s) pour ce geste. La soumission reste possible.`
-              : 'Pré-requis autonomie non atteint pour ce geste. La soumission reste possible.'
-          )
-        }
-      } catch {
-        if (!ignore) setAutonomyWarning('')
-      }
-    }
-
-    checkAutonomyPrerequisite()
-    return () => { ignore = true }
-  }, [form.activity_type, form.procedure_id])
-
   async function handleSubmit(event) {
     event.preventDefault()
 
@@ -101,23 +61,27 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
     }
 
     if (!form.activity_type) {
-      setError("Sélectionnez un type d'activité.")
+      setError("Sélectionnez le niveau de réalisation.")
       return
     }
 
     if (!allowHorsObjectifs && isHorsObjectifs) {
-      setError('Les gestes hors objectifs sont desactives par un administrateur.')
+      setError('Ce geste n’est pas disponible pour votre année.')
+      return
+    }
+
+    if (!form.ipp_patient.trim()) {
+      setError("L'IPP patient est requis.")
       return
     }
 
     if (compteRenduRequired && !form.compte_rendu.trim()) {
-      setError('Le compte rendu operatoire est obligatoire.')
+      setError('Le compte rendu opératoire est requis.')
       return
     }
 
     setLoading(true)
     setError('')
-    setSuccess('')
 
     const res = await createRealisation(form)
 
@@ -127,12 +91,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
       return
     }
 
-    const selectedEnseignant = enseignants.find((e) => e.id === form.enseignant_id)
-    const enseignantName = selectedEnseignant?.full_name
-    setSuccess(enseignantName
-      ? `Geste envoyé. ${enseignantName} sera notifié(e) pour validation.`
-      : "Geste envoyé pour validation. L'enseignant concerné est notifié.")
-    setTimeout(() => router.push('/resident/historique'), 2500)
+    router.push('/resident/historique')
   }
 
   function setField(key, value) {
@@ -146,18 +105,13 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
 
   return (
     <>
-      <PageHeader title="Nouvelle réalisation" subtitle="Choisir le geste, préciser le contexte, puis envoyer en validation" />
+      <PageHeader title="Nouvel acte" subtitle="Geste, niveau, encadrant." />
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4 pb-28 md:pb-0">
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Geste chirurgical</h2>
-              <p className="mt-0.5 text-xs text-slate-500">Recherche par nom, pathologie ou catégorie</p>
-            </div>
-            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
-              Année {residentYear}
-            </span>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>1. Geste</h2>
+            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">A{residentYear}</span>
           </div>
 
           {form.procedure_id && selectedProc ? (
@@ -196,14 +150,11 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                         style={procedure.isObjectif
                           ? { backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' }
                           : { backgroundColor: '#ffedd5', color: '#9a3412' }}>
-                        {procedure.isObjectif ? 'Objectif' : 'Hors objectif'}
+                        {procedure.isObjectif ? 'Objectif' : 'Futur'}
                       </span>
                     </button>
                   ))}
                 </div>
-              )}
-              {query.trim().length === 0 && (
-                <p className="mt-2 text-xs text-slate-400">Tapez pour rechercher parmi {procedures.length} geste{procedures.length > 1 ? 's' : ''}</p>
               )}
             </div>
           )}
@@ -211,100 +162,99 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           {isHorsObjectifs && allowHorsObjectifs && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm text-orange-700">
               <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-              Ce geste est hors de vos objectifs pour l&apos;année {residentYear}. Il sera tout de même envoyé comme hors objectifs.
+              Pas encore exigible. La saisie reste possible.
             </div>
           )}
           {!allowHorsObjectifs && (
             <div className="mt-3 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
               <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-              Les gestes hors objectifs sont masques par les reglages administrateur.
+              Seuls les gestes de votre année sont disponibles.
             </div>
           )}
           {selectedProc?.objective && (
             <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-900">
-              Objectif A{residentYear} : {selectedProgress}/{selectedProc.objective.min_count} validé(s) au niveau {OBJECTIF_LEVEL_LABELS[selectedProc.objective.required_level]}.
-              {selectedMissing > 0 ? ` Encore ${selectedMissing} à compléter.` : ' Objectif déjà atteint.'}
-            </div>
-          )}
-          {autonomyWarning && (
-            <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-              <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-              {autonomyWarning}
+              {selectedMissing > 0
+                ? `Encore ${selectedMissing} acte${selectedMissing > 1 ? 's' : ''} pour atteindre l’objectif ${OBJECTIF_LEVEL_LABELS[selectedProc.objective.required_level]}.`
+                : 'Objectif atteint.'}
             </div>
           )}
         </section>
 
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Contexte de réalisation</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="IPP patient">
-              <input
-                type="text"
-                value={form.ipp_patient}
-                onChange={(event) => setField('ipp_patient', event.target.value)}
-                placeholder="Identifiant patient"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
-              />
-            </Field>
-            <Field label="Date de réalisation *">
-              <input
-                type="date"
-                value={form.performed_at}
-                onChange={(event) => setField('performed_at', event.target.value)}
-                max={today}
-                required
-                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
-              />
-            </Field>
-          </div>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>2. Date</h2>
+          <Field label="Date de réalisation *">
+            <input
+              type="date"
+              value={form.performed_at}
+              onChange={(event) => setField('performed_at', event.target.value)}
+              max={today}
+              required
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
+            />
+          </Field>
+        </section>
 
-          <div className="mt-4">
-            <p className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>
-              Type d&apos;activité *
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {ACTIVITY_TYPES.map((activityType) => {
-                const selected = form.activity_type === activityType.value
-                return (
-                  <button
-                    key={activityType.value}
-                    type="button"
-                    onClick={() => setField('activity_type', activityType.value)}
-                    className="rounded-xl border-2 px-3 py-3 text-left transition"
-                    style={selected ? { borderColor: 'var(--color-navy)', backgroundColor: 'var(--color-navy)', color: 'white' } : { borderColor: '#e2e8f0', color: '#374151', backgroundColor: 'white' }}
-                  >
-                    <span className="flex items-center gap-2 text-sm font-semibold">
-                      {selected && <CheckCircle size={15} strokeWidth={2} />}
-                      {activityType.label}
-                    </span>
-                    <span className="mt-1 block text-xs" style={{ color: selected ? 'rgba(255,255,255,0.75)' : '#64748b' }}>
-                      {ACTIVITY_HELP[activityType.value]}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>3. Niveau</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {ACTIVITY_TYPES.map((activityType) => {
+              const selected = form.activity_type === activityType.value
+              return (
+                <button
+                  key={activityType.value}
+                  type="button"
+                  onClick={() => setField('activity_type', activityType.value)}
+                  className="rounded-xl border-2 px-2 py-3 text-center transition"
+                  style={selected ? { borderColor: 'var(--color-navy)', backgroundColor: 'var(--color-navy)', color: 'white' } : { borderColor: '#e2e8f0', color: '#374151', backgroundColor: 'white' }}
+                >
+                  <span className="inline-flex items-center justify-center gap-1 text-sm font-semibold">
+                    {selected && <CheckCircle size={14} strokeWidth={2} />}
+                    {activityType.label}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </section>
 
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Encadrement</h2>
-          <div className="space-y-4">
-            <Field label="Enseignant superviseur *">
-              <select
-                value={form.enseignant_id}
-                onChange={(event) => setField('enseignant_id', event.target.value)}
-                required
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
-              >
-                <option value="">Choisir un enseignant...</option>
-                {enseignants.map((enseignant) => (
-                  <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>
-                ))}
-              </select>
-            </Field>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>4. Encadrant</h2>
+          <Field label="Enseignant *">
+            <select
+              value={form.enseignant_id}
+              onChange={(event) => setField('enseignant_id', event.target.value)}
+              required
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
+            >
+              <option value="">Choisir...</option>
+              {enseignants.map((enseignant) => (
+                <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>
+              ))}
+            </select>
+          </Field>
+        </section>
 
-            <Field label="Résident superviseur (optionnel)">
+        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>5. IPP Patient</h2>
+          <Field label="IPP patient *">
+            <input
+              type="text"
+              value={form.ipp_patient}
+              onChange={(event) => setField('ipp_patient', event.target.value)}
+              placeholder="Identifiant patient"
+              required
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
+            />
+          </Field>
+        </section>
+
+        <details className="group rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5" open={compteRenduRequired}>
+          <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>
+            <span>Autres détails</span>
+            <ChevronDown size={16} className="transition-transform duration-200 group-open:rotate-180 text-slate-400" />
+          </summary>
+          <div className="mt-4 space-y-4">
+            <Field label="Résident superviseur">
               <select
                 value={form.superviseur_resident_id}
                 onChange={(event) => setField('superviseur_resident_id', event.target.value)}
@@ -316,19 +266,14 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                 ))}
               </select>
             </Field>
-          </div>
-        </section>
 
-        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Notes</h2>
-          <div className="space-y-4">
-            <Field label={`Compte rendu opératoire${compteRenduRequired ? ' *' : ''}`}>
+            <Field label={`Compte rendu${compteRenduRequired ? ' *' : ''}`}>
               <textarea
                 value={form.compte_rendu}
                 onChange={(event) => setField('compte_rendu', event.target.value)}
                 rows={4}
                 required={compteRenduRequired}
-                placeholder="Description de l'acte réalisé..."
+                placeholder="Description de l’acte..."
                 className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
               />
             </Field>
@@ -337,24 +282,30 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                 value={form.commentaire}
                 onChange={(event) => setField('commentaire', event.target.value)}
                 rows={2}
-                placeholder="Remarque personnelle..."
+                placeholder="Note personnelle..."
                 className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
               />
             </Field>
           </div>
-        </section>
+        </details>
 
         {error && <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>}
-        {success && <p className="rounded-lg bg-green-50 px-4 py-2.5 text-sm text-green-700">{success}</p>}
 
-        <div className="sticky bottom-20 z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <div className="sticky bottom-20 z-20 flex gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+          <Link
+            href="/resident"
+            className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            <ArrowLeft size={16} />
+            Retour
+          </Link>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl py-3 text-sm font-semibold text-white transition active:scale-95 disabled:opacity-60"
+            className="flex-1 rounded-xl py-3 text-sm font-semibold text-white transition active:scale-95 disabled:opacity-60"
             style={{ backgroundColor: 'var(--color-navy)' }}
           >
-            {loading ? 'Envoi en cours...' : 'Soumettre pour validation'}
+            {loading ? 'Envoi...' : 'Envoyer'}
           </button>
         </div>
       </form>

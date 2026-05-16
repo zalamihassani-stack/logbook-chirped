@@ -1,14 +1,15 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { resubmitRealisation } from '@/app/actions/resident'
 import { ACTIVITY_TYPES } from '@/lib/logbook'
 
-export default function ResubmitForm({ realisationId, current, enseignants, residents }) {
+export default function ModifierActeForm({ realisationId, current, enseignants, residents }) {
   const router = useRouter()
   const isPending = current.status === 'pending'
   const today = new Date().toISOString().slice(0, 10)
-  const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
     procedure_id: current.procedure_id,
     enseignant_id: current.enseignant_id,
@@ -23,13 +24,12 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
   const [error, setError] = useState('')
 
   function set(key, value) {
-    setForm((currentForm) => ({ ...currentForm, [key]: value }))
+    setForm((f) => ({ ...f, [key]: value }))
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
-
     setLoading(true)
     const res = await resubmitRealisation(realisationId, form)
     setLoading(false)
@@ -37,38 +37,24 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
       setError(res.error)
       return
     }
-    router.push('/resident/historique')
-  }
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="w-full rounded-xl border-2 py-2.5 text-sm font-medium transition hover:bg-slate-50"
-        style={{ borderColor: 'var(--color-navy)', color: 'var(--color-navy)' }}
-      >
-        {isPending ? 'Modifier le geste en attente' : 'Modifier et re-soumettre'}
-      </button>
-    )
+    router.push(`/resident/historique/${realisationId}`)
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>
-        {isPending ? 'Modifier le geste en attente' : 'Modifier et re-soumettre'}
-      </p>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 pb-28 md:pb-0">
+      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Date</label>
           <input
             type="date"
             value={form.performed_at}
-            onChange={(event) => set('performed_at', event.target.value)}
+            onChange={(e) => set('performed_at', e.target.value)}
             max={today}
             required
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
           />
         </div>
+
         <div>
           <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Type d&apos;activité</label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -87,70 +73,87 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
             ))}
           </div>
         </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>IPP patient *</label>
           <input
             type="text"
             value={form.ipp_patient}
-            onChange={(event) => set('ipp_patient', event.target.value)}
+            onChange={(e) => set('ipp_patient', e.target.value)}
             placeholder="Identifiant patient"
             required
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
           />
         </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Enseignant</label>
           <select
             value={form.enseignant_id}
-            onChange={(event) => set('enseignant_id', event.target.value)}
+            onChange={(e) => set('enseignant_id', e.target.value)}
             required
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
           >
-            {enseignants.map((enseignant) => <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>)}
+            {enseignants.map((enseignant) => (
+              <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>
+            ))}
           </select>
         </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Résident superviseur</label>
           <select
             value={form.superviseur_resident_id}
-            onChange={(event) => set('superviseur_resident_id', event.target.value)}
+            onChange={(e) => set('superviseur_resident_id', e.target.value)}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
           >
             <option value="">Aucun</option>
-            {residents.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name}</option>)}
+            {residents.map((resident) => (
+              <option key={resident.id} value={resident.id}>{resident.full_name}</option>
+            ))}
           </select>
         </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Compte rendu</label>
           <textarea
             value={form.compte_rendu}
-            onChange={(event) => set('compte_rendu', event.target.value)}
+            onChange={(e) => set('compte_rendu', e.target.value)}
             rows={3}
-            className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+            className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
           />
         </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Commentaire</label>
           <textarea
             value={form.commentaire}
-            onChange={(event) => set('commentaire', event.target.value)}
+            onChange={(e) => set('commentaire', e.target.value)}
             rows={2}
-            className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+            className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
           />
         </div>
+
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-        <div className="flex gap-3">
-          <button type="button" onClick={() => setOpen(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm">Annuler</button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
-            style={{ backgroundColor: 'var(--color-navy)' }}
-          >
-            {loading ? 'Envoi...' : isPending ? 'Enregistrer' : 'Re-soumettre'}
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+
+      <div className="fixed bottom-20 left-0 right-0 z-20 flex gap-3 border-t border-slate-100 bg-white px-5 py-3 md:static md:border-0 md:bg-transparent md:p-0">
+        <Link
+          href={`/resident/historique/${realisationId}`}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600"
+        >
+          <ChevronLeft size={16} strokeWidth={1.75} />
+          Retour
+        </Link>
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
+          style={{ backgroundColor: 'var(--color-navy)' }}
+        >
+          {loading ? 'Envoi...' : isPending ? 'Enregistrer' : 'Re-soumettre'}
+        </button>
+      </div>
+    </form>
   )
 }

@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, BookOpen, CheckCircle2, Target } from 'lucide
 import Badge from '@/components/ui/Badge'
 import ExportFicheButton from './ExportFicheButton'
 import { ACTIVITY_TYPE_LABELS, OBJECTIF_LEVEL_LABELS } from '@/lib/logbook'
-import { formatDate, getInitials } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 
 const LEVELS = [
   { key: '3', label: 'Autonomie', shortLabel: 'Autonomie', color: 'var(--color-success)', bg: 'var(--color-success-light)' },
@@ -48,7 +48,7 @@ function buildLevelSummary(objectives) {
 }
 
 export default function ResidentDetail({
-  resident, realisations, yearlyObjectives, exposureObjectives, stats, year,
+  resident, realisations, yearlyObjectives, exposureObjectives, year,
 }) {
   const [tab, setTab] = useState('progression')
   const allObjectives = useMemo(() => [...yearlyObjectives, ...exposureObjectives], [yearlyObjectives, exposureObjectives])
@@ -56,6 +56,7 @@ export default function ResidentDetail({
   const doneTotal = summary.reduce((sum, item) => sum + item.done, 0)
   const objectiveTotal = summary.reduce((sum, item) => sum + item.total, 0)
   const objectivePct = objectiveTotal ? Math.round((doneTotal / objectiveTotal) * 100) : 0
+  const stats = { total: 0, validated: 0, pending: 0, refused: 0 }
 
   return (
     <div className="max-w-5xl p-5 md:p-8">
@@ -68,11 +69,7 @@ export default function ResidentDetail({
         Retour au suivi
       </Link>
 
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-base font-bold"
-          style={{ backgroundColor: 'var(--color-ice)', color: 'var(--color-navy)' }}>
-          {getInitials(resident.full_name)}
-        </div>
+      <div className="mb-4 flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold" style={{ color: 'var(--color-navy)' }}>{resident.full_name}</h1>
           <p className="text-sm text-slate-500">Année {year} · Promo {resident.promotion ?? '-'}</p>
@@ -80,8 +77,8 @@ export default function ResidentDetail({
         <ExportFicheButton resident={resident} realisations={realisations} year={year} />
       </div>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
+      <div className="hidden">
+        {false && [
           { label: 'Total', value: stats.total, bg: 'var(--color-ice)', color: 'var(--color-navy)' },
           { label: 'Validés', value: stats.validated, bg: 'var(--color-success-light)', color: 'var(--color-success)' },
           { label: 'En attente', value: stats.pending, bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },

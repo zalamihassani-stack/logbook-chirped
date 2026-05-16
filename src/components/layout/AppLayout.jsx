@@ -14,11 +14,11 @@ import {
   Activity,
   Target,
   BookOpen,
-  Plus,
   History,
   FlaskConical,
   LogOut,
   UserCircle,
+  Plus,
 } from 'lucide-react'
 import PWAInstallBanner from '@/components/ui/PWAInstallBanner'
 import PushNotifications from '@/components/pwa/PushNotifications'
@@ -40,7 +40,7 @@ const NAV = {
   ],
   resident: [
     { label: 'Progression', icon: BookOpen, path: '/resident/progression' },
-    { label: 'Historique', icon: History, path: '/resident/historique' },
+    { label: 'Mes actes', icon: History, path: '/resident/historique' },
     { label: 'Accueil', icon: LayoutDashboard, path: '/resident', home: true },
     { label: 'Travaux', icon: FlaskConical, path: '/resident/travaux' },
     { label: 'Référentiel', icon: Scissors, path: '/resident/referentiel' },
@@ -175,11 +175,14 @@ export default function AppLayout({ profile, children, badges = {} }) {
         {children}
       </main>
 
-      {role === 'resident' && ['/resident', '/resident/historique', '/resident/progression'].includes(pathname) && (
-        <Link href="/resident/nouveau" aria-label="Ajouter un geste"
-          className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-navy text-white shadow-lg transition-transform hover:scale-105 md:bottom-6 md:right-6 md:h-auto md:w-auto md:gap-2 md:px-4 md:py-2.5">
-          <Plus size={18} strokeWidth={2} />
-          <span className="hidden text-sm font-medium md:inline">Nouveau geste</span>
+      {role === 'resident' && !pathname.includes('/nouveau') && !pathname.includes('/modifier') && (
+        <Link
+          href="/resident/nouveau"
+          aria-label="Ajouter un acte"
+          className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95 md:bottom-8 md:right-8"
+          style={{ backgroundColor: 'var(--color-navy)' }}
+        >
+          <Plus size={24} strokeWidth={2.5} className="text-white" />
         </Link>
       )}
 

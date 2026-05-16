@@ -19,7 +19,6 @@ export default async function ResidentFichePage({ params }) {
     { data: realisations },
     { data: objectiveRows },
     { data: procedures },
-    { data: travaux },
     { data: progressRows },
   ] = await Promise.all([
     admin.from('profiles').select('*').eq('id', id).single(),
@@ -34,13 +33,8 @@ export default async function ResidentFichePage({ params }) {
       .eq('is_active', true),
     supabase
       .from('procedures')
-      .select('id, name, pathologie, objectif_final, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, categories(name, color_hex)')
+      .select('id, name, pathologie, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, categories(name, color_hex)')
       .eq('is_active', true),
-    admin
-      .from('travaux_scientifiques')
-      .select('id, title, journal_or_event, year, status, type_id, travail_types(name, color_hex)')
-      .eq('resident_id', id)
-      .order('year', { ascending: false }),
     admin
       .from('v_resident_niveau')
       .select('procedure_id, count_expose, count_supervise, count_autonome, niveau_atteint')
@@ -59,29 +53,12 @@ export default async function ResidentFichePage({ params }) {
   const exposureObjectives = enrichObjectiveProgress(curriculum.exposure, progressIndex)
   const yearlyObjectives = enrichObjectiveProgress(curriculum.yearly, progressIndex)
 
-  const stats = {
-    total: realisationsArr.length,
-    validated: realisationsArr.filter((realisation) => realisation.status === 'validated').length,
-    pending: realisationsArr.filter((realisation) => realisation.status === 'pending').length,
-    refused: realisationsArr.filter((realisation) => realisation.status === 'refused').length,
-  }
-
-  const yearlyStats = [1, 2, 3, 4, 5].map((targetYear) => {
-    const yearObjectives = yearlyObjectives.filter((objective) => objective.year === targetYear)
-    const done = yearObjectives.filter((objective) => objective.done).length
-    const total = yearObjectives.length
-    return { year: targetYear, done, total, pct: total ? Math.min(100, Math.round((done / total) * 100)) : 0 }
-  })
-
   return (
     <ResidentDetail
       resident={resident}
       realisations={realisationsArr}
       yearlyObjectives={yearlyObjectives}
       exposureObjectives={exposureObjectives}
-      yearlyStats={yearlyStats}
-      travaux={travaux ?? []}
-      stats={stats}
       year={year}
     />
   )

@@ -3,10 +3,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import NouveauForm from './NouveauForm'
 import { getResidentYear } from '@/lib/utils'
-import { getResidentProgressRows, indexProgressByProcedure } from '@/lib/logbook'
+import { getResidentProgressRows, indexProgressByProcedure, procedureToGlobalObjective } from '@/lib/logbook'
 import { getAppSettings } from '@/lib/app-settings'
 
-export default async function NouveauPage() {
+export default async function NouveauPage({ searchParams }) {
   const supabase = await createClient()
   const admin = createAdminClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -18,32 +18,27 @@ export default async function NouveauPage() {
     .eq('id', user.id)
     .single()
   const year = getResidentYear(profile?.residanat_start_date)
+  const params = await searchParams
+  const initialProcedureId = typeof params?.procedure === 'string' ? params.procedure : ''
 
-  const [{ data: procedures }, { data: enseignants }, { data: residents }, { data: objectives }, settingsRes, progressRows] = await Promise.all([
+  const [{ data: procedures }, { data: enseignants }, { data: residents }, settingsRes, progressRows] = await Promise.all([
     supabase
       .from('procedures')
-      .select('id, name, pathologie, objectif_final, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, category_id, categories(name, color_hex)')
+      .select('id, name, pathologie, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, category_id, categories(name, color_hex)')
       .eq('is_active', true)
       .order('name'),
     admin.from('profiles').select('id, full_name').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
     admin.from('profiles').select('id, full_name').eq('role', 'resident').eq('is_active', true).neq('id', user.id).order('full_name'),
-    supabase.from('procedure_objectives').select('procedure_id, year, required_level, min_count').lte('year', year).eq('is_active', true),
     getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
     getResidentProgressRows(supabase, user.id),
   ])
 
-  const objectivesByProcedure = new Map()
-  for (const objective of [...(objectives ?? [])].sort((a, b) => {
-    if (a.year !== b.year) return a.year - b.year
-    return a.required_level - b.required_level
-  })) {
-    objectivesByProcedure.set(objective.procedure_id, objective)
-  }
-
   const proceduresWithTag = (procedures ?? []).map((procedure) => ({
     ...procedure,
-    objective: objectivesByProcedure.get(procedure.id) ?? null,
-    isObjectif: objectivesByProcedure.has(procedure.id),
+    objective: procedureToGlobalObjective(procedure),
+  })).map((procedure) => ({
+    ...procedure,
+    isObjectif: procedure.objective?.year <= year,
   }))
 
   return (
@@ -55,6 +50,7 @@ export default async function NouveauPage() {
         residentYear={year}
         progressByProcedure={indexProgressByProcedure(progressRows)}
         settings={settingsRes.settings}
+        initialProcedureId={initialProcedureId}
       />
     </div>
   )

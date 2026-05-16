@@ -46,7 +46,7 @@ export default function PrioritesTab({ residents }) {
           .eq('is_active', true),
         supabase
           .from('procedures')
-          .select('id, name, pathologie, objectif_final, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, categories(name, color_hex)')
+          .select('id, name, pathologie, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, categories(name, color_hex)')
           .eq('is_active', true),
       ])
 
@@ -115,7 +115,7 @@ export default function PrioritesTab({ residents }) {
             procedure,
             residentsWithActs,
             acts,
-            finalLevel: normalizeObjectifLevel(procedure.objectif_final),
+            finalLevel: normalizeObjectifLevel(procedure.target_level) || normalizeObjectifLevel(procedure.objectif_final),
           }
         })
         .sort((a, b) => {

@@ -15,15 +15,18 @@ export default async function TravauxDetailPage({ params }) {
   if (!user) redirect('/login')
 
   const [{ data: travail }, { data: types }, { data: enseignants }, { data: residents }] = await Promise.all([
-    supabase.from('travaux_scientifiques')
-      .select('id, title, journal_or_event, year, authors, doi_or_url, status, validation_status, validation_feedback, initial_validated_by, initial_validated_at, final_validated_at, type_id, encadrant_id, travail_types(name, color_hex), encadrant:profiles!encadrant_id(id, full_name), travail_auteurs(id, profile_id, external_name, author_order, profiles(id, full_name, role))')
-      .eq('id', id).eq('resident_id', user.id).single(),
+    admin.from('travaux_scientifiques')
+      .select('id, resident_id, title, journal_or_event, year, authors, doi_or_url, status, validation_status, validation_feedback, initial_validated_by, initial_validated_at, final_validated_at, type_id, encadrant_id, travail_types(name, color_hex), encadrant:profiles!encadrant_id(id, full_name), travail_auteurs(id, profile_id, external_name, author_order, profiles(id, full_name, role))')
+      .eq('id', id).single(),
     supabase.from('travail_types').select('id, name, color_hex').eq('is_active', true).order('display_order'),
     admin.from('profiles').select('id, full_name, role').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
     admin.from('profiles').select('id, full_name, role').eq('role', 'resident').eq('is_active', true).order('full_name'),
   ])
 
-  if (!travail) notFound()
+  const authorEntry = travail?.travail_auteurs?.find((author) => author.profile_id === user.id)
+  const canAccess = travail?.resident_id === user.id || Boolean(authorEntry)
+  const canManage = travail?.resident_id === user.id
+  if (!travail || !canAccess) notFound()
   const statusStyle = TRAVAIL_STATUS_STYLES[travail.status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const validationStyle = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const validationHelp = getTravailValidationHelp(travail.validation_status)
@@ -76,6 +79,7 @@ export default async function TravauxDetailPage({ params }) {
         types={normalizeTravailTypes(types ?? [])}
         enseignants={enseignants ?? []}
         residents={residents ?? []}
+        canManage={canManage}
       />
     </div>
   )
