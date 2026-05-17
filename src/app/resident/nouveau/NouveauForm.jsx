@@ -35,6 +35,12 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
   const selectedMissing = selectedProc?.objective
     ? Math.max(0, selectedProc.objective.min_count - selectedProgress)
     : 0
+  const completionSteps = [
+    { label: 'Geste', done: Boolean(form.procedure_id) },
+    { label: 'Niveau', done: Boolean(form.activity_type) },
+    { label: 'Encadrant', done: Boolean(form.enseignant_id) },
+    { label: 'IPP', done: Boolean(form.ipp_patient.trim()) },
+  ]
 
   const filteredProcedures = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -105,17 +111,18 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
 
   return (
     <>
-      <PageHeader title="Nouvel acte" subtitle="Geste, niveau, encadrant." />
+      <PageHeader title="Nouvel acte" subtitle="Saisie guidée pour une validation plus rapide." />
+      <StepProgress steps={completionSteps} />
 
       <form onSubmit={handleSubmit} className="space-y-4 pb-28 md:pb-0">
-        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+        <section className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm md:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>1. Geste</h2>
             <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">A{residentYear}</span>
           </div>
 
           {form.procedure_id && selectedProc ? (
-            <div className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5"
+            <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5"
               style={{ borderColor: 'var(--color-navy)', backgroundColor: 'var(--color-ice)' }}>
               <div className="min-w-0">
                 <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{selectedProc.name}</p>
@@ -132,10 +139,10 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                 <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
                   placeholder="Rechercher un geste..." autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-sky-400" />
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-sky-400" />
               </label>
               {query.trim().length > 0 && (
-                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                   {filteredProcedures.length === 0 ? (
                     <p className="py-4 text-center text-sm text-slate-400">Aucun geste trouvé</p>
                   ) : filteredProcedures.map((procedure) => (
@@ -180,8 +187,9 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           )}
         </section>
 
-        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>2. Date</h2>
+        <section className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+          <h2 className="mb-1 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>2. Date</h2>
+          <p className="mb-4 text-xs text-slate-500">Par défaut, la date du jour est utilisée.</p>
           <Field label="Date de réalisation *">
             <input
               type="date"
@@ -194,7 +202,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           </Field>
         </section>
 
-        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+        <section className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm md:p-5">
           <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>3. Niveau</h2>
           <div className="grid grid-cols-3 gap-2">
             {ACTIVITY_TYPES.map((activityType) => {
@@ -204,7 +212,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                   key={activityType.value}
                   type="button"
                   onClick={() => setField('activity_type', activityType.value)}
-                  className="rounded-xl border-2 px-2 py-3 text-center transition"
+                  className="rounded-lg border-2 px-2 py-3 text-center transition"
                   style={selected ? { borderColor: 'var(--color-navy)', backgroundColor: 'var(--color-navy)', color: 'white' } : { borderColor: '#e2e8f0', color: '#374151', backgroundColor: 'white' }}
                 >
                   <span className="inline-flex items-center justify-center gap-1 text-sm font-semibold">
@@ -217,7 +225,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+        <section className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm md:p-5">
           <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>4. Encadrant</h2>
           <Field label="Enseignant *">
             <select
@@ -234,7 +242,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           </Field>
         </section>
 
-        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+        <section className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm md:p-5">
           <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>5. IPP Patient</h2>
           <Field label="IPP patient *">
             <input
@@ -248,7 +256,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           </Field>
         </section>
 
-        <details className="group rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5" open={compteRenduRequired}>
+        <details className="group rounded-lg border border-slate-100 bg-white p-4 shadow-sm md:p-5" open={compteRenduRequired}>
           <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>
             <span>Autres détails</span>
             <ChevronDown size={16} className="transition-transform duration-200 group-open:rotate-180 text-slate-400" />
@@ -291,10 +299,12 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
 
         {error && <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>}
 
-        <div className="sticky bottom-20 z-20 flex gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <SubmitSummary selectedProc={selectedProc} activityType={form.activity_type} enseignants={enseignants} enseignantId={form.enseignant_id} />
+
+        <div className="sticky bottom-20 z-20 flex gap-3 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
           <Link
             href="/resident"
-            className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+            className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             <ArrowLeft size={16} />
             Retour
@@ -302,7 +312,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 rounded-xl py-3 text-sm font-semibold text-white transition active:scale-95 disabled:opacity-60"
+            className="flex-1 rounded-lg py-3 text-sm font-semibold text-white transition active:scale-95 disabled:opacity-60"
             style={{ backgroundColor: 'var(--color-navy)' }}
           >
             {loading ? 'Envoi...' : 'Envoyer'}
@@ -319,5 +329,57 @@ function Field({ label, children }) {
       <span className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>{label}</span>
       {children}
     </label>
+  )
+}
+
+function StepProgress({ steps }) {
+  const completed = steps.filter((step) => step.done).length
+  return (
+    <div className="mb-4 rounded-lg border border-slate-100 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Progression</p>
+        <p className="text-xs font-semibold" style={{ color: 'var(--color-navy)' }}>{completed}/{steps.length}</p>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {steps.map((step) => (
+          <div key={step.label} className="min-w-0">
+            <div className="mb-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: step.done ? '100%' : '0%', backgroundColor: step.done ? 'var(--color-success)' : 'transparent' }}
+              />
+            </div>
+            <p className={`truncate text-[11px] font-medium ${step.done ? 'text-slate-700' : 'text-slate-400'}`}>{step.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SubmitSummary({ selectedProc, activityType, enseignants, enseignantId }) {
+  if (!selectedProc && !activityType && !enseignantId) return null
+
+  const activityLabel = ACTIVITY_TYPES.find((type) => type.value === activityType)?.label
+  const enseignantName = enseignants.find((enseignant) => enseignant.id === enseignantId)?.full_name
+
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+      <p className="mb-2 font-semibold" style={{ color: 'var(--color-navy)' }}>Résumé avant envoi</p>
+      <div className="grid gap-1.5 sm:grid-cols-3">
+        <SummaryItem label="Geste" value={selectedProc?.name} />
+        <SummaryItem label="Niveau" value={activityLabel} />
+        <SummaryItem label="Encadrant" value={enseignantName} />
+      </div>
+    </div>
+  )
+}
+
+function SummaryItem({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <span className="block text-[11px] text-slate-400">{label}</span>
+      <span className="block truncate font-medium text-slate-700">{value || '-'}</span>
+    </div>
   )
 }

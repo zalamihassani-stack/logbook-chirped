@@ -69,7 +69,7 @@ export default function DonneesClient({ residents }) {
       return
     }
 
-    const header = ['Date', 'Résident', 'Geste', 'Type', 'Enseignant', 'Statut', 'Annee residanat', 'Hors objectifs']
+    const header = ['Date', 'Résident', 'Geste', 'Type', 'Enseignant', 'Statut', 'Année résidanat', 'Hors objectifs']
     const rows = (reals ?? []).map((realisation) => [
       new Date(realisation.performed_at).toLocaleDateString('fr-FR'),
       realisation.resident?.full_name ?? '-',

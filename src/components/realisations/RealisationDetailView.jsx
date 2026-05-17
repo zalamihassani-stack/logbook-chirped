@@ -6,9 +6,9 @@ import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
 const ACTION_LABELS = {
   submitted: 'Soumis',
-  resubmitted: 'Renvoye',
-  validated: 'Valide',
-  refused: 'Refuse',
+  resubmitted: 'Renvoyé',
+  validated: 'Validé',
+  refused: 'Refusé',
 }
 
 export default function RealisationDetailView({ real, history = [], procedureProgress, showResident = true }) {
@@ -21,10 +21,10 @@ export default function RealisationDetailView({ real, history = [], procedurePro
   return (
     <div className="space-y-4">
       <Section title="Geste chirurgical">
-        <DetailRow label="Intitule" value={procedure?.name} />
+        <DetailRow label="Intitulé" value={procedure?.name} />
         <DetailRow label="Pathologie" value={procedure?.pathologie} />
         {category && (
-          <DetailRow label="Categorie">
+          <DetailRow label="Catégorie">
             <span
               className="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium"
               style={{ backgroundColor: `${category.color_hex}25`, color: category.color_hex }}
@@ -36,22 +36,22 @@ export default function RealisationDetailView({ real, history = [], procedurePro
       </Section>
 
       {showResident && (
-        <Section title="Resident">
+        <Section title="Résident">
           <DetailRow label="Nom" value={real.resident?.full_name} />
-          <DetailRow label="Annee actuelle" value={residentYear ? `A${residentYear}` : '-'} />
+          <DetailRow label="Année actuelle" value={residentYear ? `A${residentYear}` : '-'} />
           <DetailRow label="Promotion" value={real.resident?.promotion} />
-          <DetailRow label="Annee au moment de l'acte" value={real.resident_year_at_time ? `A${real.resident_year_at_time}` : '-'} />
+          <DetailRow label="Année au moment de l'acte" value={real.resident_year_at_time ? `A${real.resident_year_at_time}` : '-'} />
         </Section>
       )}
 
-      <Section title="Details de l'acte">
-        <DetailRow label="Date de realisation" value={formatDate(real.performed_at)} />
-        <DetailRow label="Type d'activite" value={ACTIVITY_TYPE_LABELS[real.activity_type] ?? '-'} />
+      <Section title="Détails de l'acte">
+        <DetailRow label="Date de réalisation" value={formatDate(real.performed_at)} />
+        <DetailRow label="Type d'activité" value={ACTIVITY_TYPE_LABELS[real.activity_type] ?? '-'} />
         <DetailRow label="IPP patient" value={real.ipp_patient} />
         <DetailRow label="Encadrant" value={real.enseignant?.full_name ?? real.profiles?.full_name} />
-        <DetailRow label="Resident superviseur" value={real.superviseur?.full_name} />
+        <DetailRow label="Résident superviseur" value={real.superviseur?.full_name} />
         <DetailRow label="Soumis le" value={formatDateTime(real.created_at)} />
-        <DetailRow label="Derniere modification" value={formatDateTime(real.updated_at)} />
+        <DetailRow label="Dernière modification" value={formatDateTime(real.updated_at)} />
         {real.is_hors_objectifs && (
           <DetailRow label="Objectifs">
             <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">Hors objectifs</span>
@@ -62,18 +62,18 @@ export default function RealisationDetailView({ real, history = [], procedurePro
       {procedureProgress && (
         <Section title="Historique sur ce geste">
           <div className="grid grid-cols-3 gap-2 text-center">
-            <MiniCount label="Expose" value={procedureProgress.count_expose ?? 0} />
-            <MiniCount label="Supervise" value={procedureProgress.count_supervise ?? 0} />
+            <MiniCount label="Exposé" value={procedureProgress.count_expose ?? 0} />
+            <MiniCount label="Supervisé" value={procedureProgress.count_supervise ?? 0} />
             <MiniCount label="Autonome" value={procedureProgress.count_autonome ?? 0} />
           </div>
         </Section>
       )}
 
       <Section title="Contenu">
-        {real.compte_rendu && <TextBlock title="Compte rendu operatoire" value={real.compte_rendu} />}
-        {real.commentaire && <TextBlock title="Commentaire du resident" value={real.commentaire} />}
+        {real.compte_rendu && <TextBlock title="Compte rendu opératoire" value={real.compte_rendu} />}
+        {real.commentaire && <TextBlock title="Commentaire du résident" value={real.commentaire} />}
         {!real.compte_rendu && !real.commentaire && (
-          <p className="text-sm text-slate-400">Aucun compte rendu ou commentaire renseigne.</p>
+          <p className="text-sm text-slate-400">Aucun compte rendu ou commentaire renseigné.</p>
         )}
       </Section>
 
@@ -91,7 +91,7 @@ export default function RealisationDetailView({ real, history = [], procedurePro
                   <p className="text-sm font-medium text-slate-800">{ACTION_LABELS[item.action] ?? item.action}</p>
                   <p className="text-xs text-slate-400">{formatDateTime(item.created_at)}</p>
                 </div>
-                <p className="text-xs text-slate-500">{item.profiles?.full_name ?? 'Systeme'}</p>
+                  <p className="text-xs text-slate-500">{item.profiles?.full_name ?? 'Système'}</p>
                 {item.feedback && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{item.feedback}</p>}
               </div>
             ))}

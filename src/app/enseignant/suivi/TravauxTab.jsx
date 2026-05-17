@@ -22,9 +22,9 @@ const MODE_TABS = [
 ]
 
 const ENCADREMENT_TABS = [
-  { id: 'pending', label: 'A valider' },
-  { id: 'validated', label: 'Valides' },
-  { id: 'refused', label: 'Refuses' },
+  { id: 'pending', label: 'À valider' },
+  { id: 'validated', label: 'Validés' },
+  { id: 'refused', label: 'Refusés' },
   { id: 'all', label: 'Tous' },
 ]
 
@@ -142,7 +142,7 @@ export default function TravauxTab({ travailTypes, currentEnseignantId = '' }) {
 
     autoTable(doc, {
       startY: 36,
-      head: [['Titre', 'Resident', 'Type', 'Statut', 'Validation', 'Encadrant', 'Journal / Congres', 'Auteurs', 'Annee']],
+      head: [['Titre', 'Résident', 'Type', 'Statut', 'Validation', 'Encadrant', 'Journal / Congrès', 'Auteurs', 'Année']],
       body: visibleData.map((travail) => [
         travail.title ?? '-',
         travail.resident?.full_name ?? '-',
@@ -199,10 +199,10 @@ export default function TravauxTab({ travailTypes, currentEnseignantId = '' }) {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Annee</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500">Année</label>
             <select value={filters.year} onChange={(event) => setFilter('year', event.target.value)}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
-              <option value="">Toutes les annees</option>
+              <option value="">Toutes les années</option>
               {years.map((year) => <option key={year} value={year}>{year}</option>)}
             </select>
           </div>
@@ -212,7 +212,7 @@ export default function TravauxTab({ travailTypes, currentEnseignantId = '' }) {
               onClick={() => setFilters({ type: '', year: '' })}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 sm:col-span-2"
             >
-              Reinitialiser
+              Réinitialiser
             </button>
           )}
         </div>
@@ -290,7 +290,7 @@ function TravailCard({ travail, currentEnseignantId, showMention }) {
           </div>
           <p className="text-sm font-semibold leading-snug text-slate-800">{travail.title}</p>
           <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
-            {travail.resident?.full_name ?? '-'} - {travail.year} - {formatTravailAuthors(travail) || 'Auteurs non renseignes'}
+            {travail.resident?.full_name ?? '-'} - {travail.year} - {formatTravailAuthors(travail) || 'Auteurs non renseignés'}
           </p>
           {travail.encadrant?.full_name && <p className="mt-1 text-[11px] text-slate-400">Encadrant : {travail.encadrant.full_name}</p>}
           {travail.validation_feedback && <p className="mt-1 text-xs text-red-500">{travail.validation_feedback}</p>}

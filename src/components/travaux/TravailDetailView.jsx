@@ -49,11 +49,11 @@ export default function TravailDetailView({ travail, history = [], showResident 
         <div className="space-y-2.5">
           <DetailRow label="Titre" value={travail.title} />
           <DetailRow label="Type" value={travail.travail_types?.name} />
-          {showResident && <DetailRow label="Resident" value={travail.resident?.full_name} />}
+          {showResident && <DetailRow label="Résident" value={travail.resident?.full_name} />}
           {showResident && <DetailRow label="Promotion" value={travail.resident?.promotion} />}
           <DetailRow label="Encadrant" value={travail.encadrant?.full_name} />
-          <DetailRow label="Annee" value={String(travail.year)} />
-          <DetailRow label="Journal / Congres" value={travail.journal_or_event} />
+          <DetailRow label="Année" value={String(travail.year)} />
+          <DetailRow label="Journal / Congrès" value={travail.journal_or_event} />
           <DetailRow label="Statut" value={TRAVAIL_STATUS_LABELS[travail.status] ?? travail.status} />
           <DetailRow label="Validation" value={TRAVAIL_VALIDATION_LABELS[travail.validation_status] ?? travail.validation_status} />
         </div>
@@ -74,7 +74,7 @@ export default function TravailDetailView({ travail, history = [], showResident 
 
       <AppCard className="p-4 sm:p-5">
         <SectionTitle title="Auteurs" />
-        <p className="text-sm leading-relaxed text-slate-800">{formatTravailAuthors(travail) || 'Aucun auteur renseigne'}</p>
+        <p className="text-sm leading-relaxed text-slate-800">{formatTravailAuthors(travail) || 'Aucun auteur renseigné'}</p>
       </AppCard>
 
       <AppCard className="p-4 sm:p-5">

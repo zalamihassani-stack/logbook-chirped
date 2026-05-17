@@ -11,7 +11,7 @@ import { CheckCircle, Clock, FilePlus2, FlaskConical, ListChecks, Target, XCircl
 const LEVELS = {
   1: { label: 'Exposition', bg: 'var(--color-info-light)', color: 'var(--color-info)' },
   2: { label: 'Supervision', bg: 'var(--color-warning-light)', color: 'var(--color-warning)' },
-  3: { label: 'Maitrise', bg: 'var(--color-success-light)', color: 'var(--color-success)' },
+  3: { label: 'Maîtrise', bg: 'var(--color-success-light)', color: 'var(--color-success)' },
 }
 
 export default async function ResidentDashboard() {
@@ -181,8 +181,8 @@ function StatCard({ href, icon: Icon, label, value, tone = 'primary', customColo
   const bg = customColor ? `${customColor}20` : styles.bg
 
   return (
-    <Link href={href} className="min-w-0 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm transition hover:shadow-md sm:p-4">
-      <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl sm:h-10 sm:w-10" style={{ backgroundColor: bg, color }}>
+    <Link href={href} className="min-w-0 rounded-lg border border-slate-100 bg-white p-3 shadow-sm transition hover:shadow-md sm:p-4">
+      <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg sm:h-10 sm:w-10" style={{ backgroundColor: bg, color }}>
         <Icon size={17} strokeWidth={1.8} />
       </div>
       <p className="text-2xl font-bold sm:text-3xl" style={{ color: 'var(--color-navy)' }}>{value}</p>
@@ -193,8 +193,8 @@ function StatCard({ href, icon: Icon, label, value, tone = 'primary', customColo
 
 function ProgressStat({ href, label, done, total, pct, bg, color }) {
   return (
-    <Link href={href} className="min-w-0 rounded-2xl border border-slate-100 bg-white p-2.5 shadow-sm transition hover:shadow-md sm:p-4">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl sm:h-10 sm:w-10" style={{ backgroundColor: bg, color }}>
+    <Link href={href} className="min-w-0 rounded-lg border border-slate-100 bg-white p-2.5 shadow-sm transition hover:shadow-md sm:p-4">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg sm:h-10 sm:w-10" style={{ backgroundColor: bg, color }}>
         <Target size={16} strokeWidth={1.8} />
       </div>
       <p className="truncate text-[11px] font-semibold sm:text-sm" style={{ color }}>{label}</p>

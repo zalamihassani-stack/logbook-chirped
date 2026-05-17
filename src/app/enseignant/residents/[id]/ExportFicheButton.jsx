@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, FileDown, Loader2, X } from 'lucide-react'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
-const STATUS_LABELS = { pending: 'En attente', validated: 'Valide', refused: 'Refuse' }
+const STATUS_LABELS = { pending: 'En attente', validated: 'Validé', refused: 'Refusé' }
 
 const STATUS_OPTIONS = [
   { value: 'validated', label: 'Validés' },
@@ -102,14 +102,14 @@ export default function ExportFicheButton({ resident, realisations, year }) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(80, 80, 80)
-    doc.text(`Annee ${year} de residanat · Promotion ${resident.promotion ?? '—'}`, 20, 52)
+    doc.text(`Année ${year} de résidanat · Promotion ${resident.promotion ?? '—'}`, 20, 52)
 
     // ── Stats boxes (computed from filtered data) ──
     const statItems = [
       { label: 'Total', value: filtered.length },
-      { label: 'Valides', value: filtered.filter((r) => r.status === 'validated').length },
+      { label: 'Validés', value: filtered.filter((r) => r.status === 'validated').length },
       { label: 'En attente', value: filtered.filter((r) => r.status === 'pending').length },
-      { label: 'Refuses', value: filtered.filter((r) => r.status === 'refused').length },
+      { label: 'Refusés', value: filtered.filter((r) => r.status === 'refused').length },
     ]
     const boxW = (pageW - 28) / statItems.length
     statItems.forEach((stat, i) => {

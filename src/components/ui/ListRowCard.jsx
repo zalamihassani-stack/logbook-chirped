@@ -6,7 +6,7 @@ export default function ListRowCard({ href, title, subtitle, meta, badge, childr
   return (
     <Component
       href={href}
-      className={`flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${danger ? 'border border-red-200' : 'border border-slate-100'}`}
+      className={`flex items-center gap-3 rounded-lg bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${danger ? 'border border-red-200' : 'border border-slate-100'}`}
     >
       <div className="min-w-0 flex-1">
         {title && <p className="truncate text-sm font-semibold text-slate-800">{title}</p>}
@@ -19,4 +19,3 @@ export default function ListRowCard({ href, title, subtitle, meta, badge, childr
     </Component>
   )
 }
-

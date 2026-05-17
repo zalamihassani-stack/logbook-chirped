@@ -8,7 +8,7 @@ import FilterPanel from '@/components/ui/FilterPanel'
 import { SkeletonList } from '@/components/ui/SkeletonCard'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 
-const STATUS_LABELS = { pending: 'En attente', validated: 'Valide', refused: 'Refuse' }
+const STATUS_LABELS = { pending: 'En attente', validated: 'Validé', refused: 'Refusé' }
 
 function fmtDate(dateStr) {
   if (!dateStr) return '—'
@@ -98,7 +98,7 @@ export default function ActesTab({ residents, procedures, enseignants }) {
 
     autoTable(doc, {
       startY: 36,
-      head: [['Date', 'Resident', 'Geste', 'Type', 'Statut', 'Enseignant', 'Annee residanat']],
+      head: [['Date', 'Résident', 'Geste', 'Type', 'Statut', 'Enseignant', 'Année résidanat']],
       body: data.map((realisation) => [
         fmtDate(realisation.performed_at),
         realisation.resident?.full_name ?? '—',
@@ -106,7 +106,7 @@ export default function ActesTab({ residents, procedures, enseignants }) {
         ACTIVITY_TYPE_LABELS[realisation.activity_type] ?? '—',
         STATUS_LABELS[realisation.status] ?? realisation.status,
         realisation.enseignant?.full_name ?? '—',
-        realisation.resident_year_at_time ? `Annee ${realisation.resident_year_at_time}` : '—',
+        realisation.resident_year_at_time ? `Année ${realisation.resident_year_at_time}` : '—',
       ]),
       headStyles: { fillColor: navy, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
       bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50] },
@@ -143,7 +143,7 @@ export default function ActesTab({ residents, procedures, enseignants }) {
         <FilterPanel active={activeFiltersCount > 0}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Resident</label>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Résident</label>
               <select value={filters.resident} onChange={(event) => set('resident', event.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
                 <option value="">Tous</option>
@@ -172,16 +172,16 @@ export default function ActesTab({ residents, procedures, enseignants }) {
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
                 <option value="">Tous</option>
                 <option value="pending">En attente</option>
-                <option value="validated">Valides</option>
-                <option value="refused">Refuses</option>
+                <option value="validated">Validés</option>
+                <option value="refused">Refusés</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Annee residanat</label>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Année résidanat</label>
               <select value={filters.year} onChange={(event) => set('year', event.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white outline-none">
                 <option value="">Toutes</option>
-                {[1, 2, 3, 4, 5].map((year) => <option key={year} value={year}>Annee {year}</option>)}
+                {[1, 2, 3, 4, 5].map((year) => <option key={year} value={year}>Année {year}</option>)}
               </select>
             </div>
             <div>

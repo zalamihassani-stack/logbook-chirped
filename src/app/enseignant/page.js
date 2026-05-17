@@ -70,8 +70,8 @@ export default async function EnseignantDashboard() {
   ])
 
   const metrics = [
-    { label: 'Actes en attente', value: pendingRes.count, icon: ClipboardList, iconBg: 'var(--color-warning-light)', iconColor: 'var(--color-warning)', href: '/enseignant/demandes?status=pending' },
-    { label: 'Travaux à valider', value: pendingTravauxRes.count, icon: FlaskConical, iconBg: '#ffedd5', iconColor: '#9a3412', href: '/enseignant/travaux' },
+    { label: 'Actes en attente', value: pendingRes.count, icon: ClipboardList, iconBg: 'var(--color-warning-light)', iconColor: 'var(--color-warning)', href: '/enseignant/demandes?status=pending', priority: true },
+    { label: 'Travaux à valider', value: pendingTravauxRes.count, icon: FlaskConical, iconBg: '#ffedd5', iconColor: '#9a3412', href: '/enseignant/travaux', priority: true },
     { label: 'Validation finale', value: pendingFinalTravauxRes.count, icon: CheckCircle, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)', href: '/enseignant/travaux?validation=pending_final' },
     { label: 'Validés ce mois', value: validatedRes.count, icon: CheckCircle, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)', href: '/enseignant/demandes?status=validated' },
     { label: 'Résidents actifs', value: residentsRes.count, icon: UserCheck, iconBg: 'var(--color-ice)', iconColor: 'var(--color-navy)', href: '/enseignant/residents' },
@@ -80,10 +80,10 @@ export default async function EnseignantDashboard() {
 
   return (
     <div className="p-5 md:p-8 max-w-6xl">
-      <PageHeader title="Tableau de bord" subtitle="Vos demandes et résidents" />
-      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+      <PageHeader title="Tableau de bord" subtitle="Vos validations et résidents" />
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-8">
         {metrics.map((metric) => (
-          <Link key={metric.label} href={metric.href} className="block hover:scale-[1.02] transition-transform active:scale-[0.98]">
+          <Link key={metric.label} href={metric.href} className={`block transition-transform hover:scale-[1.02] active:scale-[0.98] ${metric.priority ? 'sm:col-span-3 xl:col-span-2' : 'xl:col-span-1'}`}>
             <MetricCard {...metric} compact />
           </Link>
         ))}
@@ -110,11 +110,11 @@ export default async function EnseignantDashboard() {
         </DashboardPanel>
 
         <DashboardPanel
-          title={`Travaux scientifiques à valider (${pendingInitialTravauxRes.count ?? 0} initiale · ${pendingFinalTravauxRes.count ?? 0} finale)`}
+          title={`Travaux scientifiques à valider (${pendingInitialTravauxRes.count ?? 0} initiale - ${pendingFinalTravauxRes.count ?? 0} finale)`}
           href="/enseignant/travaux"
         >
           {(recentFinalTravauxRes.data ?? []).length > 0 && (
-            <div className="mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
+            <div className="mb-3 rounded-lg border border-emerald-100 bg-emerald-50 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold text-emerald-800">Validations finales soumises</p>
                 <Link href="/enseignant/travaux?validation=pending_final" className="text-xs font-medium text-emerald-800">Voir</Link>

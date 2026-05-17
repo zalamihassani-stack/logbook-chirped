@@ -74,7 +74,7 @@ export default function ReferentielFilters({
             <option value="">Tous les objectifs</option>
             <option value="1">Exposition</option>
             <option value="2">Supervision</option>
-            <option value="3">Maitrise</option>
+            <option value="3">Maîtrise</option>
           </select>
 
           <select
@@ -82,7 +82,7 @@ export default function ReferentielFilters({
             onChange={(event) => navigate({ year: event.target.value })}
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
           >
-            <option value="">Toutes les annees</option>
+            <option value="">Toutes les années</option>
             {[1, 2, 3, 4, 5].map((year) => <option key={year} value={year}>A{year}</option>)}
           </select>
 
@@ -103,7 +103,7 @@ export default function ReferentielFilters({
               onClick={() => navigate({ cat: '', level: '', year: '' })}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 sm:col-span-3"
             >
-              Reinitialiser
+              Réinitialiser
             </button>
           )}
         </div>

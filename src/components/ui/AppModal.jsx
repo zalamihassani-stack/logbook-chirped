@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 export default function AppModal({ title, subtitle, children, footer, onClose, maxWidth = 'max-w-2xl' }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl ${maxWidth}`}>
+      <div className={`max-h-[90vh] w-full overflow-y-auto rounded-lg bg-white p-6 shadow-xl ${maxWidth}`}>
         <div className="mb-5 flex items-start justify-between gap-3">
           <div className="min-w-0">
             {title && <h2 className="text-lg font-bold" style={{ color: 'var(--color-navy)' }}>{title}</h2>}
@@ -21,4 +21,3 @@ export default function AppModal({ title, subtitle, children, footer, onClose, m
     </div>
   )
 }
-

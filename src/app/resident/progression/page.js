@@ -9,7 +9,7 @@ import { CheckCircle2, Clock3, ListChecks, Target } from 'lucide-react'
 const LEVEL_STYLE = {
   1: { bg: 'var(--color-info-light)', color: 'var(--color-info)', label: 'Exposition' },
   2: { bg: 'var(--color-warning-light)', color: 'var(--color-warning)', label: 'Supervision' },
-  3: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Maitrise' },
+  3: { bg: 'var(--color-success-light)', color: 'var(--color-success)', label: 'Maîtrise' },
 }
 
 function progressBadge(objective) {
@@ -95,10 +95,10 @@ export default async function ProgressionPage({ searchParams }) {
     <div className="max-w-5xl p-5 md:p-8">
       <PageHeader
         title="Progression"
-        subtitle={scope === 'formation' ? `${summary.done}/${summary.total} geste(s) au niveau attendu` : `Annee en cours - objectifs jusqu'en A${residentYear}`}
+        subtitle={scope === 'formation' ? `${summary.done}/${summary.total} geste(s) au niveau attendu` : `Année en cours - objectifs jusqu'en A${residentYear}`}
       />
 
-      <section className="mb-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <section className="mb-5 rounded-lg border border-slate-100 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Vue d&apos;ensemble</p>
@@ -112,7 +112,7 @@ export default async function ProgressionPage({ searchParams }) {
           <div className="h-full rounded-full transition-all" style={{ width: `${summary.pct}%`, backgroundColor: summary.pct >= 80 ? 'var(--color-success)' : summary.pct >= 50 ? 'var(--color-navy)' : 'var(--color-warning)' }} />
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <ScopeLink active={scope === 'exigible'} href={scopedHref('exigible', selectedLevel)} label="Annee en cours" />
+          <ScopeLink active={scope === 'exigible'} href={scopedHref('exigible', selectedLevel)} label="Année en cours" />
           <ScopeLink active={scope === 'formation'} href={scopedHref('formation', selectedLevel)} label="Progression globale" />
         </div>
       </section>
@@ -124,7 +124,7 @@ export default async function ProgressionPage({ searchParams }) {
             <Link
               key={item.level}
               href={scopedHref(scope, item.level)}
-              className="rounded-2xl border bg-white p-2.5 shadow-sm transition hover:shadow-md sm:p-4"
+              className="rounded-lg border bg-white p-2.5 shadow-sm transition hover:shadow-md sm:p-4"
               style={{ borderColor: selectedLevel === item.level ? 'var(--color-navy)' : '#f1f5f9' }}
             >
               <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl sm:mb-3 sm:h-9 sm:w-9" style={{ backgroundColor: style.bg, color: style.color }}>
@@ -164,7 +164,7 @@ function LevelSection({ group }) {
   const remaining = group.objectives.filter((objective) => !objective.done)
   const completed = group.objectives.filter((objective) => objective.done)
   return (
-    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{style.label}</p>
@@ -196,7 +196,7 @@ function ObjectiveCard({ objective, showYear = true }) {
   const Icon = objective.done ? CheckCircle2 : objective.isFuture ? ListChecks : objective.isLate ? Clock3 : Target
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3.5">
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white" style={{ color: objective.done ? 'var(--color-success)' : levelStyle.color }}>
           <Icon size={17} strokeWidth={1.8} />

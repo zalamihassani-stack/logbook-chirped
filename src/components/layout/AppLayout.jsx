@@ -117,7 +117,8 @@ export default function AppLayout({ profile, children, badges = {} }) {
             const badgeCount = badges[badgeKey] ?? 0
             return (
               <Link key={path} href={path}
-                className={`mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${active ? 'bg-sky text-navy font-semibold' : 'text-white/70'}`}>
+                aria-current={active ? 'page' : undefined}
+                className={`mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${active ? 'bg-sky text-navy font-semibold' : 'text-white/70'}`}>
                 <div className="relative flex-shrink-0">
                   <Icon size={18} strokeWidth={1.75} />
                   {badgeCount > 0 && (
@@ -134,7 +135,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
 
         <div className="px-2 pb-6">
           <button onClick={handleSignOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/55 transition-colors hover:bg-white/10">
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/55 transition-colors hover:bg-white/10">
             <LogOut size={18} strokeWidth={1.75} />
             Déconnexion
           </button>
@@ -195,17 +196,17 @@ export default function AppLayout({ profile, children, badges = {} }) {
 
           if (home) {
             return (
-              <Link key={path} href={path} className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5">
+              <Link key={path} href={path} aria-current={active ? 'page' : undefined} className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5">
                 <div className={`-mt-5 flex h-12 w-12 items-center justify-center rounded-full border-2 border-navy shadow-lg ${active ? 'bg-sky' : 'bg-blue-600'}`}>
                   <Icon size={22} strokeWidth={active ? 2.25 : 1.75} color="white" />
                 </div>
-                <span className={`text-[10px] leading-none ${active ? 'text-sky' : 'text-white/70'}`}>{label}</span>
+                <span className={`text-xs leading-none ${active ? 'text-sky' : 'text-white/70'}`}>{label}</span>
               </Link>
             )
           }
 
           return (
-            <Link key={path} href={path} className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 ${active ? 'text-sky' : 'text-white/50'}`}>
+            <Link key={path} href={path} aria-current={active ? 'page' : undefined} className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 ${active ? 'text-sky' : 'text-white/50'}`}>
               <div className="relative">
                 <Icon size={20} strokeWidth={active ? 2 : 1.75} />
                 {badgeCount > 0 && (
@@ -214,7 +215,7 @@ export default function AppLayout({ profile, children, badges = {} }) {
                   </span>
                 )}
               </div>
-              <span className="text-[10px] leading-none">{label}</span>
+              <span className="text-xs leading-none">{label}</span>
             </Link>
           )
         })}

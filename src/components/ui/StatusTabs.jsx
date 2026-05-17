@@ -9,7 +9,7 @@ export default function StatusTabs({ tabs, activeValue, counts = {}, onChange, h
   }[columns] ?? 'grid-cols-4'
 
   return (
-    <div className={`grid ${gridCols} gap-1 rounded-2xl bg-slate-100 p-1 ${className}`}>
+    <div className={`grid ${gridCols} gap-1 rounded-lg bg-slate-100 p-1 ${className}`}>
       {tabs.map((tab) => {
         const active = activeValue === tab.value
         const content = (
@@ -20,19 +20,19 @@ export default function StatusTabs({ tabs, activeValue, counts = {}, onChange, h
             )}
           </>
         )
-        const className = 'rounded-xl px-1.5 py-2 text-center text-[11px] font-semibold transition sm:px-3 sm:text-sm'
+        const className = 'rounded-lg px-1.5 py-2 text-center text-xs font-semibold transition sm:px-3 sm:text-sm'
         const style = active ? { backgroundColor: 'var(--color-navy)', color: 'white' } : { color: '#64748b' }
 
         if (hrefFor) {
           return (
-            <Link key={tab.value} href={hrefFor(tab.value)} className={className} style={style}>
+            <Link key={tab.value} href={hrefFor(tab.value)} className={className} style={style} aria-current={active ? 'page' : undefined}>
               {content}
             </Link>
           )
         }
 
         return (
-          <button key={tab.value} type="button" onClick={() => onChange?.(tab.value)} className={className} style={style}>
+          <button key={tab.value} type="button" onClick={() => onChange?.(tab.value)} className={className} style={style} aria-pressed={active}>
             {content}
           </button>
         )
@@ -40,4 +40,3 @@ export default function StatusTabs({ tabs, activeValue, counts = {}, onChange, h
     </div>
   )
 }
-

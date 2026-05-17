@@ -1,6 +1,6 @@
 export function SkeletonCard() {
   return (
-    <div className="animate-pulse rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+    <div className="animate-pulse rounded-lg border border-slate-100 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-4">
         <div className="h-10 w-10 flex-shrink-0 rounded-full bg-slate-200" />
         <div className="flex-1 space-y-2">
@@ -15,7 +15,7 @@ export function SkeletonCard() {
 
 export function SkeletonRow() {
   return (
-    <div className="animate-pulse rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+    <div className="animate-pulse rounded-lg border border-slate-100 bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center gap-3">
         <div className="flex-1 space-y-2">
           <div className="h-3 w-1/2 rounded bg-slate-200" />

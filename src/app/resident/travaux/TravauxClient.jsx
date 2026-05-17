@@ -11,8 +11,8 @@ import { formatTravailAuthors, getStatusOptionsForType, TRAVAIL_STATUS_LABELS, T
 const WORKFLOW_FILTERS = [
   { id: 'all', label: 'Tous' },
   { id: 'in_progress', label: 'En cours' },
-  { id: 'pending', label: 'A valider' },
-  { id: 'validated', label: 'Valides' },
+  { id: 'pending', label: 'À valider' },
+  { id: 'validated', label: 'Validés' },
 ]
 
 export default function TravauxClient({ initialTravaux, types, residentName, residentId, enseignants, initialType = 'all', initialValidation = 'all' }) {
@@ -65,7 +65,7 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
           <select value={authorFilter} onChange={(event) => setAuthorFilter(event.target.value)}
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
             <option value="all">Tous mes travaux</option>
-            <option value="owner">Crees par moi</option>
+            <option value="owner">Créés par moi</option>
             <option value="first">1er auteur</option>
             <option value="second">2e auteur</option>
             <option value="other">Co-auteur</option>
@@ -79,7 +79,7 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
 
           <select value={yearFilter} onChange={(event) => setYearFilter(event.target.value)}
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
-            <option value="all">Toutes les annees</option>
+            <option value="all">Toutes les années</option>
             {years.map((year) => <option key={year} value={year}>{year}</option>)}
           </select>
 
@@ -100,7 +100,7 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
               }}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 sm:col-span-2"
             >
-              Reinitialiser
+              Réinitialiser
             </button>
           )}
         </div>
@@ -110,7 +110,7 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
         {filtered.map((travail) => (
           <TravailCard key={travail.id} travail={travail} residentId={residentId} />
         ))}
-        {filtered.length === 0 && <p className="rounded-2xl bg-white py-8 text-center text-sm text-slate-400">Aucun travail</p>}
+        {filtered.length === 0 && <p className="rounded-lg bg-white py-8 text-center text-sm text-slate-400">Aucun travail</p>}
       </div>
 
     </>
@@ -125,7 +125,7 @@ function TravailCard({ travail, residentId }) {
 
   return (
     <Link href={`/resident/travaux/${travail.id}`}
-      className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3.5 shadow-sm transition-colors hover:border-slate-200">
+      className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3.5 shadow-sm transition-colors hover:border-slate-200">
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
           <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: `${typeColor}20`, color: typeColor }}>
@@ -145,7 +145,7 @@ function TravailCard({ travail, residentId }) {
         </div>
         <p className="text-sm font-semibold leading-snug text-slate-800">{travail.title}</p>
         <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
-          {travail.year} - {formatTravailAuthors(travail) || 'Auteurs non renseignes'}
+          {travail.year} - {formatTravailAuthors(travail) || 'Auteurs non renseignés'}
         </p>
         {travail.encadrant?.full_name && <p className="mt-1 text-[11px] text-slate-400">{travail.encadrant.full_name}</p>}
       </div>
@@ -181,7 +181,7 @@ function getAuthorRoleLabel(travail, residentId) {
   if (position === 1) return '1er auteur'
   if (position === 2) return '2e auteur'
   if (position > 2) return 'Co-auteur'
-  if (travail.resident_id === residentId) return 'Cree par moi'
+  if (travail.resident_id === residentId) return 'Créé par moi'
   return ''
 }
 
@@ -195,11 +195,11 @@ function matchAuthorRole(travail, residentId, filter) {
 }
 
 function shortValidationLabel(status) {
-  if (status === 'pending_initial') return 'A valider'
+  if (status === 'pending_initial') return 'À valider'
   if (status === 'pending_final') return 'Validation finale'
-  if (status === 'initial_validated') return 'Valide initial'
-  if (status === 'final_validated') return 'Valide'
-  if (status === 'refused') return 'A corriger'
+  if (status === 'initial_validated') return 'Validé initial'
+  if (status === 'final_validated') return 'Validé'
+  if (status === 'refused') return 'À corriger'
   return status ?? '-'
 }
 
@@ -236,7 +236,7 @@ export function TravailFields({ form, setField, setType, types, enseignants, peo
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Annee</label>
+            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Année</label>
             <input type="number" value={form.year} onChange={(event) => setField('year', Number.parseInt(event.target.value, 10))}
               min="2000" max="2100"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
@@ -248,7 +248,7 @@ export function TravailFields({ form, setField, setType, types, enseignants, peo
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Journal / Congres</label>
+          <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Journal / Congrès</label>
           <input type="text" value={form.journal_or_event} onChange={(event) => setField('journal_or_event', event.target.value)}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400" />
         </div>
@@ -260,7 +260,7 @@ export function TravailFields({ form, setField, setType, types, enseignants, peo
           <select value={form.encadrant_id} onChange={(event) => setField('encadrant_id', event.target.value)}
             required
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
-            <option value="">Non renseigne</option>
+            <option value="">Non renseigné</option>
             {enseignants.map((enseignant) => <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>)}
           </select>
         </div>
@@ -268,7 +268,7 @@ export function TravailFields({ form, setField, setType, types, enseignants, peo
 
       <Fieldset title="Auteurs">
         <div>
-          <p className="mb-2 text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Premiere position</p>
+          <p className="mb-2 text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Première position</p>
           <AuthorPositionFields
             profileValue={form.first_author_profile_id}
             externalValue={form.first_external_author}
@@ -279,7 +279,7 @@ export function TravailFields({ form, setField, setType, types, enseignants, peo
           />
         </div>
         <div>
-          <p className="mb-2 text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Deuxieme position</p>
+          <p className="mb-2 text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Deuxième position</p>
           <AuthorPositionFields
             profileValue={form.second_author_profile_id}
             externalValue={form.second_external_author}
@@ -300,7 +300,7 @@ export function TravailFields({ form, setField, setType, types, enseignants, peo
                   onChange={() => toggleAuthor(person.id)}
                 />
                 <span className="flex-1">{person.full_name}</span>
-                <span className="text-xs text-slate-400">{person.role === 'enseignant' ? 'Enseignant' : 'Resident'}</span>
+                <span className="text-xs text-slate-400">{person.role === 'enseignant' ? 'Enseignant' : 'Résident'}</span>
               </label>
             ))}
           </div>
@@ -317,7 +317,7 @@ export function TravailFields({ form, setField, setType, types, enseignants, peo
                   type="text"
                   value={name}
                   onChange={(event) => setExternalAuthor(index, event.target.value)}
-                  placeholder="Nom et prenom, service"
+                  placeholder="Nom et prénom, service"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400"
                 />
                 {form.other_external_authors.length > 1 && (
@@ -334,7 +334,7 @@ export function TravailFields({ form, setField, setType, types, enseignants, peo
 
 function Fieldset({ title, children }) {
   return (
-    <section className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+    <section className="space-y-3 rounded-lg border border-slate-100 bg-slate-50 p-4">
       <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{title}</p>
       {children}
     </section>
@@ -354,7 +354,7 @@ function AuthorPositionFields({ profileValue, externalValue, profileKey, externa
           }}
           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
         >
-          <option value="">Non renseigne</option>
+          <option value="">Non renseigné</option>
           {people.map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}
         </select>
       </div>
@@ -367,7 +367,7 @@ function AuthorPositionFields({ profileValue, externalValue, profileKey, externa
             setField(externalKey, event.target.value)
             if (event.target.value) setField(profileKey, '')
           }}
-          placeholder="Nom et prenom, service"
+          placeholder="Nom et prénom, service"
           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
         />
       </div>

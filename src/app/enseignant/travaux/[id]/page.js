@@ -41,7 +41,7 @@ export default async function EnseignantTravailDetailPage({ params, searchParams
         Retour aux travaux
       </Link>
 
-      <PageHeader title={travail.title} subtitle={`${travail.resident?.full_name ?? 'Resident'} - ${travail.year}`} />
+      <PageHeader title={travail.title} subtitle={`${travail.resident?.full_name ?? 'Résident'} - ${travail.year}`} />
 
       <div className="space-y-4">
         <TravailDetailView travail={travail} history={history ?? []} />

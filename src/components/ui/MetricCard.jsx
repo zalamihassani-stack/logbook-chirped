@@ -1,9 +1,9 @@
 export default function MetricCard({ label, value, icon: Icon, iconBg, iconColor, loading, compact = false }) {
   return (
-    <div className={`rounded-2xl border border-slate-100 bg-white shadow-sm ${compact ? 'p-3' : 'p-4'}`}>
+    <div className={`rounded-lg border border-slate-100 bg-white shadow-sm ${compact ? 'p-3' : 'p-4'}`}>
       <div className={compact ? 'flex items-center gap-3' : ''}>
         <div
-          className={`flex shrink-0 items-center justify-center rounded-xl ${compact ? 'h-9 w-9' : 'mb-3 h-10 w-10'}`}
+          className={`flex shrink-0 items-center justify-center rounded-lg ${compact ? 'h-9 w-9' : 'mb-3 h-10 w-10'}`}
           style={{ backgroundColor: iconBg ?? 'var(--color-ice)' }}
         >
           {Icon && <Icon size={compact ? 18 : 20} strokeWidth={1.75} style={{ color: iconColor ?? 'var(--color-navy)' }} />}
