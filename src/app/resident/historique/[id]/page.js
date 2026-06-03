@@ -19,7 +19,7 @@ export default async function DetailRealisationPage({ params }) {
   const [{ data: real }, { data: history }] = await Promise.all([
     supabase
       .from('realisations')
-      .select('id, created_at, updated_at, performed_at, activity_type, status, ipp_patient, compte_rendu, commentaire, resident_year_at_time, is_hors_objectifs, procedure_id, enseignant_id, superviseur_resident_id, procedures(id, name, pathologie, target_level, target_count, target_year, categories(name, color_hex)), enseignant:profiles!enseignant_id(full_name), profiles!enseignant_id(full_name), superviseur:profiles!superviseur_resident_id(full_name)')
+      .select('id, created_at, updated_at, performed_at, activity_type, status, ipp_patient, compte_rendu, commentaire, resident_year_at_time, is_hors_objectifs, procedure_id, enseignant_id, superviseur_resident_id, procedures(id, name, service, pathologie, target_level, target_count, target_year, categories(name, color_hex)), enseignant:profiles!enseignant_id(full_name), profiles!enseignant_id(full_name), superviseur:profiles!superviseur_resident_id(full_name)')
       .eq('id', id)
       .eq('resident_id', user.id)
       .single(),

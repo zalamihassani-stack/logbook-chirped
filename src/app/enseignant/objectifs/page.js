@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import ReferentielFilters from '@/app/resident/referentiel/ReferentielFilters'
-import { OBJECTIF_LEVEL_LABELS, procedureToGlobalObjective } from '@/lib/logbook'
+import { OBJECTIF_LEVEL_LABELS, procedureToGlobalObjective, normalizeService } from '@/lib/logbook'
 
 const LEVEL_STYLE = {
   1: { bg: 'var(--color-info-light)', color: 'var(--color-info)' },
@@ -68,12 +68,20 @@ export default async function ReferentielEnseignantPage({ searchParams }) {
   const filterYear = params?.year ?? ''
   const normalizedQuery = normalizeText(query)
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('service')
+    .eq('id', user.id)
+    .single()
+  const teacherService = normalizeService(profile?.service)
+
   const [categoriesRes, proceduresRes] = await Promise.all([
-    supabase.from('categories').select('id, name, color_hex').order('display_order'),
+    supabase.from('categories').select('id, name, color_hex').eq('service', teacherService).order('display_order'),
     supabase
       .from('procedures')
       .select('id, name, pathologie, category_id, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, categories(name, color_hex)')
       .eq('is_active', true)
+      .eq('service', teacherService)
       .order('name'),
   ])
 

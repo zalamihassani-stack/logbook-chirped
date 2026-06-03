@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import { createRealisation } from '@/app/actions/resident'
-import { ACTIVITY_TYPES, OBJECTIF_LEVEL_LABELS, getCountForRequiredLevel } from '@/lib/logbook'
+import { ACTIVITY_TYPES, DEFAULT_SERVICE, OBJECTIF_LEVEL_LABELS, SERVICE_LABELS, getCountForRequiredLevel, normalizeService } from '@/lib/logbook'
 import { AlertTriangle, ArrowLeft, CheckCircle, ChevronDown, Search } from 'lucide-react'
 
 export default function NouveauForm({ procedures, enseignants, residents, residentYear, progressByProcedure = {}, settings = {}, initialProcedureId = '' }) {
@@ -28,6 +28,10 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
   const compteRenduRequired = Boolean(settings.compte_rendu_required)
 
   const selectedProc = procedures.find((procedure) => procedure.id === form.procedure_id)
+  const selectedService = normalizeService(selectedProc?.service)
+  const filteredEnseignants = selectedProc
+    ? enseignants.filter((enseignant) => normalizeService(enseignant.service) === selectedService)
+    : enseignants
   const isHorsObjectifs = selectedProc && !selectedProc.isObjectif
   const selectedProgress = selectedProc?.objective
     ? getCountForRequiredLevel(progressByProcedure[selectedProc.id], selectedProc.objective.required_level)
@@ -105,13 +109,19 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
   }
 
   function selectProcedure(procedureId) {
-    setField('procedure_id', procedureId)
+    const nextProcedure = procedures.find((procedure) => procedure.id === procedureId)
+    const nextService = normalizeService(nextProcedure?.service)
+    setForm((current) => {
+      const selectedTeacher = enseignants.find((enseignant) => enseignant.id === current.enseignant_id)
+      const keepTeacher = selectedTeacher && normalizeService(selectedTeacher.service) === nextService
+      return { ...current, procedure_id: procedureId, enseignant_id: keepTeacher ? current.enseignant_id : '' }
+    })
     setError('')
   }
 
   return (
     <>
-      <PageHeader title="Nouvel acte" subtitle="Saisie guidée pour une validation plus rapide." />
+      <PageHeader title="Nouvel acte" />
       <StepProgress steps={completionSteps} />
 
       <form onSubmit={handleSubmit} className="space-y-4 pb-28 md:pb-0">
@@ -127,6 +137,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
               <div className="min-w-0">
                 <p className="text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>{selectedProc.name}</p>
                 {selectedProc.pathologie && <p className="mt-0.5 text-xs text-slate-500">{selectedProc.pathologie}</p>}
+                <p className="mt-0.5 text-xs text-slate-500">{SERVICE_LABELS[selectedService] ?? SERVICE_LABELS[DEFAULT_SERVICE]}</p>
               </div>
               <button type="button" onClick={() => { setField('procedure_id', ''); setQuery('') }}
                 className="flex-shrink-0 text-xs font-medium text-slate-400 hover:text-slate-600">
@@ -152,6 +163,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                       <span className="min-w-0">
                         <span className="block text-sm font-medium text-slate-800">{procedure.name}</span>
                         {procedure.pathologie && <span className="mt-0.5 block text-xs text-slate-500">{procedure.pathologie}</span>}
+                        <span className="mt-0.5 block text-xs text-slate-400">{SERVICE_LABELS[normalizeService(procedure.service)]}</span>
                       </span>
                       <span className="flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
                         style={procedure.isObjectif
@@ -188,8 +200,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
         </section>
 
         <section className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm md:p-5">
-          <h2 className="mb-1 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>2. Date</h2>
-          <p className="mb-4 text-xs text-slate-500">Par défaut, la date du jour est utilisée.</p>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>2. Date</h2>
           <Field label="Date de réalisation *">
             <input
               type="date"
@@ -235,10 +246,13 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
             >
               <option value="">Choisir...</option>
-              {enseignants.map((enseignant) => (
+              {filteredEnseignants.map((enseignant) => (
                 <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>
               ))}
             </select>
+            {selectedProc && filteredEnseignants.length === 0 && (
+              <p className="mt-2 text-xs text-orange-600">Aucun enseignant actif renseigne pour ce service.</p>
+            )}
           </Field>
         </section>
 

@@ -17,11 +17,11 @@ export default async function ModifierActePage({ params }) {
   const [{ data: real }, { data: enseignants }, { data: residents }] = await Promise.all([
     supabase
       .from('realisations')
-      .select('id, performed_at, activity_type, status, ipp_patient, compte_rendu, commentaire, procedure_id, enseignant_id, superviseur_resident_id, procedures(name)')
+      .select('id, performed_at, activity_type, status, ipp_patient, compte_rendu, commentaire, procedure_id, enseignant_id, superviseur_resident_id, procedures(name, service)')
       .eq('id', id)
       .eq('resident_id', user.id)
       .single(),
-    admin.from('profiles').select('id, full_name').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
+    admin.from('profiles').select('id, full_name, service').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
     admin.from('profiles').select('id, full_name').eq('role', 'resident').eq('is_active', true).neq('id', user.id).order('full_name'),
   ])
 

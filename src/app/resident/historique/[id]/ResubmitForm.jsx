@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { resubmitRealisation } from '@/app/actions/resident'
-import { ACTIVITY_TYPES } from '@/lib/logbook'
+import { ACTIVITY_TYPES, normalizeService } from '@/lib/logbook'
 
 export default function ResubmitForm({ realisationId, current, enseignants, residents }) {
   const router = useRouter()
@@ -21,6 +21,8 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const procedureService = normalizeService(current.procedures?.service)
+  const filteredEnseignants = enseignants.filter((enseignant) => normalizeService(enseignant.service) === procedureService)
 
   function set(key, value) {
     setForm((currentForm) => ({ ...currentForm, [key]: value }))
@@ -106,7 +108,7 @@ export default function ResubmitForm({ realisationId, current, enseignants, resi
             required
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
           >
-            {enseignants.map((enseignant) => <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>)}
+            {filteredEnseignants.map((enseignant) => <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>)}
           </select>
         </div>
         <div>

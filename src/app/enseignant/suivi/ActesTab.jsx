@@ -20,7 +20,7 @@ function fmtDateLong(dateStr) {
   return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-export default function ActesTab({ residents, procedures, enseignants }) {
+export default function ActesTab({ residents, procedures, enseignants, teacherService }) {
   const now = new Date()
   const firstOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10)
   const today = now.toISOString().slice(0, 10)
@@ -43,10 +43,11 @@ export default function ActesTab({ residents, procedures, enseignants }) {
     const supabase = createClient()
     let query = supabase
       .from('realisations')
-      .select('id, performed_at, activity_type, status, resident_year_at_time, procedures(name), resident:profiles!resident_id(full_name), enseignant:profiles!enseignant_id(full_name)')
+      .select('id, performed_at, activity_type, status, resident_year_at_time, procedures!inner(name, service), resident:profiles!resident_id(full_name), enseignant:profiles!enseignant_id(full_name)')
       .order('performed_at', { ascending: false })
       .limit(500)
 
+    if (teacherService) query = query.eq('procedures.service', teacherService)
     if (nextFilters.resident) query = query.eq('resident_id', nextFilters.resident)
     if (nextFilters.from) query = query.gte('performed_at', nextFilters.from)
     if (nextFilters.to) query = query.lte('performed_at', `${nextFilters.to}T23:59:59`)

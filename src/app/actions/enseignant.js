@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPushToUser } from '@/lib/push'
 import { isFinalWorkStatus } from '@/lib/travaux'
+import { normalizeService } from '@/lib/logbook'
 import { revalidatePath } from 'next/cache'
 
 async function requireEnseignant() {
@@ -17,26 +18,30 @@ async function requireEnseignant() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, service, is_active')
     .eq('id', user.id)
     .single()
 
-  if (error || profile?.role !== 'enseignant') {
+  if (error || profile?.role !== 'enseignant' || profile?.is_active === false) {
     throw new Error('Accès enseignant requis.')
   }
 
-  return { supabase, user }
+  return { supabase, user, profile }
 }
 
 export async function validateRealisation(id, feedback) {
   let supabase
   let user
+  let profile
   try {
-    ;({ supabase, user } = await requireEnseignant())
+    ;({ supabase, user, profile } = await requireEnseignant())
   } catch (error) {
     return { error: error.message }
   }
   const admin = createAdminClient()
+
+  const accessError = await assertRealisationService(admin, id, user.id, profile.service)
+  if (accessError) return { error: accessError }
 
   const { data: real, error } = await supabase
     .from('realisations')
@@ -70,8 +75,9 @@ export async function validateRealisation(id, feedback) {
 export async function refuseRealisation(id, feedback) {
   let supabase
   let user
+  let profile
   try {
-    ;({ supabase, user } = await requireEnseignant())
+    ;({ supabase, user, profile } = await requireEnseignant())
   } catch (error) {
     return { error: error.message }
   }
@@ -81,6 +87,9 @@ export async function refuseRealisation(id, feedback) {
   if (cleanFeedback.length < 8) {
     return { error: 'Un refus doit inclure un feedback pédagogique exploitable.' }
   }
+
+  const accessError = await assertRealisationService(admin, id, user.id, profile.service)
+  if (accessError) return { error: accessError }
 
   const { data: real, error } = await supabase
     .from('realisations')
@@ -109,6 +118,21 @@ export async function refuseRealisation(id, feedback) {
 
   revalidatePath('/enseignant/demandes')
   return { success: true }
+}
+
+async function assertRealisationService(admin, realisationId, enseignantId, teacherService) {
+  const { data: real, error } = await admin
+    .from('realisations')
+    .select('enseignant_id, procedures(service)')
+    .eq('id', realisationId)
+    .maybeSingle()
+
+  if (error) return error.message
+  if (!real || real.enseignant_id !== enseignantId) return 'Acte introuvable ou non autorise.'
+  if (normalizeService(real.procedures?.service) !== normalizeService(teacherService)) {
+    return "Cet acte n'appartient pas a votre service."
+  }
+  return null
 }
 
 export async function validateTravail(id, feedback = '') {

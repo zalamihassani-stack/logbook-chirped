@@ -4,10 +4,10 @@ import PageHeader from '@/components/ui/PageHeader'
 import { saveSettings } from '@/app/actions/admin'
 
 const TOGGLES = [
-  { key: 'push_notifications', label: 'Notifications push', desc: 'Envoyer des notifications aux résidents et enseignants' },
-  { key: 'validation_required', label: 'Validation obligatoire', desc: 'Les actes doivent être validés par un enseignant' },
-  { key: 'allow_hors_objectifs', label: 'Autoriser les gestes hors objectifs', desc: 'Les résidents peuvent enregistrer des gestes hors de leur programme annuel' },
-  { key: 'compte_rendu_required', label: 'Compte rendu obligatoire', desc: 'Le compte rendu opératoire est requis à la soumission' },
+  { key: 'push_notifications', label: 'Notifications push' },
+  { key: 'validation_required', label: 'Validation obligatoire' },
+  { key: 'allow_hors_objectifs', label: 'Autoriser les gestes hors objectifs' },
+  { key: 'compte_rendu_required', label: 'Compte rendu obligatoire' },
 ]
 
 export default function ReglagesClient({ initialSettings, missingSettingsTable = false }) {
@@ -33,14 +33,13 @@ export default function ReglagesClient({ initialSettings, missingSettingsTable =
 
   return (
     <>
-      <PageHeader title="Réglages" subtitle="Configuration générale de l'application" />
+      <PageHeader title="Réglages" />
       <div className="max-w-lg">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100">
-          {TOGGLES.map(({ key, label, desc }) => (
+          {TOGGLES.map(({ key, label }) => (
             <div key={key} className="flex items-center justify-between p-4 gap-4">
               <div className="flex-1">
                 <p className="text-sm font-medium text-slate-800">{label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
               </div>
               <button
                 onClick={() => setSettings(s => ({ ...s, [key]: !s[key] }))}

@@ -3,7 +3,6 @@ import AppCard from '@/components/ui/AppCard'
 import DetailRow from '@/components/ui/DetailRow'
 import {
   formatTravailAuthors,
-  getTravailValidationHelp,
   TRAVAIL_STATUS_LABELS,
   TRAVAIL_STATUS_STYLES,
   TRAVAIL_VALIDATION_LABELS,
@@ -23,7 +22,6 @@ export default function TravailDetailView({ travail, history = [], showResident 
   const statusStyle = TRAVAIL_STATUS_STYLES[travail.status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const validationStyle = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const typeColor = travail.travail_types?.color_hex ?? 'var(--color-navy)'
-  const validationHelp = getTravailValidationHelp(travail.validation_status)
   const timeline = buildTimeline(travail, history)
 
   return (
@@ -43,8 +41,6 @@ export default function TravailDetailView({ travail, history = [], showResident 
             {TRAVAIL_VALIDATION_LABELS[travail.validation_status] ?? travail.validation_status}
           </span>
         </div>
-
-        {validationHelp && <p className="mb-4 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">{validationHelp}</p>}
 
         <div className="space-y-2.5">
           <DetailRow label="Titre" value={travail.title} />

@@ -9,7 +9,7 @@ const TABS = [
   { id: 'objectifs', label: 'Gestes', icon: Target },
 ]
 
-export default function SuiviClient({ residents }) {
+export default function SuiviClient({ residents, teacherService }) {
   const [tab, setTab] = useState('residents')
 
   return (
@@ -34,8 +34,8 @@ export default function SuiviClient({ residents }) {
         ))}
       </div>
 
-      {tab === 'residents' && <ProgressionTab residents={residents} />}
-      {tab === 'objectifs' && <ObjectifsTab residents={residents} />}
+      {tab === 'residents' && <ProgressionTab residents={residents} teacherService={teacherService} />}
+      {tab === 'objectifs' && <ObjectifsTab residents={residents} teacherService={teacherService} />}
     </div>
   )
 }

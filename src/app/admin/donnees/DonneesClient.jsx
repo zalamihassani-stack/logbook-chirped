@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import PageHeader from '@/components/ui/PageHeader'
-import { deleteResidentData, deleteActesByPeriod } from '@/app/actions/admin'
+import AppModal from '@/components/ui/AppModal'
+import { deleteResidentData, deleteActesByPeriod, previewDeleteResidentData, previewDeleteActesByPeriod } from '@/app/actions/admin'
 import { createClient } from '@/lib/supabase/client'
 import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
 import { Download, AlertTriangle } from 'lucide-react'
@@ -13,6 +14,7 @@ export default function DonneesClient({ residents }) {
   const [periodTo, setPeriodTo] = useState('')
   const [loading, setLoading] = useState('')
   const [msg, setMsg] = useState(null)
+  const [confirm, setConfirm] = useState(null)
 
   async function exportPDF() {
     if (!pdfResident) return
@@ -93,32 +95,50 @@ export default function DonneesClient({ residents }) {
     setLoading('')
   }
 
-  async function handleDeleteResident() {
+  async function openDeleteResidentPreview() {
     if (!deleteResident) return
-    const confirmationToken = prompt('Tapez SUPPRIMER pour confirmer la suppression de tous les actes de ce résident.')
-    if (confirmationToken !== 'SUPPRIMER') return
-    setLoading('delRes')
-    const res = await deleteResidentData({ residentId: deleteResident, confirmationToken })
+    setLoading('preview')
+    setMsg(null)
+    const res = await previewDeleteResidentData({ residentId: deleteResident })
     setLoading('')
-    setMsg(res.error ? { type: 'error', text: res.error } : { type: 'success', text: `${res.deletedCount ?? 0} acte(s) supprime(s).` })
+    if (res.error) {
+      setMsg({ type: 'error', text: res.error })
+      return
+    }
+    const resident = residents.find((item) => item.id === deleteResident)
+    setConfirm({ type: 'resident', count: res.count ?? 0, resident })
   }
 
-  async function handleDeletePeriod() {
+  async function openDeletePeriodPreview() {
     if (!periodFrom || !periodTo) {
       setMsg({ type: 'error', text: 'Indiquez une date de debut et une date de fin.' })
       return
     }
-    const confirmationToken = prompt('Tapez SUPPRIMER pour confirmer la suppression des actes de cette période.')
-    if (confirmationToken !== 'SUPPRIMER') return
-    setLoading('delPeriod')
-    const res = await deleteActesByPeriod({ from: periodFrom, to: periodTo, confirmationToken })
+    setLoading('preview')
+    setMsg(null)
+    const res = await previewDeleteActesByPeriod({ from: periodFrom, to: periodTo })
     setLoading('')
+    if (res.error) {
+      setMsg({ type: 'error', text: res.error })
+      return
+    }
+    setConfirm({ type: 'period', count: res.count ?? 0, from: periodFrom, to: periodTo })
+  }
+
+  async function confirmDelete() {
+    if (!confirm) return
+    setLoading(confirm.type === 'resident' ? 'delRes' : 'delPeriod')
+    const res = confirm.type === 'resident'
+      ? await deleteResidentData({ residentId: deleteResident, confirmationToken: 'SUPPRIMER' })
+      : await deleteActesByPeriod({ from: periodFrom, to: periodTo, confirmationToken: 'SUPPRIMER' })
+    setLoading('')
+    setConfirm(null)
     setMsg(res.error ? { type: 'error', text: res.error } : { type: 'success', text: `${res.deletedCount ?? 0} acte(s) supprime(s).` })
   }
 
   return (
     <>
-      <PageHeader title="Données & Exports" subtitle="Export et suppression des données" />
+      <PageHeader title="Données & Exports" />
       {msg && (
         <div className={`mb-4 rounded-lg px-4 py-2.5 text-sm ${msg.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
           {msg.text}
@@ -156,9 +176,9 @@ export default function DonneesClient({ residents }) {
               <option value="">Choisir un résident...</option>
               {residents.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name}</option>)}
             </select>
-            <button onClick={handleDeleteResident} disabled={!deleteResident || loading === 'delRes'}
+            <button onClick={openDeleteResidentPreview} disabled={!deleteResident || loading === 'delRes' || loading === 'preview'}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium bg-red-600 disabled:opacity-60">
-              {loading === 'delRes' ? 'Suppression...' : 'Supprimer'}
+              {loading === 'preview' ? 'Analyse...' : loading === 'delRes' ? 'Suppression...' : 'Supprimer'}
             </button>
           </div>
         </Section>
@@ -175,13 +195,37 @@ export default function DonneesClient({ residents }) {
               <input type="date" value={periodTo} onChange={(event) => setPeriodTo(event.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none" />
             </div>
-            <button onClick={handleDeletePeriod} disabled={!periodFrom || !periodTo || loading === 'delPeriod'}
+            <button onClick={openDeletePeriodPreview} disabled={!periodFrom || !periodTo || loading === 'delPeriod' || loading === 'preview'}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium bg-red-600 disabled:opacity-60">
-              {loading === 'delPeriod' ? '...' : 'Supprimer'}
+              {loading === 'preview' ? 'Analyse...' : loading === 'delPeriod' ? '...' : 'Supprimer'}
             </button>
           </div>
         </Section>
       </div>
+
+      {confirm && (
+        <AppModal
+          title="Confirmer la suppression"
+          subtitle={`${confirm.count} acte(s) seront supprimé(s).`}
+          onClose={() => setConfirm(null)}
+          maxWidth="max-w-sm"
+        >
+          <div className="space-y-4">
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              {confirm.type === 'resident'
+                ? `Résident : ${confirm.resident?.full_name ?? '-'}`
+                : `Période : ${confirm.from} au ${confirm.to}`}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirm(null)} className="flex-1 rounded-xl border border-slate-200 py-2 text-sm">Annuler</button>
+              <button onClick={confirmDelete} disabled={loading === 'delRes' || loading === 'delPeriod' || confirm.count === 0}
+                className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-medium text-white disabled:opacity-60">
+                {loading ? '...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </AppModal>
+      )}
     </>
   )
 }

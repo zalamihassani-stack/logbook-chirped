@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { resubmitRealisation } from '@/app/actions/resident'
-import { ACTIVITY_TYPES } from '@/lib/logbook'
+import { ACTIVITY_TYPES, normalizeService } from '@/lib/logbook'
 
 export default function ModifierActeForm({ realisationId, current, enseignants, residents }) {
   const router = useRouter()
@@ -22,6 +22,8 @@ export default function ModifierActeForm({ realisationId, current, enseignants, 
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const procedureService = normalizeService(current.procedures?.service)
+  const filteredEnseignants = enseignants.filter((enseignant) => normalizeService(enseignant.service) === procedureService)
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -94,7 +96,7 @@ export default function ModifierActeForm({ realisationId, current, enseignants, 
             required
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
           >
-            {enseignants.map((enseignant) => (
+            {filteredEnseignants.map((enseignant) => (
               <option key={enseignant.id} value={enseignant.id}>{enseignant.full_name}</option>
             ))}
           </select>

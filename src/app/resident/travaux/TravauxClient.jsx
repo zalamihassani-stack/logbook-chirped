@@ -15,28 +15,61 @@ const WORKFLOW_FILTERS = [
   { id: 'validated', label: 'Validés' },
 ]
 
+const MODE_TABS = [
+  { id: 'own', label: 'Mes travaux' },
+  { id: 'mentions', label: 'Mes mentions' },
+]
+
+const MENTION_FILTERS = [
+  { id: 'first', label: '1er auteur' },
+  { id: 'second', label: '2e auteur' },
+  { id: 'other', label: 'Autres' },
+  { id: 'last', label: 'Dernier' },
+]
+
 export default function TravauxClient({ initialTravaux, types, residentName, residentId, enseignants, initialType = 'all', initialValidation = 'all' }) {
   const travaux = initialTravaux
+  const [mode, setMode] = useState('own')
   const [workflowFilter, setWorkflowFilter] = useState(() => normalizeWorkflowFilter(initialValidation))
+  const [mentionFilter, setMentionFilter] = useState('first')
   const [typeFilter, setTypeFilter] = useState(() => types.some((type) => type.id === initialType) ? initialType : 'all')
   const [yearFilter, setYearFilter] = useState('all')
   const [encadrantFilter, setEncadrantFilter] = useState('all')
-  const [authorFilter, setAuthorFilter] = useState('all')
 
   const years = useMemo(() => Array.from(new Set(travaux.map((travail) => travail.year).filter(Boolean))).sort((a, b) => b - a), [travaux])
-  const counts = useMemo(() => Object.fromEntries(WORKFLOW_FILTERS.map((filter) => [
+  const modeData = useMemo(() => {
+    if (mode === 'mentions') return travaux.filter((travail) => isMentionedAuthor(travail, residentId) && travail.resident_id !== residentId)
+    return travaux.filter((travail) => travail.resident_id === residentId)
+  }, [mode, residentId, travaux])
+  const primaryFilters = mode === 'mentions' ? MENTION_FILTERS : WORKFLOW_FILTERS
+  const counts = useMemo(() => Object.fromEntries(primaryFilters.map((filter) => [
     filter.id,
-    travaux.filter((travail) => matchWorkflow(travail, filter.id)).length,
-  ])), [travaux])
+    modeData.filter((travail) => mode === 'mentions'
+      ? matchMentionPosition(travail, residentId, filter.id)
+      : matchWorkflow(travail, filter.id)).length,
+  ])), [mode, modeData, primaryFilters, residentId])
   const filtered = travaux.filter((travail) => {
-    const matchesWorkflow = matchWorkflow(travail, workflowFilter)
+    const matchesMode = mode === 'mentions'
+      ? isMentionedAuthor(travail, residentId) && travail.resident_id !== residentId
+      : travail.resident_id === residentId
+    const matchesPrimary = mode === 'mentions'
+      ? matchMentionPosition(travail, residentId, mentionFilter)
+      : matchWorkflow(travail, workflowFilter)
     const matchesType = typeFilter === 'all' || travail.type_id === typeFilter
     const matchesYear = yearFilter === 'all' || String(travail.year) === yearFilter
     const matchesEncadrant = encadrantFilter === 'all' || travail.encadrant_id === encadrantFilter
-    const matchesAuthor = matchAuthorRole(travail, residentId, authorFilter)
-    return matchesWorkflow && matchesType && matchesYear && matchesEncadrant && matchesAuthor
+    return matchesMode && matchesPrimary && matchesType && matchesYear && matchesEncadrant
   })
-  const hasSecondaryFilters = typeFilter !== 'all' || yearFilter !== 'all' || encadrantFilter !== 'all' || authorFilter !== 'all'
+  const hasSecondaryFilters = typeFilter !== 'all' || yearFilter !== 'all' || encadrantFilter !== 'all'
+
+  function switchMode(nextMode) {
+    setMode(nextMode)
+    setWorkflowFilter('all')
+    setMentionFilter('first')
+    setTypeFilter('all')
+    setYearFilter('all')
+    setEncadrantFilter('all')
+  }
 
   return (
     <>
@@ -52,25 +85,24 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
       } />
 
       <StatusTabs
-        tabs={WORKFLOW_FILTERS.map((filter) => ({ value: filter.id, label: filter.label }))}
-        activeValue={workflowFilter}
+        tabs={MODE_TABS.map((filter) => ({ value: filter.id, label: filter.label }))}
+        activeValue={mode}
+        onChange={switchMode}
+        columns={2}
+        className="mb-5"
+      />
+
+      <StatusTabs
+        tabs={primaryFilters.map((filter) => ({ value: filter.id, label: filter.label }))}
+        activeValue={mode === 'mentions' ? mentionFilter : workflowFilter}
         counts={counts}
-        onChange={setWorkflowFilter}
+        onChange={mode === 'mentions' ? setMentionFilter : setWorkflowFilter}
         columns={4}
         className="mb-5"
       />
 
       <FilterPanel active={hasSecondaryFilters} className="mb-5">
         <div className="grid gap-3 sm:grid-cols-2">
-          <select value={authorFilter} onChange={(event) => setAuthorFilter(event.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
-            <option value="all">Tous mes travaux</option>
-            <option value="owner">Créés par moi</option>
-            <option value="first">1er auteur</option>
-            <option value="second">2e auteur</option>
-            <option value="other">Co-auteur</option>
-          </select>
-
           <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
             <option value="all">Tous les types</option>
@@ -93,7 +125,6 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
             <button
               type="button"
               onClick={() => {
-                setAuthorFilter('all')
                 setTypeFilter('all')
                 setYearFilter('all')
                 setEncadrantFilter('all')
@@ -108,7 +139,7 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
 
       <div className="space-y-2">
         {filtered.map((travail) => (
-          <TravailCard key={travail.id} travail={travail} residentId={residentId} />
+          <TravailCard key={travail.id} travail={travail} residentId={residentId} showMention={mode === 'mentions'} />
         ))}
         {filtered.length === 0 && <p className="rounded-lg bg-white py-8 text-center text-sm text-slate-400">Aucun travail</p>}
       </div>
@@ -117,7 +148,7 @@ export default function TravauxClient({ initialTravaux, types, residentName, res
   )
 }
 
-function TravailCard({ travail, residentId }) {
+function TravailCard({ travail, residentId, showMention }) {
   const validationStyle = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const statusStyle = TRAVAIL_STATUS_STYLES[travail.status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const typeColor = travail.travail_types?.color_hex ?? 'var(--color-navy)'
@@ -137,7 +168,7 @@ function TravailCard({ travail, residentId }) {
           <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}>
             {TRAVAIL_STATUS_LABELS[travail.status] ?? travail.status}
           </span>
-          {roleLabel && (
+          {showMention && roleLabel && (
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
               {roleLabel}
             </span>
@@ -169,29 +200,34 @@ function matchWorkflow(travail, filter) {
 }
 
 function getAuthorPosition(travail, residentId) {
-  const index = (travail.travail_auteurs ?? [])
+  const authors = (travail.travail_auteurs ?? [])
     .slice()
     .sort((a, b) => (a.author_order ?? 0) - (b.author_order ?? 0))
-    .findIndex((author) => author.profile_id === residentId)
-  return index >= 0 ? index + 1 : 0
+  const index = authors.findIndex((author) => author.profile_id === residentId)
+  return { index, count: authors.length }
+}
+
+function isMentionedAuthor(travail, residentId) {
+  return getAuthorPosition(travail, residentId).index >= 0
 }
 
 function getAuthorRoleLabel(travail, residentId) {
-  const position = getAuthorPosition(travail, residentId)
-  if (position === 1) return '1er auteur'
-  if (position === 2) return '2e auteur'
-  if (position > 2) return 'Co-auteur'
-  if (travail.resident_id === residentId) return 'Créé par moi'
+  const { index, count } = getAuthorPosition(travail, residentId)
+  if (index === 0) return '1er auteur'
+  if (index === 1) return '2e auteur'
+  if (count > 1 && index === count - 1) return 'Dernier auteur'
+  if (index > 1) return 'Autre position'
   return ''
 }
 
-function matchAuthorRole(travail, residentId, filter) {
-  const position = getAuthorPosition(travail, residentId)
-  if (filter === 'owner') return travail.resident_id === residentId
-  if (filter === 'first') return position === 1
-  if (filter === 'second') return position === 2
-  if (filter === 'other') return position > 2
-  return travail.resident_id === residentId || position > 0
+function matchMentionPosition(travail, residentId, filter) {
+  const { index, count } = getAuthorPosition(travail, residentId)
+  if (index < 0) return false
+  if (filter === 'first') return index === 0
+  if (filter === 'second') return index === 1
+  if (filter === 'other') return index > 1 && index !== count - 1
+  if (filter === 'last') return count > 1 && index === count - 1
+  return true
 }
 
 function shortValidationLabel(status) {

@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge'
 import AppCard from '@/components/ui/AppCard'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatDate } from '@/lib/utils'
+import { normalizeService } from '@/lib/logbook'
 import { TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
 import { ClipboardList, UserCheck, CheckCircle, XCircle, ChevronRight, FlaskConical } from 'lucide-react'
 
@@ -14,6 +15,13 @@ export default async function EnseignantDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('service')
+    .eq('id', user.id)
+    .single()
+  const teacherService = normalizeService(profile?.service)
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
@@ -30,13 +38,14 @@ export default async function EnseignantDashboard() {
     recentFinalTravauxRes,
     recentTravauxRes,
   ] = await Promise.all([
-    supabase.from('realisations').select('id', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'pending'),
-    supabase.from('realisations').select('id', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'validated').gte('updated_at', startOfMonth),
-    supabase.from('realisations').select('id', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('status', 'refused').gte('updated_at', startOfMonth),
+    supabase.from('realisations').select('id, procedures!inner(service)', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('procedures.service', teacherService).eq('status', 'pending'),
+    supabase.from('realisations').select('id, procedures!inner(service)', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('procedures.service', teacherService).eq('status', 'validated').gte('updated_at', startOfMonth),
+    supabase.from('realisations').select('id, procedures!inner(service)', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('procedures.service', teacherService).eq('status', 'refused').gte('updated_at', startOfMonth),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'resident').eq('is_active', true),
     supabase.from('realisations')
-      .select('id, performed_at, procedures(name), profiles!resident_id(full_name)')
+      .select('id, performed_at, procedures!inner(name, service), profiles!resident_id(full_name)')
       .eq('enseignant_id', user.id).eq('status', 'pending')
+      .eq('procedures.service', teacherService)
       .order('created_at', { ascending: false }).limit(5),
     supabase
       .from('travaux_scientifiques')
@@ -80,7 +89,7 @@ export default async function EnseignantDashboard() {
 
   return (
     <div className="p-5 md:p-8 max-w-6xl">
-      <PageHeader title="Tableau de bord" subtitle="Vos validations et résidents" />
+      <PageHeader title="Tableau de bord" />
       <div className="mb-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-8">
         {metrics.map((metric) => (
           <Link key={metric.label} href={metric.href} className={`block transition-transform hover:scale-[1.02] active:scale-[0.98] ${metric.priority ? 'sm:col-span-3 xl:col-span-2' : 'xl:col-span-1'}`}>

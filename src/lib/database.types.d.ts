@@ -8,6 +8,7 @@ export interface Procedure {
   procedure_code: number
   category_id: string
   name: string
+  service: string | null
   pathologie: string | null
   objectif_final: ObjectifLevel
   target_level: ObjectifLevel | null
@@ -44,6 +45,7 @@ export interface ResidentProgress {
   name: string
   category_name: string
   category_color: string
+  service: string | null
   objectif_final: ObjectifLevel
   target_level: ObjectifLevel | null
   target_count: number | null

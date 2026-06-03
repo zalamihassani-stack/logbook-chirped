@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import AppCard from '@/components/ui/AppCard'
@@ -7,8 +7,9 @@ import AppModal from '@/components/ui/AppModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import StatusTabs from '@/components/ui/StatusTabs'
 import FormField, { TextInput } from '@/components/ui/FormField'
-import { createProcedure, updateProcedure, deleteProcedure, createCategory, updateCategory, deleteCategory } from '@/app/actions/admin'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { createProcedure, updateProcedure, deleteProcedure, createCategory, updateCategory, deleteCategory, importReferentiel } from '@/app/actions/admin'
+import { DEFAULT_SERVICE, SERVICE_LABELS, SERVICE_OPTIONS, normalizeService } from '@/lib/logbook'
+import { Plus, Pencil, Trash2, FileDown, Upload } from 'lucide-react'
 
 const YEARS = [1, 2, 3, 4, 5]
 const DEFAULT_CATEGORY_COLOR = '#0D2B4E'
@@ -22,11 +23,19 @@ const TABS = [
 function emptyObjectives() {
   return YEARS.map((year) => ({ year, required_level: 0, min_count: 1 }))
 }
-function emptyProcedureForm(categoryId = '') {
+function firstCategoryForService(categories, service) {
+  return categories.find((category) => normalizeService(category.service) === service)?.id ?? ''
+}
+
+function categoriesForService(categories, service) {
+  return categories.filter((category) => normalizeService(category.service) === service)
+}
+
+function emptyProcedureForm(categories = [], service = DEFAULT_SERVICE) {
   return {
-    procedure_code: '',
     name: '',
-    category_id: categoryId,
+    service,
+    category_id: firstCategoryForService(categories, service),
     pathologie: '',
     objectif_final: 3,
     target_level: 3,
@@ -42,14 +51,16 @@ function emptyProcedureForm(categoryId = '') {
 
 export default function GestesManagement({ initialProcedures, initialCategories }) {
   const router = useRouter()
+  const fileInputRef = useRef(null)
   const [procedures, setProcedures] = useState(initialProcedures)
   const [categories, setCategories] = useState(initialCategories)
   const [tab, setTab] = useState('gestes')
   const [filterCat, setFilterCat] = useState('')
+  const [filterService, setFilterService] = useState('')
   const [modal, setModal] = useState(null)
-  const [form, setForm] = useState(emptyProcedureForm(initialCategories[0]?.id ?? ''))
+  const [form, setForm] = useState(emptyProcedureForm(initialCategories))
   const [catModal, setCatModal] = useState(null)
-  const [catForm, setCatForm] = useState({ name: '', color_hex: DEFAULT_CATEGORY_COLOR, display_order: 0 })
+  const [catForm, setCatForm] = useState({ name: '', service: DEFAULT_SERVICE, color_hex: DEFAULT_CATEGORY_COLOR, display_order: 0 })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -64,7 +75,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
   }, [initialCategories])
 
   function openCreate() {
-    setForm(emptyProcedureForm(categories[0]?.id ?? ''))
+    setForm(emptyProcedureForm(categories))
     setError('')
     setModal('create')
   }
@@ -80,6 +91,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
       procedure_code: procedure.procedure_code ?? '',
       name: procedure.name,
       category_id: procedure.category_id,
+      service: normalizeService(procedure.service),
       pathologie: procedure.pathologie ?? '',
       objectif_final: procedure.objectif_final ?? 1,
       target_level: procedure.target_level ?? procedure.objectif_final ?? 1,
@@ -100,9 +112,14 @@ export default function GestesManagement({ initialProcedures, initialCategories 
     setLoading(true)
     setError('')
 
+    if (!form.category_id) {
+      setLoading(false)
+      setError('Selectionnez une categorie pour ce service.')
+      return
+    }
+
     const payload = {
       ...form,
-      procedure_code: form.procedure_code ? Number.parseInt(form.procedure_code, 10) : null,
       target_level: Number.parseInt(form.target_level, 10),
       target_count: Number.parseInt(form.target_count, 10) || 1,
       target_year: Number.parseInt(form.target_year, 10) || 1,
@@ -164,7 +181,7 @@ export default function GestesManagement({ initialProcedures, initialCategories 
     event.preventDefault()
     setLoading(true)
     setError('')
-    const payload = { ...catForm, display_order: Number.parseInt(catForm.display_order, 10) || 0 }
+    const payload = { ...catForm, service: normalizeService(catForm.service), display_order: Number.parseInt(catForm.display_order, 10) || 0 }
     const res = catModal === 'create' ? await createCategory(payload) : await updateCategory(catModal.id, payload)
     setLoading(false)
     if (res.error) {
@@ -172,6 +189,63 @@ export default function GestesManagement({ initialProcedures, initialCategories 
       return
     }
     setCatModal(null)
+    router.refresh()
+  }
+
+  function downloadReferentiel() {
+    const categoryRows = categories.map((category) => ({
+      type: 'category',
+      name: category.name,
+      service: normalizeService(category.service),
+      color_hex: category.color_hex,
+      display_order: category.display_order ?? 0,
+    }))
+    const procedureRows = procedures.map((procedure) => {
+      const category = categories.find((item) => item.id === procedure.category_id)
+      return {
+        type: 'procedure',
+        name: procedure.name,
+        category_name: category?.name ?? '',
+        service: normalizeService(procedure.service),
+        pathologie: procedure.pathologie ?? '',
+        target_level: procedure.target_level ?? procedure.objectif_final ?? 3,
+        target_count: procedure.target_count ?? 1,
+        target_year: procedure.target_year ?? 1,
+      }
+    })
+    const headers = ['type', 'name', 'category_name', 'service', 'pathologie', 'target_level', 'target_count', 'target_year', 'color_hex', 'display_order']
+    const rows = [...categoryRows, ...procedureRows].map((row) => headers.map((key) => csvCell(row[key])).join(','))
+    downloadTextFile([headers.join(','), ...rows].join('\n'), 'referentiel-logbook.csv')
+  }
+
+  async function handleReferentielFile(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setLoading(true)
+    setError('')
+    const text = await file.text()
+    const rows = parseCsv(text)
+    const categoriesToImport = rows
+      .filter((row) => row.type === 'category')
+      .map((row) => ({ name: row.name, service: row.service, color_hex: row.color_hex, display_order: row.display_order }))
+    const proceduresToImport = rows
+      .filter((row) => row.type === 'procedure')
+      .map((row) => ({
+        name: row.name,
+        category_name: row.category_name,
+        service: row.service,
+        pathologie: row.pathologie,
+        target_level: row.target_level,
+        target_count: row.target_count,
+        target_year: row.target_year,
+      }))
+    const res = await importReferentiel({ categories: categoriesToImport, procedures: proceduresToImport })
+    setLoading(false)
+    event.target.value = ''
+    if (res.error) {
+      setError(res.error)
+      return
+    }
     router.refresh()
   }
 
@@ -191,21 +265,53 @@ export default function GestesManagement({ initialProcedures, initialCategories 
     }))
   }
 
-  const filtered = filterCat ? procedures.filter((procedure) => procedure.category_id === filterCat) : procedures
+  const filtered = procedures.filter((procedure) => {
+    const matchesCategory = !filterCat || procedure.category_id === filterCat
+    const matchesService = !filterService || normalizeService(procedure.service) === filterService
+    return matchesCategory && matchesService
+  })
+  const filterCategories = filterService ? categoriesForService(categories, filterService) : categories
+  const formService = normalizeService(form.service)
+  const formCategories = categoriesForService(categories, formService)
+  const categoryGroups = SERVICE_OPTIONS.map((service) => ({
+    ...service,
+    categories: categoriesForService(categories, service.value),
+  }))
+
+  function setProcedureService(service) {
+    const nextService = normalizeService(service)
+    setForm((current) => {
+      const currentCategory = categories.find((category) => category.id === current.category_id)
+      const keepCategory = currentCategory && normalizeService(currentCategory.service) === nextService
+      return {
+        ...current,
+        service: nextService,
+        category_id: keepCategory ? current.category_id : firstCategoryForService(categories, nextService),
+      }
+    })
+  }
 
   return (
     <>
       <PageHeader
         title="Gestes & Objectifs"
-        subtitle="Referentiel des procedures"
         action={
-          <button
-            onClick={tab === 'gestes' ? openCreate : () => { setCatForm({ name: '', color_hex: DEFAULT_CATEGORY_COLOR, display_order: 0 }); setCatModal('create') }}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white"
-            style={{ backgroundColor: 'var(--color-navy)' }}
-          >
-            <Plus size={16} /> {tab === 'gestes' ? 'Nouveau geste' : 'Nouvelle categorie'}
-          </button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button onClick={downloadReferentiel} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600">
+              <FileDown size={16} /> Export
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600">
+              <Upload size={16} /> Import
+            </button>
+            <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleReferentielFile} />
+            <button
+              onClick={tab === 'gestes' ? openCreate : () => { setCatForm({ name: '', service: DEFAULT_SERVICE, color_hex: DEFAULT_CATEGORY_COLOR, display_order: 0 }); setCatModal('create') }}
+              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white"
+              style={{ backgroundColor: 'var(--color-navy)' }}
+            >
+              <Plus size={16} /> {tab === 'gestes' ? 'Nouveau geste' : 'Nouvelle categorie'}
+            </button>
+          </div>
         }
       />
       {error && !modal && !catModal && (
@@ -216,16 +322,31 @@ export default function GestesManagement({ initialProcedures, initialCategories 
 
       {tab === 'gestes' && (
         <>
-          <select
-            value={filterCat}
-            onChange={(event) => setFilterCat(event.target.value)}
-            className="mb-4 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
-          >
-            <option value="">Toutes les categories</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
-            ))}
-          </select>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <select
+              value={filterCat}
+              onChange={(event) => setFilterCat(event.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
+            >
+              <option value="">Toutes les categories</option>
+              {filterCategories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+            <select
+              value={filterService}
+              onChange={(event) => {
+                setFilterService(event.target.value)
+                setFilterCat('')
+              }}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
+            >
+              <option value="">Tous les services</option>
+              {SERVICE_OPTIONS.map((service) => (
+                <option key={service.value} value={service.value}>{service.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-2">
             {filtered.map((procedure) => {
               const category = categories.find((item) => item.id === procedure.category_id)
@@ -244,6 +365,9 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                             {category.name}
                           </span>
                         )}
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                          {SERVICE_LABELS[normalizeService(procedure.service)] ?? SERVICE_LABELS[DEFAULT_SERVICE]}
+                        </span>
                       </div>
                       {procedure.pathologie && <p className="mt-0.5 text-xs text-slate-500">{procedure.pathologie}</p>}
                       <p className="mt-2 text-xs text-slate-500">
@@ -281,25 +405,33 @@ export default function GestesManagement({ initialProcedures, initialCategories 
 
       {tab === 'categories' && (
         <div className="space-y-2">
-          {categories.map((category) => (
-            <AppCard key={category.id} className="flex items-center gap-3 p-4">
-              <div className="h-8 w-8 flex-shrink-0 rounded-lg" style={{ backgroundColor: category.color_hex }} />
-              <span className="flex-1 text-sm font-medium text-slate-800">{category.name}</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setCatForm({ name: category.name, color_hex: category.color_hex, display_order: category.display_order ?? 0 }); setCatModal(category) }}
-                  className="rounded-lg p-2 hover:bg-slate-100"
-                >
-                  <Pencil size={15} className="text-slate-500" />
-                </button>
-                <button
-                  onClick={() => setConfirmCategoryDelete(category)}
-                  className="rounded-lg p-2 hover:bg-red-50"
-                >
-                  <Trash2 size={15} className="text-red-500" />
-                </button>
-              </div>
-            </AppCard>
+          {categoryGroups.map((group) => (
+            <div key={group.value} className="space-y-2">
+              <p className="px-1 text-xs font-semibold uppercase text-slate-400">{group.label}</p>
+              {group.categories.map((category) => (
+                <AppCard key={category.id} className="flex items-center gap-3 p-4">
+                  <div className="h-8 w-8 flex-shrink-0 rounded-lg" style={{ backgroundColor: category.color_hex }} />
+                  <span className="flex-1 text-sm font-medium text-slate-800">{category.name}</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setCatForm({ name: category.name, service: normalizeService(category.service), color_hex: category.color_hex, display_order: category.display_order ?? 0 }); setCatModal(category) }}
+                      className="rounded-lg p-2 hover:bg-slate-100"
+                    >
+                      <Pencil size={15} className="text-slate-500" />
+                    </button>
+                    <button
+                      onClick={() => setConfirmCategoryDelete(category)}
+                      className="rounded-lg p-2 hover:bg-red-50"
+                    >
+                      <Trash2 size={15} className="text-red-500" />
+                    </button>
+                  </div>
+                </AppCard>
+              ))}
+              {group.categories.length === 0 && (
+                <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-400">Aucune categorie pour ce service.</p>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -307,8 +439,19 @@ export default function GestesManagement({ initialProcedures, initialCategories 
       {modal !== null && (
         <AppModal title={modal === 'create' ? 'Nouveau geste' : 'Modifier'} onClose={() => setModal(null)} maxWidth="max-w-lg">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Field label="Code procedure" type="number" value={form.procedure_code} onChange={(value) => setForm((current) => ({ ...current, procedure_code: value }))} />
               <Field label="Nom du geste" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} required />
+              <div>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Service</label>
+                <select
+                  value={form.service}
+                  onChange={(event) => setProcedureService(event.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+                >
+                  {SERVICE_OPTIONS.map((service) => (
+                    <option key={service.value} value={service.value}>{service.label}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Categorie</label>
                 <select
@@ -316,10 +459,14 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                   onChange={(event) => setForm((current) => ({ ...current, category_id: event.target.value }))}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
                 >
-                  {categories.map((category) => (
+                  <option value="">Choisir une categorie</option>
+                  {formCategories.map((category) => (
                     <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
                 </select>
+                {formCategories.length === 0 && (
+                  <p className="mt-2 text-xs text-orange-600">Creez d&apos;abord une categorie pour {SERVICE_LABELS[formService]}.</p>
+                )}
               </div>
               <Field label="Pathologie" value={form.pathologie} onChange={(value) => setForm((current) => ({ ...current, pathologie: value }))} />
               <div>
@@ -346,7 +493,6 @@ export default function GestesManagement({ initialProcedures, initialCategories 
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Objectifs par année</p>
-                    <p className="text-xs text-slate-500">L&apos;exposition est transversale dès A1; planifiez seulement supervision ou autonomie.</p>
                   </div>
                   <button
                     type="button"
@@ -409,6 +555,18 @@ export default function GestesManagement({ initialProcedures, initialCategories 
         <AppModal title={catModal === 'create' ? 'Nouvelle catégorie' : 'Modifier'} onClose={() => setCatModal(null)} maxWidth="max-w-sm">
             <form onSubmit={handleCatSubmit} className="space-y-4">
               <Field label="Nom" value={catForm.name} onChange={(value) => setCatForm((current) => ({ ...current, name: value }))} required />
+              <div>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Service</label>
+                <select
+                  value={catForm.service}
+                  onChange={(event) => setCatForm((current) => ({ ...current, service: event.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none"
+                >
+                  {SERVICE_OPTIONS.map((service) => (
+                    <option key={service.value} value={service.value}>{service.label}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--color-navy)' }}>Couleur</label>
                 <div className="flex items-center gap-3">
@@ -474,4 +632,50 @@ function Field({ label, type = 'text', value, onChange, required }) {
       />
     </FormField>
   )
+}
+
+function csvCell(value) {
+  return `"${String(value ?? '').replaceAll('"', '""')}"`
+}
+
+function downloadTextFile(content, filename) {
+  const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function parseCsv(text) {
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean)
+  if (lines.length < 2) return []
+  const headers = splitCsvLine(lines[0])
+  return lines.slice(1).map((line) => {
+    const cells = splitCsvLine(line)
+    return Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? '']))
+  })
+}
+
+function splitCsvLine(line) {
+  const cells = []
+  let current = ''
+  let quoted = false
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    if (char === '"' && line[index + 1] === '"') {
+      current += '"'
+      index += 1
+    } else if (char === '"') {
+      quoted = !quoted
+    } else if (char === ',' && !quoted) {
+      cells.push(current)
+      current = ''
+    } else {
+      current += char
+    }
+  }
+  cells.push(current)
+  return cells
 }

@@ -10,6 +10,28 @@ export const ACTIVITY_TYPE_LABELS = {
   autonome: 'Autonome',
 }
 
+export const SERVICE_OPTIONS = [
+  { value: 'viscerale_urologie', label: 'Viscerale et urologie pediatrique' },
+  { value: 'traumato_orthopedie', label: 'Traumatologie et orthopedie pediatrique' },
+]
+
+export const DEFAULT_SERVICE = 'viscerale_urologie'
+
+const LEGACY_SERVICE_ALIASES = {
+  viscerale: 'viscerale_urologie',
+  urologie: 'viscerale_urologie',
+  traumatologie: 'traumato_orthopedie',
+}
+
+export const SERVICE_LABELS = Object.fromEntries(
+  SERVICE_OPTIONS.map((service) => [service.value, service.label])
+)
+
+export function normalizeService(value) {
+  const normalized = LEGACY_SERVICE_ALIASES[value] ?? value
+  return SERVICE_OPTIONS.some((service) => service.value === normalized) ? normalized : DEFAULT_SERVICE
+}
+
 export const OBJECTIF_LEVEL_LABELS = {
   1: 'Exposition',
   2: 'Sous supervision',

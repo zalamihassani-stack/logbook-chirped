@@ -2,10 +2,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { isMissingAppSettingsTable } from '@/lib/app-settings'
+import { normalizeService } from '@/lib/logbook'
 import { revalidatePath } from 'next/cache'
 
 const VALID_ROLES = new Set(['admin', 'enseignant', 'resident'])
 const SETTING_KEYS = ['push_notifications', 'validation_required', 'allow_hors_objectifs', 'compte_rendu_required']
+const DEFAULT_CATEGORY_COLOR = '#0D2B4E'
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -19,15 +21,36 @@ async function requireAdmin() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_active')
     .eq('id', user.id)
     .single()
 
-  if (error || profile?.role !== 'admin') {
+  if (error || profile?.role !== 'admin' || profile?.is_active === false) {
     throw new Error('Acces administrateur requis.')
   }
 
   return { supabase, user, profile }
+}
+
+async function logAdminAction(action, targetType, targetId = null, details = {}) {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+
+    const admin = createAdminClient()
+    await admin.from('admin_audit_logs').insert({
+      admin_id: user.id,
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      details,
+    })
+  } catch {
+    // Audit logging should never block the admin workflow.
+  }
 }
 
 function normalizeUserPayload(data) {
@@ -41,6 +64,7 @@ function normalizeUserPayload(data) {
     data: {
       full_name: fullName,
       role,
+      service: role === 'enseignant' ? normalizeService(data.service) : null,
       residanat_start_date: role === 'resident' ? data.residanat_start_date || null : null,
       promotion: role === 'resident' ? data.promotion?.trim() || null : null,
     },
@@ -55,6 +79,7 @@ function normalizeCategoryPayload(data) {
   return {
     data: {
       name,
+      service: normalizeService(data?.service),
       color_hex: color,
       display_order: Number.parseInt(data?.display_order, 10) || 0,
     },
@@ -76,6 +101,54 @@ async function getActiveAdminCount(client) {
 
   if (error) throw new Error(error.message)
   return count ?? 0
+}
+
+async function getNextProcedureCode(client) {
+  const { data, error } = await client
+    .from('procedures')
+    .select('procedure_code')
+    .not('procedure_code', 'is', null)
+    .order('procedure_code', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return (Number.parseInt(data?.procedure_code, 10) || 0) + 1
+}
+
+async function assertCategoryMatchesService(client, categoryId, service) {
+  if (!categoryId) return { error: 'La categorie est obligatoire.' }
+  const normalizedService = normalizeService(service)
+  const { data: category, error } = await client
+    .from('categories')
+    .select('id, service')
+    .eq('id', categoryId)
+    .maybeSingle()
+
+  if (error) return { error: error.message }
+  if (!category) return { error: 'Categorie introuvable.' }
+  if (normalizeService(category.service) !== normalizedService) {
+    return { error: 'La categorie selectionnee ne correspond pas au service du geste.' }
+  }
+
+  return { success: true }
+}
+
+async function assertCategoryServiceCanChange(client, categoryId, service) {
+  const normalizedService = normalizeService(service)
+  const { data, error } = await client
+    .from('procedures')
+    .select('id, service')
+    .eq('category_id', categoryId)
+    .eq('is_active', true)
+
+  if (error) return { error: error.message }
+  const hasOtherServiceProcedures = (data ?? []).some((procedure) => normalizeService(procedure.service) !== normalizedService)
+  if (hasOtherServiceProcedures) {
+    return { error: 'Cette categorie contient des gestes actifs d un autre service.' }
+  }
+
+  return { success: true }
 }
 
 async function assertAdminCanChangeUser(client, { targetId, currentUserId, nextRole, deleting = false }) {
@@ -102,14 +175,14 @@ async function assertAdminCanChangeUser(client, { targetId, currentUserId, nextR
   return target
 }
 
-export async function createUser({ email, password, full_name, role, residanat_start_date, promotion }) {
+export async function createUser({ email, password, full_name, role, service, residanat_start_date, promotion }) {
   try {
     await requireAdmin()
   } catch (error) {
     return { error: error.message }
   }
 
-  const normalized = normalizeUserPayload({ full_name, role, residanat_start_date, promotion })
+  const normalized = normalizeUserPayload({ full_name, role, service, residanat_start_date, promotion })
   if (normalized.error) return { error: normalized.error }
   if (!email?.trim()) return { error: "L'email est obligatoire." }
   if (!password || password.length < 6) return { error: 'Le mot de passe doit contenir au moins 6 caracteres.' }
@@ -137,6 +210,7 @@ export async function createUser({ email, password, full_name, role, residanat_s
 
   revalidatePath('/admin/utilisateurs')
   revalidatePath('/admin')
+  await logAdminAction('create_user', 'profile', user.id, { role: normalized.data.role, email: email.trim() })
   return { success: true }
 }
 
@@ -163,10 +237,11 @@ export async function updateUser(id, data) {
 
   revalidatePath('/admin/utilisateurs')
   revalidatePath('/admin')
+  await logAdminAction('update_user', 'profile', id, { role: normalized.data.role })
   return { success: true }
 }
 
-export async function deleteUser(id) {
+export async function deactivateUser(id) {
   let supabase
   let user
   try {
@@ -182,15 +257,18 @@ export async function deleteUser(id) {
   }
 
   const admin = createAdminClient()
-  const { error } = await admin.auth.admin.deleteUser(id)
-  if (error) return { error: error.message }
+  const { error: profileError } = await supabase.from('profiles').update({ is_active: false }).eq('id', id)
+  if (profileError) return { error: profileError.message }
+
+  await admin.auth.admin.updateUserById(id, { ban_duration: '876000h' })
 
   revalidatePath('/admin/utilisateurs')
   revalidatePath('/admin')
+  await logAdminAction('deactivate_user', 'profile', id)
   return { success: true }
 }
 
-export async function createCategory({ name, color_hex, display_order }) {
+export async function reactivateUser(id) {
   let supabase
   try {
     ;({ supabase } = await requireAdmin())
@@ -198,13 +276,51 @@ export async function createCategory({ name, color_hex, display_order }) {
     return { error: error.message }
   }
 
-  const normalized = normalizeCategoryPayload({ name, color_hex, display_order })
+  const admin = createAdminClient()
+  const { error } = await supabase.from('profiles').update({ is_active: true }).eq('id', id)
+  if (error) return { error: error.message }
+
+  await admin.auth.admin.updateUserById(id, { ban_duration: 'none' })
+
+  revalidatePath('/admin/utilisateurs')
+  revalidatePath('/admin')
+  await logAdminAction('reactivate_user', 'profile', id)
+  return { success: true }
+}
+
+export async function resetUserPassword(id, password) {
+  if (!password || password.length < 8) return { error: 'Le mot de passe doit contenir au moins 8 caracteres.' }
+
+  try {
+    await requireAdmin()
+  } catch (error) {
+    return { error: error.message }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin.auth.admin.updateUserById(id, { password })
+  if (error) return { error: error.message }
+
+  await logAdminAction('reset_user_password', 'profile', id)
+  return { success: true }
+}
+
+export async function createCategory({ name, service, color_hex, display_order }) {
+  let supabase
+  try {
+    ;({ supabase } = await requireAdmin())
+  } catch (error) {
+    return { error: error.message }
+  }
+
+  const normalized = normalizeCategoryPayload({ name, service, color_hex, display_order })
   if (normalized.error) return { error: normalized.error }
 
   const { error } = await supabase.from('categories').insert(normalized.data)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/gestes')
+  await logAdminAction('create_category', 'category', null, { name: normalized.data.name })
   return { success: true }
 }
 
@@ -219,10 +335,14 @@ export async function updateCategory(id, data) {
   const normalized = normalizeCategoryPayload(data)
   if (normalized.error) return { error: normalized.error }
 
+  const serviceCheck = await assertCategoryServiceCanChange(supabase, id, normalized.data.service)
+  if (serviceCheck.error) return { error: serviceCheck.error }
+
   const { error } = await supabase.from('categories').update(normalized.data).eq('id', id)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/gestes')
+  await logAdminAction('update_category', 'category', id, { name: normalized.data.name })
   return { success: true }
 }
 
@@ -238,6 +358,7 @@ export async function deleteCategory(id) {
   if (error) return { error: error.message }
 
   revalidatePath('/admin/gestes')
+  await logAdminAction('delete_category', 'category', id)
   return { success: true }
 }
 
@@ -258,10 +379,10 @@ function normalizeObjectiveRows(procedureId, objectives) {
 }
 
 export async function createProcedure({
-  procedure_code,
   name,
   category_id,
   pathologie,
+  service,
   objectif_final,
   target_level,
   target_count,
@@ -278,14 +399,18 @@ export async function createProcedure({
   } catch (error) {
     return { error: error.message }
   }
+  const normalizedService = normalizeService(service)
+  const categoryCheck = await assertCategoryMatchesService(supabase, category_id, normalizedService)
+  if (categoryCheck.error) return { error: categoryCheck.error }
 
   const { data: proc, error } = await supabase
     .from('procedures')
     .insert({
-      procedure_code,
+      procedure_code: await getNextProcedureCode(supabase),
       name,
       category_id,
       pathologie,
+      service: normalizedService,
       objectif_final,
       target_level,
       target_count,
@@ -307,6 +432,7 @@ export async function createProcedure({
   }
 
   revalidatePath('/admin/gestes')
+  await logAdminAction('create_procedure', 'procedure', proc.id, { name })
   return { success: true }
 }
 
@@ -317,14 +443,17 @@ export async function updateProcedure(id, payload) {
   } catch (error) {
     return { error: error.message }
   }
+  const normalizedService = normalizeService(payload.service)
+  const categoryCheck = await assertCategoryMatchesService(supabase, payload.category_id, normalizedService)
+  if (categoryCheck.error) return { error: categoryCheck.error }
 
   const { error } = await supabase
     .from('procedures')
     .update({
-      procedure_code: payload.procedure_code,
       name: payload.name,
       category_id: payload.category_id,
       pathologie: payload.pathologie,
+      service: normalizedService,
       objectif_final: payload.objectif_final,
       target_level: payload.target_level,
       target_count: payload.target_count,
@@ -352,6 +481,7 @@ export async function updateProcedure(id, payload) {
   }
 
   revalidatePath('/admin/gestes')
+  await logAdminAction('update_procedure', 'procedure', id, { name: payload.name })
   return { success: true }
 }
 
@@ -367,6 +497,7 @@ export async function deleteProcedure(id) {
   if (error) return { error: error.message }
 
   revalidatePath('/admin/gestes')
+  await logAdminAction('deactivate_procedure', 'procedure', id)
   return { success: true }
 }
 
@@ -394,7 +525,48 @@ export async function saveSettings(settings) {
 
   revalidatePath('/admin/reglages')
   revalidatePath('/resident/nouveau')
+  await logAdminAction('save_settings', 'app_settings', '1', normalizedSettings)
   return { success: true }
+}
+
+export async function previewDeleteResidentData({ residentId }) {
+  if (!residentId) return { error: 'Selectionnez un resident.' }
+
+  let supabase
+  try {
+    ;({ supabase } = await requireAdmin())
+  } catch (error) {
+    return { error: error.message }
+  }
+
+  const { count, error } = await supabase
+    .from('realisations')
+    .select('id', { count: 'exact', head: true })
+    .eq('resident_id', residentId)
+  if (error) return { error: error.message }
+  return { success: true, count: count ?? 0 }
+}
+
+export async function previewDeleteActesByPeriod({ from, to }) {
+  if (!from || !to) return { error: 'Indiquez une date de debut et une date de fin.' }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return { error: 'Format de date invalide.' }
+  if (from > to) return { error: 'La date de debut doit preceder la date de fin.' }
+
+  let supabase
+  try {
+    ;({ supabase } = await requireAdmin())
+  } catch (error) {
+    return { error: error.message }
+  }
+
+  const exclusiveTo = nextDateInputValue(to)
+  const { count, error } = await supabase
+    .from('realisations')
+    .select('id', { count: 'exact', head: true })
+    .gte('performed_at', from)
+    .lt('performed_at', exclusiveTo)
+  if (error) return { error: error.message }
+  return { success: true, count: count ?? 0 }
 }
 
 export async function deleteResidentData({ residentId, confirmationToken }) {
@@ -421,6 +593,7 @@ export async function deleteResidentData({ residentId, confirmationToken }) {
   if (error) return { error: error.message }
 
   revalidatePath('/admin/donnees')
+  await logAdminAction('delete_resident_realisations', 'profile', residentId, { deletedCount: count })
   return { success: true, deletedCount: count }
 }
 
@@ -465,5 +638,92 @@ export async function deleteActesByPeriod({ from, to, confirmationToken }) {
   if (error) return { error: error.message }
 
   revalidatePath('/admin/donnees')
+  await logAdminAction('delete_realisations_by_period', 'realisations', null, { from, to, deletedCount: count })
   return { success: true, deletedCount: count }
+}
+
+export async function importReferentiel({ categories = [], procedures = [] }) {
+  let supabase
+  try {
+    ;({ supabase } = await requireAdmin())
+  } catch (error) {
+    return { error: error.message }
+  }
+
+  const normalizedCategories = categories
+    .map((category, index) => ({
+      name: category.name?.trim(),
+      service: normalizeService(category.service),
+      color_hex: /^#[0-9a-f]{6}$/i.test(category.color_hex ?? '') ? category.color_hex : DEFAULT_CATEGORY_COLOR,
+      display_order: Number.parseInt(category.display_order, 10) || index,
+    }))
+    .filter((category) => category.name)
+
+  for (const category of normalizedCategories) {
+    const { data: existing, error: existingError } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('name', category.name)
+      .eq('service', category.service)
+      .maybeSingle()
+    if (existingError) return { error: existingError.message }
+
+    const query = existing
+      ? supabase.from('categories').update(category).eq('id', existing.id)
+      : supabase.from('categories').insert(category)
+    const { error } = await query
+    if (error) return { error: error.message }
+  }
+
+  const { data: allCategories, error: catError } = await supabase.from('categories').select('id, name, service')
+  if (catError) return { error: catError.message }
+  const categoryByKey = new Map((allCategories ?? []).map((category) => [`${normalizeService(category.service)}::${category.name}`, category.id]))
+
+  let importedProcedures = 0
+  let nextProcedureCode = await getNextProcedureCode(supabase)
+  for (const item of procedures) {
+    const name = item.name?.trim()
+    if (!name) continue
+    const service = normalizeService(item.service)
+    const categoryId = item.category_id || categoryByKey.get(`${service}::${item.category_name}`)
+    if (!categoryId) {
+      return { error: `Categorie introuvable pour "${name}" dans le service ${service}.` }
+    }
+    const payload = {
+      name,
+      category_id: categoryId,
+      pathologie: item.pathologie?.trim() || null,
+      service,
+      objectif_final: Number.parseInt(item.target_level ?? item.objectif_final, 10) || 3,
+      target_level: Number.parseInt(item.target_level ?? item.objectif_final, 10) || 3,
+      target_count: Number.parseInt(item.target_count, 10) || 1,
+      target_year: Number.parseInt(item.target_year, 10) || 1,
+      seuil_exposition_min: 0,
+      seuil_supervision_min: 0,
+      seuil_autonomie_min: 0,
+      seuil_deblocage_autonomie: 0,
+      is_active: true,
+    }
+    if (payload.target_level === 1) payload.seuil_exposition_min = payload.target_count
+    if (payload.target_level === 2) payload.seuil_supervision_min = payload.target_count
+    if (payload.target_level === 3) payload.seuil_autonomie_min = payload.target_count
+
+    const { data: existing, error: existingError } = await supabase
+      .from('procedures')
+      .select('id')
+      .eq('name', name)
+      .maybeSingle()
+    if (existingError) return { error: existingError.message }
+
+    const query = existing
+      ? supabase.from('procedures').update(payload).eq('id', existing.id)
+      : supabase.from('procedures').insert({ ...payload, procedure_code: nextProcedureCode++ })
+    const { error } = await query
+    if (error) return { error: error.message }
+    importedProcedures += 1
+  }
+
+  revalidatePath('/admin/gestes')
+  await logAdminAction('import_referentiel', 'referentiel', null, { categories: normalizedCategories.length, procedures: importedProcedures })
+  return { success: true, categories: normalizedCategories.length, procedures: importedProcedures }
 }

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
+import { normalizeService } from '@/lib/logbook'
 
 export default async function EnseignantLayout({ children }) {
   const supabase = await createClient()
@@ -8,15 +9,17 @@ export default async function EnseignantLayout({ children }) {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase
-    .from('profiles').select('id, full_name, role').eq('id', user.id).single()
+    .from('profiles').select('id, full_name, role, service, is_active').eq('id', user.id).single()
 
-  if (profile?.role !== 'enseignant') redirect('/')
+  if (profile?.role !== 'enseignant' || profile?.is_active === false) redirect('/')
+  const teacherService = normalizeService(profile?.service)
 
   const [pendingRes, pendingTravauxRes] = await Promise.all([
     supabase
       .from('realisations')
-      .select('*', { count: 'exact', head: true })
+      .select('id, procedures!inner(service)', { count: 'exact', head: true })
       .eq('enseignant_id', user.id)
+      .eq('procedures.service', teacherService)
       .eq('status', 'pending'),
     supabase
       .from('travaux_scientifiques')

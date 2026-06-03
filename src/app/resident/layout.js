@@ -8,9 +8,9 @@ export default async function ResidentLayout({ children }) {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase
-    .from('profiles').select('id, full_name, role').eq('id', user.id).single()
+    .from('profiles').select('id, full_name, role, is_active').eq('id', user.id).single()
 
-  if (profile?.role !== 'resident') redirect('/')
+  if (profile?.role !== 'resident' || profile?.is_active === false) redirect('/')
 
   // Counts pour badges nav
   const [refusedRes, pendingRes, pendingTravauxRes, refusedTravauxRes] = await Promise.all([

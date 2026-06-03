@@ -28,7 +28,7 @@ function percent(done, total) {
 
 const YEAR_OPTIONS = [1, 2, 3, 4, 5]
 
-export default function ProgressionTab({ residents }) {
+export default function ProgressionTab({ residents, teacherService }) {
   const [data, setData] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -47,11 +47,22 @@ export default function ProgressionTab({ residents }) {
       const supabase = createClient()
       const ids = residents.map((r) => r.id)
 
-      const [progressRes, travauxRes, objectivesRes, proceduresRes] = await Promise.all([
-        supabase.from('v_resident_niveau').select('resident_id, procedure_id, count_expose, count_supervise, count_autonome').in('resident_id', ids),
+      let proceduresQuery = supabase
+        .from('procedures')
+        .select('id, name, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie')
+        .eq('is_active', true)
+      if (teacherService) proceduresQuery = proceduresQuery.eq('service', teacherService)
+      const proceduresRes = await proceduresQuery
+      const procedureIds = (proceduresRes.data ?? []).map((procedure) => procedure.id)
+
+      const [progressRes, travauxRes, objectivesRes] = await Promise.all([
+        ids.length && procedureIds.length
+          ? supabase.from('v_resident_niveau').select('resident_id, procedure_id, count_expose, count_supervise, count_autonome').in('resident_id', ids).in('procedure_id', procedureIds)
+          : Promise.resolve({ data: [] }),
         supabase.from('travaux_scientifiques').select('resident_id').in('resident_id', ids),
-        supabase.from('procedure_objectives').select('procedure_id, year, required_level, min_count').eq('is_active', true),
-        supabase.from('procedures').select('id, name, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie').eq('is_active', true),
+        procedureIds.length
+          ? supabase.from('procedure_objectives').select('procedure_id, year, required_level, min_count').eq('is_active', true).in('procedure_id', procedureIds)
+          : Promise.resolve({ data: [] }),
       ])
 
       const progressByResident = {}
@@ -120,7 +131,7 @@ export default function ProgressionTab({ residents }) {
 
     loadStats()
     return () => { active = false }
-  }, [residents])
+  }, [residents, teacherService])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()

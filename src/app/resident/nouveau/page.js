@@ -24,10 +24,10 @@ export default async function NouveauPage({ searchParams }) {
   const [{ data: procedures }, { data: enseignants }, { data: residents }, settingsRes, progressRows] = await Promise.all([
     supabase
       .from('procedures')
-      .select('id, name, pathologie, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, category_id, categories(name, color_hex)')
+      .select('id, name, service, pathologie, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, category_id, categories(name, color_hex)')
       .eq('is_active', true)
       .order('name'),
-    admin.from('profiles').select('id, full_name').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
+    admin.from('profiles').select('id, full_name, service').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
     admin.from('profiles').select('id, full_name').eq('role', 'resident').eq('is_active', true).neq('id', user.id).order('full_name'),
     getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
     getResidentProgressRows(supabase, user.id),

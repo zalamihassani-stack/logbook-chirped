@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import AppCard from '@/components/ui/AppCard'
 import GestesFilters from './GestesFilters'
+import { normalizeService } from '@/lib/logbook'
 
 export default async function EnseignantGestesPage({ searchParams }) {
   const supabase = await createClient()
@@ -10,6 +11,13 @@ export default async function EnseignantGestesPage({ searchParams }) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('service')
+    .eq('id', user.id)
+    .single()
+  const teacherService = normalizeService(profile?.service)
 
   const params = await searchParams
   const filterCat = params?.cat ?? ''
@@ -20,15 +28,17 @@ export default async function EnseignantGestesPage({ searchParams }) {
       .from('procedures')
       .select('id, name, category_id, categories(id, name, color_hex)')
       .eq('is_active', true)
+      .eq('service', teacherService)
       .order('name'),
-    supabase.from('categories').select('id, name, color_hex').order('display_order'),
+    supabase.from('categories').select('id, name, color_hex').eq('service', teacherService).order('display_order'),
     supabase.from('profiles').select('id, full_name').eq('role', 'resident').eq('is_active', true),
     supabase.from('v_resident_procedure_counts').select('resident_id, procedure_id, count_expose, count_supervise, count_autonome'),
     supabase
       .from('realisations')
-      .select('procedure_id, resident_id, performed_at')
+      .select('procedure_id, resident_id, performed_at, procedures!inner(service)')
       .eq('status', 'validated')
-      .eq('activity_type', 'autonome'),
+      .eq('activity_type', 'autonome')
+      .eq('procedures.service', teacherService),
   ])
 
   const procedures = proceduresRes.data ?? []
@@ -78,7 +88,7 @@ export default async function EnseignantGestesPage({ searchParams }) {
 
   return (
     <div className="p-5 md:p-8 max-w-3xl">
-      <PageHeader title="Suivi par geste" subtitle="Exposition des residents aux procedures" />
+      <PageHeader title="Suivi par geste" />
 
       <GestesFilters filterCat={filterCat} sortBy={sortBy} categories={categories} />
 

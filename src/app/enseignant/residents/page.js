@@ -4,6 +4,7 @@ import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import AppCard from '@/components/ui/AppCard'
 import { getInitials, getResidentYear } from '@/lib/utils'
+import { normalizeService } from '@/lib/logbook'
 import { ChevronRight } from 'lucide-react'
 
 export default async function ResidentsPage() {
@@ -11,12 +12,24 @@ export default async function ResidentsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: residents } = await supabase
-    .from('profiles').select('id, full_name, residanat_start_date, promotion').eq('role', 'resident').eq('is_active', true).order('full_name')
+  const [{ data: profile }, { data: residents }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('service')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('profiles').select('id, full_name, residanat_start_date, promotion').eq('role', 'resident').eq('is_active', true).order('full_name'),
+  ])
+  const teacherService = normalizeService(profile?.service)
 
   const ids = (residents ?? []).map((r) => r.id)
   const { data: realisations } = ids.length > 0
-    ? await supabase.from('realisations').select('resident_id, status').in('resident_id', ids)
+    ? await supabase
+      .from('realisations')
+      .select('resident_id, status, procedures!inner(service)')
+      .in('resident_id', ids)
+      .eq('procedures.service', teacherService)
     : { data: [] }
 
   const countsByResident = {}

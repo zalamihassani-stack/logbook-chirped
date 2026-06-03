@@ -9,7 +9,7 @@ import FilterPanel from '@/components/ui/FilterPanel'
 import PaginationControls from '@/components/ui/PaginationControls'
 import ListRowCard from '@/components/ui/ListRowCard'
 import { formatDate, maskPatientIdentifier } from '@/lib/utils'
-import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
+import { ACTIVITY_TYPE_LABELS, normalizeService } from '@/lib/logbook'
 import ActesTab from '../suivi/ActesTab'
 
 const PAGE_SIZE = 25
@@ -34,21 +34,28 @@ export default async function DemandesPage({ searchParams }) {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('service')
+    .eq('id', user.id)
+    .single()
+  const teacherService = normalizeService(profile?.service)
+
   const params = await searchParams
   const mode = params?.mode ?? ''
 
   if (mode === 'journal') {
     const [{ data: residents }, { data: procedures }, { data: enseignants }] = await Promise.all([
       admin.from('profiles').select('id, full_name').eq('role', 'resident').eq('is_active', true).order('full_name'),
-      supabase.from('procedures').select('id, name').eq('is_active', true).order('name'),
-      admin.from('profiles').select('id, full_name').eq('role', 'enseignant').eq('is_active', true).order('full_name'),
+      supabase.from('procedures').select('id, name').eq('is_active', true).eq('service', teacherService).order('name'),
+      admin.from('profiles').select('id, full_name').eq('role', 'enseignant').eq('service', teacherService).eq('is_active', true).order('full_name'),
     ])
 
     return (
       <div className="max-w-3xl p-5 md:p-8">
-        <PageHeader title="Demandes" subtitle="Journal de tous les actes" />
+        <PageHeader title="Demandes" />
         <StatusTabs tabs={MODE_TABS} activeValue={mode} hrefFor={(value) => value ? `/enseignant/demandes?mode=${value}` : '/enseignant/demandes'} columns={2} className="mb-5" />
-        <ActesTab residents={residents ?? []} procedures={procedures ?? []} enseignants={enseignants ?? []} />
+        <ActesTab residents={residents ?? []} procedures={procedures ?? []} enseignants={enseignants ?? []} teacherService={teacherService} />
       </div>
     )
   }
@@ -61,10 +68,12 @@ export default async function DemandesPage({ searchParams }) {
   const to = from + PAGE_SIZE
 
   const baseQuery = (status = filterStatus, select = 'id') => {
+    const selectClause = select === 'id' ? 'id, procedures!inner(service)' : select
     let scoped = admin
       .from('realisations')
-      .select(select, select === 'id' ? { count: 'exact', head: true } : undefined)
+      .select(selectClause, select === 'id' ? { count: 'exact', head: true } : undefined)
       .eq('enseignant_id', user.id)
+      .eq('procedures.service', teacherService)
 
     if (status) scoped = scoped.eq('status', status)
     if (filterResident) scoped = scoped.eq('resident_id', filterResident)
@@ -74,7 +83,7 @@ export default async function DemandesPage({ searchParams }) {
 
   const listQuery = baseQuery(
     filterStatus,
-    'id, performed_at, activity_type, ipp_patient, status, procedures(id, name), resident:profiles!resident_id(id, full_name)'
+    'id, performed_at, activity_type, ipp_patient, status, procedures!inner(id, name, service), resident:profiles!resident_id(id, full_name)'
   ).order('created_at', { ascending: false }).range(from, to)
 
   const [
@@ -87,7 +96,7 @@ export default async function DemandesPage({ searchParams }) {
   ] = await Promise.all([
     listQuery,
     admin.from('profiles').select('id, full_name').eq('role', 'resident').order('full_name'),
-    supabase.from('procedures').select('id, name').eq('is_active', true).order('name'),
+    supabase.from('procedures').select('id, name').eq('is_active', true).eq('service', teacherService).order('name'),
     baseQuery('pending'),
     baseQuery('validated'),
     baseQuery('refused'),
@@ -164,4 +173,3 @@ function statusHref(status, filters = {}) {
   const qs = params.toString()
   return `/enseignant/demandes${qs ? `?${qs}` : ''}`
 }
-

@@ -51,7 +51,7 @@ function getObjectiveForResident(procedure, objectives, residentYear) {
   }
 }
 
-export default function ObjectifsTab({ residents }) {
+export default function ObjectifsTab({ residents, teacherService }) {
   const [procedures, setProcedures] = useState([])
   const [objectives, setObjectives] = useState([])
   const [progressIndex, setProgressIndex] = useState({})
@@ -67,22 +67,31 @@ export default function ObjectifsTab({ residents }) {
       setLoading(true)
       const supabase = createClient()
       const ids = residents.map((resident) => resident.id)
-      const [objectivesRes, proceduresRes, progressRes] = await Promise.all([
-        supabase
-          .from('procedure_objectives')
-          .select('procedure_id, year, required_level, min_count')
-          .eq('is_active', true)
-          .order('year'),
-        supabase
-          .from('procedures')
-          .select('id, name, pathologie, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, categories(name, color_hex)')
-          .eq('is_active', true)
-          .order('name'),
-        ids.length
+
+      let proceduresQuery = supabase
+        .from('procedures')
+        .select('id, name, pathologie, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min, seuil_deblocage_autonomie, categories(name, color_hex)')
+        .eq('is_active', true)
+        .order('name')
+      if (teacherService) proceduresQuery = proceduresQuery.eq('service', teacherService)
+      const proceduresRes = await proceduresQuery
+      const procedureIds = (proceduresRes.data ?? []).map((procedure) => procedure.id)
+
+      const [objectivesRes, progressRes] = await Promise.all([
+        procedureIds.length
+          ? supabase
+            .from('procedure_objectives')
+            .select('procedure_id, year, required_level, min_count')
+            .eq('is_active', true)
+            .in('procedure_id', procedureIds)
+            .order('year')
+          : Promise.resolve({ data: [] }),
+        ids.length && procedureIds.length
           ? supabase
             .from('v_resident_niveau')
             .select('resident_id, procedure_id, count_expose, count_supervise, count_autonome')
             .in('resident_id', ids)
+            .in('procedure_id', procedureIds)
           : Promise.resolve({ data: [] }),
       ])
 
@@ -112,7 +121,7 @@ export default function ObjectifsTab({ residents }) {
     return () => {
       active = false
     }
-  }, [residents])
+  }, [residents, teacherService])
 
   const selectedProcedure = useMemo(
     () => procedures.find((procedure) => procedure.id === selectedProcedureId) ?? procedures[0],

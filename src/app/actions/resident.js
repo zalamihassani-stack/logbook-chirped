@@ -2,7 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getResidentYear } from '@/lib/utils'
-import { normalizeObjectifLevel } from '@/lib/logbook'
+import { normalizeObjectifLevel, normalizeService } from '@/lib/logbook'
 import { sendPushToUser } from '@/lib/push'
 import { getTravailTypeKey, isFinalWorkStatus } from '@/lib/travaux'
 import { getAppSettings } from '@/lib/app-settings'
@@ -20,11 +20,11 @@ async function requireResident() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('role, residanat_start_date')
+    .select('role, residanat_start_date, is_active')
     .eq('id', user.id)
     .single()
 
-  if (error || profile?.role !== 'resident') {
+  if (error || profile?.role !== 'resident' || profile?.is_active === false) {
     throw new Error('Accès résident requis.')
   }
 
@@ -46,10 +46,13 @@ export async function createRealisation(formData) {
   if (validationError) return { error: validationError }
 
   const residentYear = getResidentYear(profile?.residanat_start_date)
-  const [{ data: procedure }, { data: residentProfile }] = await Promise.all([
-    supabase.from('procedures').select('name, target_level, target_year').eq('id', formData.procedure_id).maybeSingle(),
+  const [{ data: procedure }, { data: residentProfile }, { data: enseignantProfile }] = await Promise.all([
+    supabase.from('procedures').select('name, service, target_level, target_year').eq('id', formData.procedure_id).maybeSingle(),
     supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+    admin.from('profiles').select('service').eq('id', formData.enseignant_id).eq('role', 'enseignant').eq('is_active', true).maybeSingle(),
   ])
+  const serviceError = validateEnseignantService(procedure, enseignantProfile)
+  if (serviceError) return { error: serviceError }
 
   const [settingsRes] = await Promise.all([
     getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
@@ -123,10 +126,13 @@ export async function resubmitRealisation(id, formData) {
   if (validationError) return { error: validationError }
 
   const residentYear = getResidentYear(profile?.residanat_start_date)
-  const [{ data: procedure }, { data: residentProfile }] = await Promise.all([
-    supabase.from('procedures').select('name, target_level, target_year').eq('id', formData.procedure_id).maybeSingle(),
+  const [{ data: procedure }, { data: residentProfile }, { data: enseignantProfile }] = await Promise.all([
+    supabase.from('procedures').select('name, service, target_level, target_year').eq('id', formData.procedure_id).maybeSingle(),
     supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+    admin.from('profiles').select('service').eq('id', formData.enseignant_id).eq('role', 'enseignant').eq('is_active', true).maybeSingle(),
   ])
+  const serviceError = validateEnseignantService(procedure, enseignantProfile)
+  if (serviceError) return { error: serviceError }
 
   const [settingsRes] = await Promise.all([
     getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
@@ -447,6 +453,18 @@ function validateRealisationSettings(formData, settings, objective) {
 
   if (settings?.compte_rendu_required && !formData?.compte_rendu?.trim()) {
     return 'Le compte rendu operatoire est obligatoire.'
+  }
+
+  return ''
+}
+
+function validateEnseignantService(procedure, enseignant) {
+  if (!procedure) return 'Geste introuvable.'
+  if (!enseignant) return 'Enseignant introuvable ou inactif.'
+  const procedureService = normalizeService(procedure.service)
+  const enseignantService = normalizeService(enseignant.service)
+  if (procedureService !== enseignantService) {
+    return "Cet enseignant n'appartient pas au service du geste selectionne."
   }
 
   return ''

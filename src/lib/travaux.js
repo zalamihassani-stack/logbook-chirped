@@ -63,15 +63,6 @@ export function getTravailValidationActionLabel(status) {
   return status === 'pending_final' ? 'Valider final' : 'Valider initial'
 }
 
-export function getTravailValidationHelp(status) {
-  if (status === 'pending_initial') return "Le travail attend la première validation de l'encadrant."
-  if (status === 'initial_validated') return 'Le travail est validé au stade initial. Une validation finale sera demandée quand il sera publié ou présenté.'
-  if (status === 'pending_final') return "Le travail est terminé et attend la validation finale de l'encadrant."
-  if (status === 'final_validated') return 'Le travail est validé définitivement.'
-  if (status === 'refused') return 'Des corrections ont été demandées. Modifiez puis enregistrez pour renvoyer en validation.'
-  return ''
-}
-
 export function normalizeTravailTypeName(name = '') {
   return name
     .normalize('NFD')

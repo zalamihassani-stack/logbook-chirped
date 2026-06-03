@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import RealisationDetailView from '@/components/realisations/RealisationDetailView'
 import ValidationForm from './ValidationForm'
+import { normalizeService } from '@/lib/logbook'
 
 export default async function ValidationPage({ params }) {
   const { id } = await params
@@ -16,14 +17,19 @@ export default async function ValidationPage({ params }) {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: real }, { data: history }] = await Promise.all([
+  const [{ data: profile }, { data: real }, { data: history }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('service')
+      .eq('id', user.id)
+      .single(),
     admin
       .from('realisations')
       .select(`
         id, performed_at, created_at, updated_at, activity_type, ipp_patient, compte_rendu,
         commentaire, status, resident_year_at_time, is_hors_objectifs,
         enseignant_id, resident_id, procedure_id,
-        procedures(name, pathologie, categories(name, color_hex)),
+        procedures(name, service, pathologie, categories(name, color_hex)),
         resident:profiles!resident_id(full_name, promotion, residanat_start_date),
         enseignant:profiles!enseignant_id(full_name),
         superviseur:profiles!superviseur_resident_id(full_name)
@@ -39,6 +45,7 @@ export default async function ValidationPage({ params }) {
 
   if (!real) notFound()
   if (real.enseignant_id !== user.id) notFound()
+  if (normalizeService(real.procedures?.service) !== normalizeService(profile?.service)) notFound()
 
   const { data: procedureProgress } = await admin
     .from('v_resident_procedure_counts')

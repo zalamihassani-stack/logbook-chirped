@@ -15,9 +15,10 @@ export default async function RootPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_active')
     .eq('id', user.id)
     .single()
 
+  if (profile?.is_active === false) redirect('/login')
   redirect(ROLE_HOME[profile?.role] ?? '/login')
 }

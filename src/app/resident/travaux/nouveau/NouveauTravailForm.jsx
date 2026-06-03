@@ -101,7 +101,7 @@ export default function NouveauTravailForm({ types, enseignants, residents, resi
 
   return (
     <>
-      <PageHeader title="Nouveau travail" subtitle="Travail scientifique, auteurs, encadrant." />
+      <PageHeader title="Nouveau travail" />
 
       <form onSubmit={handleSubmit} className="space-y-4 pb-28 md:pb-0">
         <TravailFields

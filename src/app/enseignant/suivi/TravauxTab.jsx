@@ -13,7 +13,6 @@ import {
   TRAVAIL_STATUS_STYLES,
   TRAVAIL_VALIDATION_LABELS,
   TRAVAIL_VALIDATION_STYLES,
-  getTravailValidationHelp,
 } from '@/lib/travaux'
 
 const MODE_TABS = [
@@ -255,7 +254,6 @@ function TravailCard({ travail, currentEnseignantId, showMention }) {
   const statusStyle = TRAVAIL_STATUS_STYLES[travail.status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const validationStyle = TRAVAIL_VALIDATION_STYLES[travail.validation_status] ?? { bg: '#f1f5f9', color: '#64748b' }
   const typeColor = travail.travail_types?.color_hex ?? 'var(--color-navy)'
-  const validationHelp = getTravailValidationHelp(travail.validation_status)
   const mentionLabel = getMentionLabel(travail, currentEnseignantId)
   const needsAction = travail.encadrant_id === currentEnseignantId && ['pending_initial', 'pending_final'].includes(travail.validation_status)
 
@@ -294,7 +292,6 @@ function TravailCard({ travail, currentEnseignantId, showMention }) {
           </p>
           {travail.encadrant?.full_name && <p className="mt-1 text-[11px] text-slate-400">Encadrant : {travail.encadrant.full_name}</p>}
           {travail.validation_feedback && <p className="mt-1 text-xs text-red-500">{travail.validation_feedback}</p>}
-          {validationHelp && <p className="mt-1 text-[11px] leading-snug text-slate-400">{validationHelp}</p>}
         </div>
         <ChevronRight size={16} className="mt-1 flex-shrink-0 text-slate-300" />
       </div>

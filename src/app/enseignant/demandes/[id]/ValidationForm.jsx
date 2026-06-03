@@ -31,14 +31,11 @@ export default function ValidationForm({ realisationId }) {
 
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <h3 className="mb-2 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Feedback pédagogique</h3>
-      <p className="mb-3 text-xs leading-relaxed text-slate-500">
-        Obligatoire en cas de refus. Indiquez ce qui manque, ce qui doit être corrigé et le niveau attendu.
-      </p>
+      <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--color-navy)' }}>Feedback pédagogique</h3>
       <textarea
         value={feedback}
         onChange={(event) => setFeedback(event.target.value)}
-        placeholder="Ex : compte rendu incomplet, niveau d’autonomie à reclasser, supervision à préciser..."
+        placeholder="Feedback..."
         rows={4}
         className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-sky-400"
       />

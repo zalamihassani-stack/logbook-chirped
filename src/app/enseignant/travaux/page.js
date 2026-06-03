@@ -18,10 +18,7 @@ export default async function EnseignantTravauxPage() {
 
   return (
     <div className="max-w-6xl p-5 md:p-8">
-      <PageHeader
-        title="Travaux scientifiques"
-        subtitle="Validation des travaux encadrés et consultation des travaux où votre nom est cité"
-      />
+      <PageHeader title="Travaux scientifiques" />
       <TravauxTab
         enseignants={enseignants ?? []}
         travailTypes={normalizeTravailTypes(travailTypes ?? [])}

@@ -2,7 +2,7 @@ import Badge from '@/components/ui/Badge'
 import Section from '@/components/ui/Section'
 import DetailRow from '@/components/ui/DetailRow'
 import { formatDate, getResidentYear } from '@/lib/utils'
-import { ACTIVITY_TYPE_LABELS } from '@/lib/logbook'
+import { ACTIVITY_TYPE_LABELS, DEFAULT_SERVICE, SERVICE_LABELS, normalizeService } from '@/lib/logbook'
 
 const ACTION_LABELS = {
   submitted: 'Soumis',
@@ -22,6 +22,7 @@ export default function RealisationDetailView({ real, history = [], procedurePro
     <div className="space-y-4">
       <Section title="Geste chirurgical">
         <DetailRow label="Intitulé" value={procedure?.name} />
+        <DetailRow label="Service" value={SERVICE_LABELS[normalizeService(procedure?.service)] ?? SERVICE_LABELS[DEFAULT_SERVICE]} />
         <DetailRow label="Pathologie" value={procedure?.pathologie} />
         {category && (
           <DetailRow label="Catégorie">
