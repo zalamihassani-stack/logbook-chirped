@@ -7,8 +7,8 @@ import Badge from '@/components/ui/Badge'
 import AppCard from '@/components/ui/AppCard'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatDate } from '@/lib/utils'
-import { normalizeService } from '@/lib/logbook'
 import { TRAVAIL_VALIDATION_LABELS, TRAVAIL_VALIDATION_STYLES } from '@/lib/travaux'
+import { getEnseignantDashboardData } from '@/lib/queries/enseignant'
 import { ClipboardList, UserCheck, CheckCircle, XCircle, ChevronRight, FlaskConical } from 'lucide-react'
 
 export default async function EnseignantDashboard() {
@@ -21,70 +21,17 @@ export default async function EnseignantDashboard() {
     .select('service')
     .eq('id', user.id)
     .single()
-  const teacherService = normalizeService(profile?.service)
 
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-
-  const [
-    pendingRes,
-    validatedRes,
-    refusedRes,
-    residentsRes,
-    recentRes,
-    pendingTravauxRes,
-    pendingInitialTravauxRes,
-    pendingFinalTravauxRes,
-    recentFinalTravauxRes,
-    recentTravauxRes,
-  ] = await Promise.all([
-    supabase.from('realisations').select('id, procedures!inner(service)', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('procedures.service', teacherService).eq('status', 'pending'),
-    supabase.from('realisations').select('id, procedures!inner(service)', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('procedures.service', teacherService).eq('status', 'validated').gte('updated_at', startOfMonth),
-    supabase.from('realisations').select('id, procedures!inner(service)', { count: 'exact', head: true }).eq('enseignant_id', user.id).eq('procedures.service', teacherService).eq('status', 'refused').gte('updated_at', startOfMonth),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'resident').eq('is_active', true),
-    supabase.from('realisations')
-      .select('id, performed_at, procedures!inner(name, service), profiles!resident_id(full_name)')
-      .eq('enseignant_id', user.id).eq('status', 'pending')
-      .eq('procedures.service', teacherService)
-      .order('created_at', { ascending: false }).limit(5),
-    supabase
-      .from('travaux_scientifiques')
-      .select('id', { count: 'exact', head: true })
-      .eq('encadrant_id', user.id)
-      .in('validation_status', ['pending_initial', 'pending_final']),
-    supabase
-      .from('travaux_scientifiques')
-      .select('id', { count: 'exact', head: true })
-      .eq('encadrant_id', user.id)
-      .eq('validation_status', 'pending_initial'),
-    supabase
-      .from('travaux_scientifiques')
-      .select('id', { count: 'exact', head: true })
-      .eq('encadrant_id', user.id)
-      .eq('validation_status', 'pending_final'),
-    supabase
-      .from('travaux_scientifiques')
-      .select('id, title, year, validation_status, resident:profiles!resident_id(full_name), travail_types(name, color_hex)')
-      .eq('encadrant_id', user.id)
-      .eq('validation_status', 'pending_final')
-      .order('year', { ascending: false })
-      .limit(3),
-    supabase
-      .from('travaux_scientifiques')
-      .select('id, title, year, validation_status, resident:profiles!resident_id(full_name), travail_types(name, color_hex)')
-      .eq('encadrant_id', user.id)
-      .eq('validation_status', 'pending_initial')
-      .order('year', { ascending: false })
-      .limit(5),
-  ])
+  const { counts, recentRealisations, recentFinalTravaux, recentTravaux } =
+    await getEnseignantDashboardData(supabase, user.id, profile?.service)
 
   const metrics = [
-    { label: 'Actes en attente', value: pendingRes.count, icon: ClipboardList, iconBg: 'var(--color-warning-light)', iconColor: 'var(--color-warning)', href: '/enseignant/demandes?status=pending', priority: true },
-    { label: 'Travaux à valider', value: pendingTravauxRes.count, icon: FlaskConical, iconBg: '#ffedd5', iconColor: '#9a3412', href: '/enseignant/travaux', priority: true },
-    { label: 'Validation finale', value: pendingFinalTravauxRes.count, icon: CheckCircle, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)', href: '/enseignant/travaux?validation=pending_final' },
-    { label: 'Validés ce mois', value: validatedRes.count, icon: CheckCircle, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)', href: '/enseignant/demandes?status=validated' },
-    { label: 'Résidents actifs', value: residentsRes.count, icon: UserCheck, iconBg: 'var(--color-ice)', iconColor: 'var(--color-navy)', href: '/enseignant/residents' },
-    { label: 'Refusés ce mois', value: refusedRes.count, icon: XCircle, iconBg: 'var(--color-danger-light)', iconColor: 'var(--color-danger)', href: '/enseignant/demandes?status=refused' },
+    { label: 'Actes en attente', value: counts.pending, icon: ClipboardList, iconBg: 'var(--color-warning-light)', iconColor: 'var(--color-warning)', href: '/enseignant/demandes?status=pending', priority: true },
+    { label: 'Travaux à valider', value: counts.pendingTravaux, icon: FlaskConical, iconBg: '#ffedd5', iconColor: '#9a3412', href: '/enseignant/travaux', priority: true },
+    { label: 'Validation finale', value: counts.pendingFinalTravaux, icon: CheckCircle, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)', href: '/enseignant/travaux?validation=pending_final' },
+    { label: 'Validés ce mois', value: counts.validated, icon: CheckCircle, iconBg: 'var(--color-success-light)', iconColor: 'var(--color-success)', href: '/enseignant/demandes?status=validated' },
+    { label: 'Résidents actifs', value: counts.residents, icon: UserCheck, iconBg: 'var(--color-ice)', iconColor: 'var(--color-navy)', href: '/enseignant/residents' },
+    { label: 'Refusés ce mois', value: counts.refused, icon: XCircle, iconBg: 'var(--color-danger-light)', iconColor: 'var(--color-danger)', href: '/enseignant/demandes?status=refused' },
   ]
 
   return (
@@ -100,7 +47,7 @@ export default async function EnseignantDashboard() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <DashboardPanel title="Dernières demandes en attente" href="/enseignant/demandes?status=pending">
-          {(recentRes.data ?? []).map((realisation) => (
+          {recentRealisations.map((realisation) => (
             <AppCard
               as={Link}
               key={realisation.id}
@@ -115,26 +62,26 @@ export default async function EnseignantDashboard() {
               <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
             </AppCard>
           ))}
-          {(recentRes.data ?? []).length === 0 && <EmptyState title="Aucune demande en attente" className="py-6" />}
+          {recentRealisations.length === 0 && <EmptyState title="Aucune demande en attente" className="py-6" />}
         </DashboardPanel>
 
         <DashboardPanel
-          title={`Travaux scientifiques à valider (${pendingInitialTravauxRes.count ?? 0} initiale - ${pendingFinalTravauxRes.count ?? 0} finale)`}
+          title={`Travaux scientifiques à valider (${counts.pendingInitialTravaux} initiale - ${counts.pendingFinalTravaux} finale)`}
           href="/enseignant/travaux"
         >
-          {(recentFinalTravauxRes.data ?? []).length > 0 && (
+          {recentFinalTravaux.length > 0 && (
             <div className="mb-3 rounded-lg border border-emerald-100 bg-emerald-50 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold text-emerald-800">Validations finales soumises</p>
                 <Link href="/enseignant/travaux?validation=pending_final" className="text-xs font-medium text-emerald-800">Voir</Link>
               </div>
               <div className="space-y-2">
-                {(recentFinalTravauxRes.data ?? []).map((travail) => <TravailRow key={travail.id} travail={travail} />)}
+                {recentFinalTravaux.map((travail) => <TravailRow key={travail.id} travail={travail} />)}
               </div>
             </div>
           )}
-          {(recentTravauxRes.data ?? []).map((travail) => <TravailRow key={travail.id} travail={travail} />)}
-          {(recentTravauxRes.data ?? []).length === 0 && <EmptyState title="Aucun travail en attente" className="py-6" />}
+          {recentTravaux.map((travail) => <TravailRow key={travail.id} travail={travail} />)}
+          {recentTravaux.length === 0 && <EmptyState title="Aucun travail en attente" className="py-6" />}
         </DashboardPanel>
       </div>
     </div>

@@ -7,6 +7,9 @@ import PageHeader from '@/components/ui/PageHeader'
 import { createRealisation } from '@/app/actions/resident'
 import { ACTIVITY_TYPES, DEFAULT_SERVICE, OBJECTIF_LEVEL_LABELS, SERVICE_LABELS, getCountForRequiredLevel, normalizeService } from '@/lib/logbook'
 import { AlertTriangle, ArrowLeft, CheckCircle, ChevronDown, Search } from 'lucide-react'
+import { toast } from 'sonner'
+import { useServerAction } from '@/hooks/useServerAction'
+import { validateRealisation } from '@/lib/schemas/realisation'
 
 export default function NouveauForm({ procedures, enseignants, residents, residentYear, progressByProcedure = {}, settings = {}, initialProcedureId = '' }) {
   const router = useRouter()
@@ -22,16 +25,18 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
     commentaire: '',
   })
   const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const { execute, loading, error, setError } = useServerAction()
   const allowHorsObjectifs = settings.allow_hors_objectifs !== false
   const compteRenduRequired = Boolean(settings.compte_rendu_required)
 
   const selectedProc = procedures.find((procedure) => procedure.id === form.procedure_id)
   const selectedService = normalizeService(selectedProc?.service)
-  const filteredEnseignants = selectedProc
-    ? enseignants.filter((enseignant) => normalizeService(enseignant.service) === selectedService)
-    : enseignants
+  const filteredEnseignants = useMemo(
+    () => selectedProc
+      ? enseignants.filter((enseignant) => normalizeService(enseignant.service) === selectedService)
+      : enseignants,
+    [selectedProc, selectedService, enseignants],
+  )
   const isHorsObjectifs = selectedProc && !selectedProc.isObjectif
   const selectedProgress = selectedProc?.objective
     ? getCountForRequiredLevel(progressByProcedure[selectedProc.id], selectedProc.objective.required_level)
@@ -65,43 +70,29 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (!form.procedure_id) {
-      setError('Sélectionnez un geste.')
-      return
-    }
+    const schemaError = validateRealisation(form)
+    if (schemaError) { setError(schemaError); return }
 
-    if (!form.activity_type) {
-      setError("Sélectionnez le niveau de réalisation.")
+    if (!form.ipp_patient.trim()) {
+      setError("L’IPP patient est requis.")
       return
     }
 
     if (!allowHorsObjectifs && isHorsObjectifs) {
-      setError('Ce geste n’est pas disponible pour votre année.')
-      return
-    }
-
-    if (!form.ipp_patient.trim()) {
-      setError("L'IPP patient est requis.")
+      setError(‘Ce geste n’est pas disponible pour votre année.’)
       return
     }
 
     if (compteRenduRequired && !form.compte_rendu.trim()) {
-      setError('Le compte rendu opératoire est requis.')
+      setError(‘Le compte rendu opératoire est requis.’)
       return
     }
 
-    setLoading(true)
-    setError('')
-
-    const res = await createRealisation(form)
-
-    setLoading(false)
-    if (res.error) {
-      setError(res.error)
-      return
+    const res = await execute(createRealisation, form)
+    if (!res?.error) {
+      toast.success('Acte soumis avec succès — en attente de validation.')
+      router.push('/resident/historique')
     }
-
-    router.push('/resident/historique')
   }
 
   function setField(key, value) {

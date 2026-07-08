@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 export default async function ResidentLayout({ children }) {
   const supabase = await createClient()
@@ -25,5 +26,5 @@ export default async function ResidentLayout({ children }) {
     travaux: (pendingTravauxRes.count ?? 0) + (refusedTravauxRes.count ?? 0),
   }
 
-  return <AppLayout profile={profile} badges={badges}>{children}</AppLayout>
+  return <AppLayout profile={profile} badges={badges}><ErrorBoundary>{children}</ErrorBoundary></AppLayout>
 }

@@ -4,8 +4,9 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import { getResidentYear } from '@/lib/utils'
-import { getResidentProgressRows, indexProgressByProcedure, getCountForRequiredLevel, procedureToGlobalObjective } from '@/lib/logbook'
+import { indexProgressByProcedure, getCountForRequiredLevel, procedureToGlobalObjective } from '@/lib/logbook'
 import { normalizeTravailTypes } from '@/lib/travaux'
+import { getResidentDashboardData } from '@/lib/queries/resident'
 import { CheckCircle, Clock, FilePlus2, FlaskConical, ListChecks, Target, XCircle } from 'lucide-react'
 
 const LEVELS = {
@@ -30,47 +31,11 @@ export default async function ResidentDashboard() {
 
   const year = getResidentYear(profile?.residanat_start_date)
 
-  const { data: authorLinks } = await admin
-    .from('travail_auteurs')
-    .select('travail_id')
-    .eq('profile_id', user.id)
-  const authoredIds = Array.from(new Set((authorLinks ?? []).map((link) => link.travail_id).filter(Boolean)))
-
-  const [
-    progressRows,
-    proceduresRes,
-    totalRes,
-    validatedRes,
-    pendingRes,
-    refusedRes,
-    ownTravauxRes,
-    authoredTravauxRes,
-    typesRes,
-  ] = await Promise.all([
-    getResidentProgressRows(supabase, user.id),
-    supabase
-      .from('procedures')
-      .select('id, objectif_final, target_level, target_count, target_year, seuil_exposition_min, seuil_supervision_min, seuil_autonomie_min')
-      .eq('is_active', true),
-    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id),
-    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'validated'),
-    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'pending'),
-    supabase.from('realisations').select('*', { count: 'exact', head: true }).eq('resident_id', user.id).eq('status', 'refused'),
-    admin
-      .from('travaux_scientifiques')
-      .select('id, type_id, validation_status')
-      .eq('resident_id', user.id),
-    authoredIds.length > 0
-      ? admin
-        .from('travaux_scientifiques')
-        .select('id, type_id, validation_status')
-        .in('id', authoredIds)
-      : Promise.resolve({ data: [] }),
-    supabase.from('travail_types').select('id, name, color_hex').eq('is_active', true).order('display_order'),
-  ])
+  const { progressRows, procedures, counts, ownTravaux, authoredTravaux, travailTypes: rawTypes } =
+    await getResidentDashboardData(supabase, admin, user.id)
 
   const progressIndex = indexProgressByProcedure(progressRows)
-  const objectives = (proceduresRes.data ?? [])
+  const objectives = procedures
     .map(procedureToGlobalObjective)
     .filter((objective) => objective?.required_level > 0)
   const levelStats = [1, 2, 3].map((level) => ({
@@ -78,9 +43,13 @@ export default async function ResidentDashboard() {
     ...summarizeObjectives(objectives.filter((objective) => objective.required_level === level), progressIndex),
   }))
 
-  const travaux = Array.from(new Map([...(ownTravauxRes.data ?? []), ...(authoredTravauxRes.data ?? [])].map((travail) => [travail.id, travail])).values())
-  const travailTypes = normalizeTravailTypes(typesRes.data ?? [])
-  const travauxPending = travaux.filter((travail) => ['pending_initial', 'pending_final'].includes(travail.validation_status)).length
+  const travaux = Array.from(
+    new Map([...ownTravaux, ...authoredTravaux].map((travail) => [travail.id, travail])).values()
+  )
+  const travailTypes = normalizeTravailTypes(rawTypes)
+  const travauxPending = travaux.filter((travail) =>
+    ['pending_initial', 'pending_final'].includes(travail.validation_status)
+  ).length
   const travailTypeStats = travailTypes.map((type) => ({
     ...type,
     count: travaux.filter((travail) => travail.type_id === type.id).length,
@@ -103,10 +72,10 @@ export default async function ResidentDashboard() {
       />
 
       <DashboardSection title="Mes actes" columns="grid-cols-2 sm:grid-cols-4">
-        <StatCard href="/resident/historique" icon={ListChecks} label="Total saisis" value={totalRes.count ?? 0} tone="primary" />
-        <StatCard href="/resident/historique?status=validated" icon={CheckCircle} label="Validés" value={validatedRes.count ?? 0} tone="success" />
-        <StatCard href="/resident/historique?status=pending" icon={Clock} label="En attente" value={pendingRes.count ?? 0} tone="warning" />
-        <StatCard href="/resident/historique?status=refused" icon={XCircle} label="Refusés" value={refusedRes.count ?? 0} tone="danger" />
+        <StatCard href="/resident/historique" icon={ListChecks} label="Total saisis" value={counts.total} tone="primary" />
+        <StatCard href="/resident/historique?status=validated" icon={CheckCircle} label="Validés" value={counts.validated} tone="success" />
+        <StatCard href="/resident/historique?status=pending" icon={Clock} label="En attente" value={counts.pending} tone="warning" />
+        <StatCard href="/resident/historique?status=refused" icon={XCircle} label="Refusés" value={counts.refused} tone="danger" />
       </DashboardSection>
 
       <DashboardSection title="Ma progression" columns="grid-cols-3">

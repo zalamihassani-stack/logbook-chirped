@@ -6,6 +6,7 @@ import { normalizeObjectifLevel, normalizeService } from '@/lib/logbook'
 import { sendPushToUser } from '@/lib/push'
 import { getTravailTypeKey, isFinalWorkStatus } from '@/lib/travaux'
 import { getAppSettings } from '@/lib/app-settings'
+import { validateRealisation } from '@/lib/schemas/realisation'
 import { revalidatePath } from 'next/cache'
 
 async function requireResident() {
@@ -42,8 +43,15 @@ export async function createRealisation(formData) {
   }
   const admin = createAdminClient()
 
-  const validationError = validateRealisationPayload(formData)
-  if (validationError) return { error: validationError }
+  const schemaError = validateRealisation(formData)
+  if (schemaError) return { error: schemaError }
+
+  const performedAt = new Date(`${formData.performed_at}T00:00:00`)
+  const tomorrow = new Date()
+  tomorrow.setHours(24, 0, 0, 0)
+  if (Number.isNaN(performedAt.getTime()) || performedAt >= tomorrow) {
+    return { error: 'La date de réalisation ne peut pas être dans le futur.' }
+  }
 
   const residentYear = getResidentYear(profile?.residanat_start_date)
   const [{ data: procedure }, { data: residentProfile }, { data: enseignantProfile }] = await Promise.all([
@@ -54,9 +62,7 @@ export async function createRealisation(formData) {
   const serviceError = validateEnseignantService(procedure, enseignantProfile)
   if (serviceError) return { error: serviceError }
 
-  const [settingsRes] = await Promise.all([
-    getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
-  ])
+  const settingsRes = await getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required')
   const isObjective = isProcedureObjectiveForYear(procedure, residentYear)
   const settingsError = validateRealisationSettings(formData, settingsRes.settings, isObjective)
   if (settingsError) return { error: settingsError }
@@ -122,8 +128,15 @@ export async function resubmitRealisation(id, formData) {
   }
   const admin = createAdminClient()
 
-  const validationError = validateRealisationPayload(formData)
-  if (validationError) return { error: validationError }
+  const schemaError = validateRealisation(formData)
+  if (schemaError) return { error: schemaError }
+
+  const performedAt = new Date(`${formData.performed_at}T00:00:00`)
+  const tomorrow = new Date()
+  tomorrow.setHours(24, 0, 0, 0)
+  if (Number.isNaN(performedAt.getTime()) || performedAt >= tomorrow) {
+    return { error: 'La date de réalisation ne peut pas être dans le futur.' }
+  }
 
   const residentYear = getResidentYear(profile?.residanat_start_date)
   const [{ data: procedure }, { data: residentProfile }, { data: enseignantProfile }] = await Promise.all([
@@ -134,9 +147,7 @@ export async function resubmitRealisation(id, formData) {
   const serviceError = validateEnseignantService(procedure, enseignantProfile)
   if (serviceError) return { error: serviceError }
 
-  const [settingsRes] = await Promise.all([
-    getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required'),
-  ])
+  const settingsRes = await getAppSettings(supabase, 'allow_hors_objectifs, compte_rendu_required')
   const isObjective = isProcedureObjectiveForYear(procedure, residentYear)
   const settingsError = validateRealisationSettings(formData, settingsRes.settings, isObjective)
   if (settingsError) return { error: settingsError }
@@ -424,31 +435,10 @@ export async function deleteTravail(id) {
   return { success: true }
 }
 
-function validateRealisationPayload(formData) {
-  if (!formData?.procedure_id) return 'Sélectionnez un geste.'
-  if (!formData?.enseignant_id) return 'Sélectionnez un enseignant.'
-  if (!formData?.activity_type) return "Sélectionnez un type d'activité."
-  if (!['expose', 'supervise', 'autonome'].includes(formData.activity_type)) {
-    return "Type d'activité invalide."
-  }
-  if (!formData?.performed_at) return 'Indiquez la date de réalisation.'
-
-  const performedAt = new Date(`${formData.performed_at}T00:00:00`)
-  const tomorrow = new Date()
-  tomorrow.setHours(24, 0, 0, 0)
-  if (Number.isNaN(performedAt.getTime()) || performedAt >= tomorrow) {
-    return 'La date de réalisation ne peut pas être dans le futur.'
-  }
-
-  const ipp = formData.ipp_patient?.trim()
-  if (ipp && ipp.length > 64) return 'IPP patient trop long.'
-
-  return ''
-}
 
 function validateRealisationSettings(formData, settings, objective) {
   if (settings?.allow_hors_objectifs === false && !objective) {
-    return 'Les gestes hors objectifs sont desactives par un administrateur.'
+    return 'Les gestes hors objectifs sont désactivés par un administrateur.'
   }
 
   if (settings?.compte_rendu_required && !formData?.compte_rendu?.trim()) {
@@ -464,7 +454,7 @@ function validateEnseignantService(procedure, enseignant) {
   const procedureService = normalizeService(procedure.service)
   const enseignantService = normalizeService(enseignant.service)
   if (procedureService !== enseignantService) {
-    return "Cet enseignant n'appartient pas au service du geste selectionne."
+    return "Cet enseignant n'appartient pas au service du geste sélectionné."
   }
 
   return ''

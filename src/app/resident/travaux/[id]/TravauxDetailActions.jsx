@@ -6,14 +6,15 @@ import { CheckCircle, Pencil, Trash2 } from 'lucide-react'
 import { deleteTravail, submitTravailFinalValidation } from '@/app/actions/resident'
 import { getTravailTypeKey } from '@/lib/travaux'
 import AppCard from '@/components/ui/AppCard'
+import { toast } from 'sonner'
+import { useServerAction } from '@/hooks/useServerAction'
 
 export default function TravauxDetailActions({ travail, types, enseignants, residents, canManage = true }) {
   const router = useRouter()
   const [showFinalForm, setShowFinalForm] = useState(false)
   const [finalForm, setFinalForm] = useState(() => initFinalForm(travail))
   const [deleteConfirm, setDeleteConfirm] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const { execute, loading, error, setError } = useServerAction()
   const people = useMemo(() => [...enseignants, ...residents], [enseignants, residents])
   const typeKey = getTravailTypeKey(travail.travail_types)
   const hasInitialValidation = Boolean(travail.initial_validated_by || travail.initial_validated_at)
@@ -61,23 +62,24 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
   }
 
   async function handleDelete() {
-    setLoading(true)
-    await deleteTravail(travail.id)
+    const res = await execute(deleteTravail, travail.id)
+    if (res?.error) {
+      setDeleteConfirm(false)
+      toast.error(`Erreur lors de la suppression : ${res.error}`)
+      return
+    }
+    toast.success('Travail supprimé.')
     router.push('/resident/travaux')
   }
 
   async function handleFinalSubmit(event) {
     event.preventDefault()
-    setLoading(true)
-    setError('')
-    const res = await submitTravailFinalValidation(travail.id, finalForm)
-    setLoading(false)
-    if (res.error) {
-      setError(res.error)
-      return
+    const res = await execute(submitTravailFinalValidation, travail.id, finalForm)
+    if (!res?.error) {
+      toast.success('Soumission finale envoyée à l'encadrant.')
+      setShowFinalForm(false)
+      router.refresh()
     }
-    setShowFinalForm(false)
-    router.refresh()
   }
 
   return (
@@ -117,7 +119,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
       {deleteConfirm && (
         <AppCard className="mt-4 border-red-100 bg-red-50 p-4">
           <p className="text-sm font-semibold text-red-700">Supprimer ce travail ?</p>
-          <p className="mt-1 text-xs text-red-600">Cette action supprimera le travail scientifique et ses auteurs associes.</p>
+          <p className="mt-1 text-xs text-red-600">Cette action supprimera le travail scientifique et ses auteurs associés.</p>
           <div className="mt-3 flex gap-2">
             <button type="button" onClick={() => setDeleteConfirm(false)} className="flex-1 rounded-xl border border-red-200 bg-white py-2 text-sm font-medium text-red-600">
               Annuler

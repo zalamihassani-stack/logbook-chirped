@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import { normalizeService } from '@/lib/logbook'
 
 export default async function EnseignantLayout({ children }) {
@@ -28,5 +29,5 @@ export default async function EnseignantLayout({ children }) {
       .in('validation_status', ['pending_initial', 'pending_final']),
   ])
 
-  return <AppLayout profile={profile} badges={{ demandes: pendingRes.count ?? 0, travaux: pendingTravauxRes.count ?? 0 }}>{children}</AppLayout>
+  return <AppLayout profile={profile} badges={{ demandes: pendingRes.count ?? 0, travaux: pendingTravauxRes.count ?? 0 }}><ErrorBoundary>{children}</ErrorBoundary></AppLayout>
 }

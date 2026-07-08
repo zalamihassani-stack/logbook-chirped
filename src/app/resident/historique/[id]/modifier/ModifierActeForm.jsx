@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { resubmitRealisation } from '@/app/actions/resident'
 import { ACTIVITY_TYPES, normalizeService } from '@/lib/logbook'
+import { toast } from 'sonner'
+import { useServerAction } from '@/hooks/useServerAction'
 
 export default function ModifierActeForm({ realisationId, current, enseignants, residents }) {
   const router = useRouter()
@@ -20,8 +22,7 @@ export default function ModifierActeForm({ realisationId, current, enseignants, 
     compte_rendu: current.compte_rendu ?? '',
     commentaire: current.commentaire ?? '',
   })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const { execute, loading, error } = useServerAction()
   const procedureService = normalizeService(current.procedures?.service)
   const filteredEnseignants = enseignants.filter((enseignant) => normalizeService(enseignant.service) === procedureService)
 
@@ -31,15 +32,11 @@ export default function ModifierActeForm({ realisationId, current, enseignants, 
 
   async function handleSubmit(event) {
     event.preventDefault()
-    setError('')
-    setLoading(true)
-    const res = await resubmitRealisation(realisationId, form)
-    setLoading(false)
-    if (res.error) {
-      setError(res.error)
-      return
+    const res = await execute(resubmitRealisation, realisationId, form)
+    if (!res?.error) {
+      toast.success(isPending ? 'Acte modifié.' : 'Acte re-soumis — en attente de validation.')
+      router.push(`/resident/historique/${realisationId}`)
     }
-    router.push(`/resident/historique/${realisationId}`)
   }
 
   return (

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 export default async function AdminLayout({ children }) {
   const supabase = await createClient()
@@ -15,5 +16,5 @@ export default async function AdminLayout({ children }) {
 
   if (profile?.role !== 'admin' || profile?.is_active === false) redirect('/')
 
-  return <AppLayout profile={profile}>{children}</AppLayout>
+  return <AppLayout profile={profile}><ErrorBoundary>{children}</ErrorBoundary></AppLayout>
 }

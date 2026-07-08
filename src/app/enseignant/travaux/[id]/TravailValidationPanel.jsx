@@ -5,33 +5,31 @@ import { CheckCircle2, XCircle } from 'lucide-react'
 import { validateTravail, refuseTravail } from '@/app/actions/enseignant'
 import { getTravailValidationActionLabel } from '@/lib/travaux'
 import AppCard from '@/components/ui/AppCard'
+import { toast } from 'sonner'
+import { useServerAction } from '@/hooks/useServerAction'
 
 export default function TravailValidationPanel({ travail }) {
   const router = useRouter()
   const [feedback, setFeedback] = useState('')
-  const [error, setError] = useState('')
   const [pendingAction, setPendingAction] = useState('')
   const [isPending, startTransition] = useTransition()
+  const { execute, error, setError } = useServerAction()
 
   function runAction(action) {
     if (action === 'refuse' && !feedback.trim()) {
       setError('La justification est obligatoire pour demander des corrections.')
       return
     }
-    setError('')
+    const actionFn = action === 'validate' ? validateTravail : refuseTravail
     setPendingAction(action)
     startTransition(async () => {
-      const res = action === 'validate'
-        ? await validateTravail(travail.id, feedback)
-        : await refuseTravail(travail.id, feedback)
-
+      const res = await execute(actionFn, travail.id, feedback)
       setPendingAction('')
-      if (res?.error) {
-        setError(res.error)
-        return
+      if (!res?.error) {
+        toast.success(action === 'validate' ? 'Travail validé avec succès.' : 'Corrections demandées — résident notifié.')
+        setFeedback('')
+        router.refresh()
       }
-      setFeedback('')
-      router.refresh()
     })
   }
 

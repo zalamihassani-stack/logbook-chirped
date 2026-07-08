@@ -6,6 +6,40 @@ import { isFinalWorkStatus } from '@/lib/travaux'
 import { normalizeService } from '@/lib/logbook'
 import { revalidatePath } from 'next/cache'
 
+const REALISATION_PUSH_LABELS = {
+  validated: {
+    title: 'Acte validé',
+    body: (gestureName) => `Votre acte "${gestureName ?? 'chirurgical'}" a été validé.`,
+  },
+  refused: {
+    title: 'Corrections demandées',
+    body: (gestureName, feedback) => feedback || `Des corrections sont demandées pour "${gestureName ?? 'votre acte'}".`,
+  },
+}
+
+async function notifyResidentForRealisation(admin, { realisationId, residentId, status, gestureName, feedback }) {
+  if (!residentId) return
+  const labels = REALISATION_PUSH_LABELS[status]
+  if (!labels) return
+
+  const { error: notificationError } = await admin.from('notifications').insert({
+    user_id: residentId,
+    realisation_id: realisationId,
+    type: status,
+    is_read: false,
+  })
+  if (notificationError) {
+    console.error('Notification résident non créée pour la réalisation', notificationError)
+  }
+
+  await sendPushToUser(residentId, {
+    title: labels.title,
+    body: labels.body(gestureName, feedback),
+    url: `/resident/historique/${realisationId}`,
+    tag: `realisation-${realisationId}-${status}`,
+  })
+}
+
 async function requireEnseignant() {
   const supabase = await createClient()
   const {
@@ -48,7 +82,7 @@ export async function validateRealisation(id, feedback) {
     .update({ status: 'validated' })
     .eq('id', id)
     .eq('enseignant_id', user.id)
-    .select('resident_id')
+    .select('resident_id, procedures(name)')
     .single()
   if (error) return { error: error.message }
 
@@ -60,15 +94,16 @@ export async function validateRealisation(id, feedback) {
   })
   if (historyError) return { error: historyError.message }
 
-  const { error: notificationError } = await admin.from('notifications').insert({
-    user_id: real.resident_id,
-    realisation_id: id,
-    type: 'validated',
-    is_read: false,
+  await notifyResidentForRealisation(admin, {
+    realisationId: id,
+    residentId: real.resident_id,
+    status: 'validated',
+    gestureName: real.procedures?.name,
   })
-  if (notificationError) return { error: notificationError.message }
 
   revalidatePath('/enseignant/demandes')
+  revalidatePath('/resident')
+  revalidatePath('/resident/historique')
   return { success: true }
 }
 
@@ -96,7 +131,7 @@ export async function refuseRealisation(id, feedback) {
     .update({ status: 'refused' })
     .eq('id', id)
     .eq('enseignant_id', user.id)
-    .select('resident_id')
+    .select('resident_id, procedures(name)')
     .single()
   if (error) return { error: error.message }
 
@@ -108,15 +143,17 @@ export async function refuseRealisation(id, feedback) {
   })
   if (historyError) return { error: historyError.message }
 
-  const { error: notificationError } = await admin.from('notifications').insert({
-    user_id: real.resident_id,
-    realisation_id: id,
-    type: 'refused',
-    is_read: false,
+  await notifyResidentForRealisation(admin, {
+    realisationId: id,
+    residentId: real.resident_id,
+    status: 'refused',
+    gestureName: real.procedures?.name,
+    feedback: cleanFeedback,
   })
-  if (notificationError) return { error: notificationError.message }
 
   revalidatePath('/enseignant/demandes')
+  revalidatePath('/resident')
+  revalidatePath('/resident/historique')
   return { success: true }
 }
 
@@ -128,9 +165,9 @@ async function assertRealisationService(admin, realisationId, enseignantId, teac
     .maybeSingle()
 
   if (error) return error.message
-  if (!real || real.enseignant_id !== enseignantId) return 'Acte introuvable ou non autorise.'
+  if (!real || real.enseignant_id !== enseignantId) return 'Acte introuvable ou non autorisé.'
   if (normalizeService(real.procedures?.service) !== normalizeService(teacherService)) {
-    return "Cet acte n'appartient pas a votre service."
+    return "Cet acte n'appartient pas à votre service."
   }
   return null
 }

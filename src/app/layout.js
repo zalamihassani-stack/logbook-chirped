@@ -1,5 +1,6 @@
 import './globals.css'
 import SWRegister from '@/components/pwa/SWRegister'
+import { Toaster } from 'sonner'
 
 export const metadata = {
   title: 'Logbook Chirurgie P\u00e9diatrique',
@@ -32,6 +33,7 @@ export default function RootLayout({ children }) {
       <body className="min-h-full flex flex-col">
         <SWRegister />
         {children}
+        <Toaster position="bottom-center" richColors />
       </body>
     </html>
   )

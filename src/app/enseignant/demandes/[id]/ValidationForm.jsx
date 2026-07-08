@@ -2,31 +2,28 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { validateRealisation, refuseRealisation } from '@/app/actions/enseignant'
+import { toast } from 'sonner'
+import { useServerAction } from '@/hooks/useServerAction'
 
 export default function ValidationForm({ realisationId }) {
   const router = useRouter()
   const [feedback, setFeedback] = useState('')
-  const [loading, setLoading] = useState(null)
-  const [error, setError] = useState('')
+  const [loadingAction, setLoadingAction] = useState(null)
+  const { execute, error, setError } = useServerAction()
 
   async function handle(action) {
     if (action === 'refuse' && feedback.trim().length < 8) {
       setError('Un refus doit inclure un feedback pédagogique exploitable.')
       return
     }
-
-    setLoading(action)
-    setError('')
-
-    const res = action === 'validate'
-      ? await validateRealisation(realisationId, feedback)
-      : await refuseRealisation(realisationId, feedback)
-    setLoading(null)
-    if (res.error) {
-      setError(res.error)
-      return
+    const actionFn = action === 'validate' ? validateRealisation : refuseRealisation
+    setLoadingAction(action)
+    const res = await execute(actionFn, realisationId, feedback)
+    setLoadingAction(null)
+    if (!res?.error) {
+      toast.success(action === 'validate' ? 'Acte validé avec succès.' : 'Acte refusé — feedback envoyé au résident.')
+      router.push('/enseignant/demandes')
     }
-    router.push('/enseignant/demandes')
   }
 
   return (
@@ -44,18 +41,18 @@ export default function ValidationForm({ realisationId }) {
         <div className="flex gap-3">
           <button
             onClick={() => handle('refuse')}
-            disabled={!!loading}
+            disabled={!!loadingAction}
             className="flex-1 rounded-xl border-2 border-red-500 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
           >
-            {loading === 'refuse' ? 'Refus...' : 'Refuser'}
+            {loadingAction === 'refuse' ? 'Refus...' : 'Refuser'}
           </button>
           <button
             onClick={() => handle('validate')}
-            disabled={!!loading}
+            disabled={!!loadingAction}
             className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
             style={{ backgroundColor: 'var(--color-navy)' }}
           >
-            {loading === 'validate' ? 'Validation...' : 'Valider'}
+            {loadingAction === 'validate' ? 'Validation...' : 'Valider'}
           </button>
         </div>
       </div>
