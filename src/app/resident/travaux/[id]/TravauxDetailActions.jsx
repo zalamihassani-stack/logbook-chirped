@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -76,7 +76,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
     event.preventDefault()
     const res = await execute(submitTravailFinalValidation, travail.id, finalForm)
     if (!res?.error) {
-      toast.success('Soumission finale envoyée à l'encadrant.')
+      toast.success("Soumission finale envoyée à l'encadrant.")
       setShowFinalForm(false)
       router.refresh()
     }
@@ -188,7 +188,7 @@ export default function TravauxDetailActions({ travail, types, enseignants, resi
                 disabled={loading}
                 className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white disabled:opacity-60"
               >
-                {loading ? 'Soumission...' : 'Soumettre à l’encadrant'}
+                {loading ? 'Soumission...' : "Soumettre à l'encadrant"}
               </button>
             </form>
         </AppCard>

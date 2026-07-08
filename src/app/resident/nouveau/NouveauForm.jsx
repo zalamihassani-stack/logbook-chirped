@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -74,17 +74,17 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
     if (schemaError) { setError(schemaError); return }
 
     if (!form.ipp_patient.trim()) {
-      setError("L’IPP patient est requis.")
+      setError("L'IPP patient est requis.")
       return
     }
 
     if (!allowHorsObjectifs && isHorsObjectifs) {
-      setError(‘Ce geste n’est pas disponible pour votre année.’)
+      setError("Ce geste n'est pas disponible pour votre année.")
       return
     }
 
     if (compteRenduRequired && !form.compte_rendu.trim()) {
-      setError(‘Le compte rendu opératoire est requis.’)
+      setError('Le compte rendu opératoire est requis.')
       return
     }
 
@@ -184,7 +184,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
           {selectedProc?.objective && (
             <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-900">
               {selectedMissing > 0
-                ? `Encore ${selectedMissing} acte${selectedMissing > 1 ? 's' : ''} pour atteindre l’objectif ${OBJECTIF_LEVEL_LABELS[selectedProc.objective.required_level]}.`
+                ? `Encore ${selectedMissing} acte${selectedMissing > 1 ? 's' : ''} pour atteindre l'objectif ${OBJECTIF_LEVEL_LABELS[selectedProc.objective.required_level]}.`
                 : 'Objectif atteint.'}
             </div>
           )}
@@ -286,7 +286,7 @@ export default function NouveauForm({ procedures, enseignants, residents, reside
                 onChange={(event) => setField('compte_rendu', event.target.value)}
                 rows={4}
                 required={compteRenduRequired}
-                placeholder="Description de l’acte..."
+                placeholder="Description de l'acte..."
                 className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"
               />
             </Field>
